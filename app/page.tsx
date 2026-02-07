@@ -82,12 +82,12 @@ export default function FootballApp() {
   };
 
   const normalizeFormation = (form: string | null | undefined): string => {
-    if (!form || !formations[form as keyof typeof formations]) return '4-3-3-aanvallend';
+    if (!form || !(form in formations)) return '4-3-3-aanvallend';
     return form;
   };
 
   const getGroupedPlayers = () => {
-    const grouped = {};
+    const grouped: Record<string, any[]> = {};
     positionOrder.forEach(pos => {
       grouped[pos] = players
         .filter(p => p.position === pos)
@@ -96,11 +96,11 @@ export default function FootballApp() {
     return grouped;
   };
 
-  const getSubstitutionsForNumber = (subNumber) => {
+  const getSubstitutionsForNumber = (subNumber: number) => {
     return substitutions.filter(s => s.substitution_number === subNumber);
   };
 
-  const isPlayerOnField = (playerId) => {
+  const isPlayerOnField = (playerId: number) => {
     return fieldOccupants.some(p => p && p.id === playerId);
   };
 
