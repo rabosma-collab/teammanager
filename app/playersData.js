@@ -1,0 +1,20 @@
+export const playersData = [
+  { id: 1, name: 'Marnix', nr: 0, min: 0, was: 0, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 75, sho: 70, pas: 72, dri: 74, def: 68, phy: 70 } },
+  { id: 2, name: 'Jan Henk', nr: 210, min: 210, was: 3, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 65, sho: 78, pas: 75, dri: 70, def: 60, phy: 75 } },
+  { id: 3, name: 'Harmen', nr: 180, min: 180, was: 1, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 80, sho: 65, pas: 70, dri: 82, def: 55, ph: 68 } },
+  { id: 4, name: 'Rob', nr: 60, min: 60, was: 1, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 70, sho: 72, pas: 74, dri: 71, def: 65, phy: 72 } },
+  { id: 5, name: 'Martin', nr: 60, min: 60, was: 0, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 72, sho: 68, pas: 70, dri: 73, def: 70, phy: 74 } },
+  { id: 6, name: 'Wilco', nr: 150, min: 150, was: 2, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 68, sho: 60, pas: 78, dri: 70, def: 82, phy: 80 } },
+  { id: 7, name: 'Herman', nr: 150, min: 150, was: 2, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 65, sho: 62, pas: 72, dri: 68, def: 85, phy: 82 } },
+  { id: 8, name: 'David', nr: 120, min: 120, was: 2, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 82, sho: 75, pas: 70, dri: 84, def: 40, phy: 65 } },
+  { id: 9, name: 'Swen', nr: 175, min: 175, was: 2, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 78, sho: 70, pas: 74, dri: 77, def: 60, phy: 70 } },
+  { id: 10, name: 'Floris', nr: 150, min: 150, was: 0, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 74, sho: 72, pas: 72, dri: 75, def: 65, phy: 72 } },
+  { id: 11, name: 'Lars', nr: 130, min: 130, was: 0, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 70, sho: 65, pas: 76, dri: 72, def: 78, phy: 78 } },
+  { id: 12, name: 'Ward', nr: 175, min: 175, was: 2, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 85, sho: 80, pas: 72, dri: 83, def: 35, phy: 68 } },
+  { id: 13, name: 'Roel', nr: 90, min: 90, was: 1, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 60, sho: 55, pas: 70, dri: 62, def: 88, phy: 85 } },
+  { id: 14, name: 'Robin', nr: 180, min: 180, was: 3, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 77, sho: 74, pas: 75, dri: 78, def: 62, phy: 74 } },
+  { id: 15, name: 'Rick', nr: 210, min: 210, was: 4, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 68, sho: 82, pas: 70, dri: 74, def: 50, phy: 80 } },
+  { id: 16, name: 'Berry', nr: 120, min: 120, was: 0, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 72, sho: 65, pas: 74, dri: 71, def: 75, phy: 76 } },
+  { id: 17, name: 'Sjaak', nr: 30, min: 30, was: 0, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 88, sho: 78, pas: 70, dri: 85, def: 30, phy: 60 } },
+  { id: 18, name: 'Gerco', nr: 210, min: 210, was: 2, goals: 0, assists: 0, status: 'aanwezig', stats: { pac: 70, sho: 60, pas: 80, dri: 72, def: 82, phy: 84 } }
+];
