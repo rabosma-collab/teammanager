@@ -81,8 +81,8 @@ export default function FootballApp() {
     'Aanvaller': '⚡'
   };
 
-  const normalizeFormation = (form) => {
-    if (!form || !formations[form]) return '4-3-3-aanvallend';
+  const normalizeFormation = (form: string | null | undefined): string => {
+    if (!form || !formations[form as keyof typeof formations]) return '4-3-3-aanvallend';
     return form;
   };
 
