@@ -3,25 +3,53 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
+interface Player {
+  id: number;
+  name: string;
+  position: string;
+  goals: number;
+  assists: number;
+  was: number;
+  min: number;
+  injured: boolean;
+}
+
+interface Match {
+  id: number;
+  date: string;
+  opponent: string;
+  home_away: string;
+  formation: string;
+}
+
+interface Substitution {
+  id: number;
+  match_id: number;
+  substitution_number: number;
+  minute: number;
+  player_out_id: number;
+  player_in_id: number;
+}
+
 export default function FootballApp() {
-  const [players, setPlayers] = useState([]);
-  const [matches, setMatches] = useState([]);
-  const [selectedMatch, setSelectedMatch] = useState(null);
-  const [matchAbsences, setMatchAbsences] = useState([]);
-  const [substitutions, setSubstitutions] = useState([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [matchAbsences, setMatchAbsences] = useState<number[]>([]);
+  const [substitutions, setSubstitutions] = useState<Substitution[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('pitch');
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [fieldOccupants, setFieldOccupants] = useState(Array(11).fill(null));
-  const [benchPlayers, setBenchPlayers] = useState([]);
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [fieldOccupants, setFieldOccupants] = useState<(Player | null)[]>(Array(11).fill(null));
+  const [benchPlayers, setBenchPlayers] = useState<Player[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [savingLineup, setSavingLineup] = useState(false);
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
-  const [showSubModal, setShowSubModal] = useState(null);
-  const [tempSubs, setTempSubs] = useState([]);
+  const [showSubModal, setShowSubModal] = useState<number | null>(null);
+  const [tempSubs, setTempSubs] = useState<Array<{out: Player | null, in: Player | null}>>([]);
 
-  const formations = {
+  const formations: Record<string, Array<{t: number, l: number}>> = {
     '4-3-3-aanvallend': [
       { t: 88, l: 50 },
       { t: 72, l: 15 }, { t: 75, l: 38 }, { t: 75, l: 62 }, { t: 72, l: 85 },
@@ -64,7 +92,7 @@ export default function FootballApp() {
     ]
   };
 
-  const formationLabels = {
+  const formationLabels: Record<string, string> = {
     '4-3-3-aanvallend': '4-3-3 Aanvallend',
     '4-3-3-verdedigend': '4-3-3 Verdedigend',
     '4-4-2-plat': '4-4-2 Plat',
@@ -74,7 +102,7 @@ export default function FootballApp() {
   };
 
   const positionOrder = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
-  const positionEmojis = {
+  const positionEmojis: Record<string, string> = {
     'Keeper': '🧤',
     'Verdediger': '🛡️',
     'Middenvelder': '⚙️',
@@ -86,8 +114,8 @@ export default function FootballApp() {
     return form;
   };
 
-  const getGroupedPlayers = () => {
-    const grouped: Record<string, any[]> = {};
+  const getGroupedPlayers = (): Record<string, Player[]> => {
+    const grouped: Record<string, Player[]> = {};
     positionOrder.forEach(pos => {
       grouped[pos] = players
         .filter(p => p.position === pos)
@@ -96,16 +124,16 @@ export default function FootballApp() {
     return grouped;
   };
 
-  const getSubstitutionsForNumber = (subNumber: number) => {
+  const getSubstitutionsForNumber = (subNumber: number): Substitution[] => {
     return substitutions.filter(s => s.substitution_number === subNumber);
   };
 
-  const isPlayerOnField = (playerId: number) => {
+  const isPlayerOnField = (playerId: number): boolean => {
     return fieldOccupants.some(p => p && p.id === playerId);
   };
 
   const updateBench = () => {
-    const fieldPlayerIds = fieldOccupants.filter(p => p !== null).map(p => p.id);
+    const fieldPlayerIds = fieldOccupants.filter(p => p !== null).map(p => p!.id);
     const bench = players.filter(p => 
       !fieldPlayerIds.includes(p.id) && 
       !p.injured && 
@@ -177,7 +205,7 @@ export default function FootballApp() {
     }
   };
 
-  const fetchMatchAbsences = async (matchId) => {
+  const fetchMatchAbsences = async (matchId: number) => {
     try {
       const { data, error } = await supabase
         .from('match_absences')
@@ -191,7 +219,7 @@ export default function FootballApp() {
     }
   };
 
-  const fetchSubstitutions = async (matchId) => {
+  const fetchSubstitutions = async (matchId: number) => {
     try {
       const { data, error } = await supabase
         .from('substitutions')
@@ -205,11 +233,11 @@ export default function FootballApp() {
     }
   };
 
-  const openSubModal = (subNumber) => {
+  const openSubModal = (subNumber: number) => {
     const existing = getSubstitutionsForNumber(subNumber);
     setTempSubs(existing.map(s => ({
-      out: players.find(p => p.id === s.player_out_id),
-      in: players.find(p => p.id === s.player_in_id)
+      out: players.find(p => p.id === s.player_out_id) || null,
+      in: players.find(p => p.id === s.player_in_id) || null
     })));
     setShowSubModal(subNumber);
   };
@@ -218,18 +246,18 @@ export default function FootballApp() {
     setTempSubs([...tempSubs, { out: null, in: null }]);
   };
 
-  const removeTempSub = (index) => {
+  const removeTempSub = (index: number) => {
     setTempSubs(tempSubs.filter((_, i) => i !== index));
   };
 
-  const updateTempSub = (index, field, player) => {
+  const updateTempSub = (index: number, field: 'out' | 'in', player: Player | null) => {
     const updated = [...tempSubs];
     updated[index] = { ...updated[index], [field]: player };
     setTempSubs(updated);
   };
 
   const saveAllSubstitutions = async () => {
-    if (!showSubModal) return;
+    if (!showSubModal || !selectedMatch) return;
     
     const allComplete = tempSubs.every(s => s.out && s.in);
     if (!allComplete) {
@@ -237,8 +265,8 @@ export default function FootballApp() {
       return;
     }
 
-    const outPlayers = tempSubs.map(s => s.out.id);
-    const inPlayers = tempSubs.map(s => s.in.id);
+    const outPlayers = tempSubs.map(s => s.out!.id);
+    const inPlayers = tempSubs.map(s => s.in!.id);
     if (new Set(outPlayers).size !== outPlayers.length) {
       alert('⚠️ Een speler kan maar 1x gewisseld worden');
       return;
@@ -260,8 +288,8 @@ export default function FootballApp() {
         match_id: selectedMatch.id,
         substitution_number: showSubModal,
         minute: minute,
-        player_out_id: s.out.id,
-        player_in_id: s.in.id
+        player_out_id: s.out!.id,
+        player_in_id: s.in!.id
       }));
 
       const { error } = await supabase
@@ -280,8 +308,10 @@ export default function FootballApp() {
     }
   };
 
-  const togglePlayerInjury = async (playerId) => {
+  const togglePlayerInjury = async (playerId: number) => {
     const player = players.find(p => p.id === playerId);
+    if (!player) return;
+    
     const newInjuredStatus = !player.injured;
     
     try {
@@ -302,7 +332,9 @@ export default function FootballApp() {
     }
   };
 
-  const toggleMatchAbsence = async (playerId) => {
+  const toggleMatchAbsence = async (playerId: number) => {
+    if (!selectedMatch) return;
+    
     const isAbsent = matchAbsences.includes(playerId);
     
     try {
@@ -332,12 +364,12 @@ export default function FootballApp() {
     }
   };
 
-  const isPlayerAvailable = (player) => {
+  const isPlayerAvailable = (player: Player | null): boolean => {
     if (!player) return false;
     return !player.injured && !matchAbsences.includes(player.id);
   };
 
-  const loadLineup = async (matchId) => {
+  const loadLineup = async (matchId: number) => {
     if (players.length === 0) return;
     
     try {
@@ -348,7 +380,7 @@ export default function FootballApp() {
       
       if (lineupError) throw lineupError;
       
-      const lineup = Array(11).fill(null);
+      const lineup: (Player | null)[] = Array(11).fill(null);
       
       if (lineupData && lineupData.length > 0) {
         lineupData.forEach(entry => {
@@ -409,7 +441,7 @@ export default function FootballApp() {
     }
   };
 
-  const updatePlayerStat = async (id, field, value) => {
+  const updatePlayerStat = async (id: number, field: string, value: string) => {
     try {
       const { error } = await supabase
         .from('players')
@@ -436,7 +468,7 @@ export default function FootballApp() {
     }
   };
 
-  const isMatchEditable = () => {
+  const isMatchEditable = (): boolean => {
     if (!selectedMatch || !isAdmin) return false;
     const matchDate = new Date(selectedMatch.date);
     const today = new Date();
@@ -501,7 +533,7 @@ export default function FootballApp() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl p-6 max-w-5xl w-full max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">
+              <h2 className="text-2xl font-bold">
                 🔄 Wisselmoment {showSubModal} - {showSubModal === 1 ? 30 : 60} minuten
               </h2>
               <button 
@@ -523,27 +555,29 @@ export default function FootballApp() {
 
             <div className="space-y-4 mb-6">
               {tempSubs.map((sub, index) => {
-                let availableToGoOut = [];
-                let availableToGoIn = [];
+                let availableToGoOut: Player[] = [];
+                let availableToGoIn: Player[] = [];
                 
                 if (showSubModal === 1) {
-                  availableToGoOut = fieldOccupants.filter(p => p !== null);
+                  availableToGoOut = fieldOccupants.filter((p): p is Player => p !== null);
                   availableToGoIn = benchPlayers;
                 } else {
                   const sub1Players = getSubstitutionsForNumber(1);
                   
                   const playersOutInSub1 = sub1Players.map(s => s.player_out_id);
-                  const currentFieldPlayers = fieldOccupants.filter(p => p !== null && !playersOutInSub1.includes(p.id));
+                  const currentFieldPlayers = fieldOccupants.filter((p): p is Player => 
+                    p !== null && !playersOutInSub1.includes(p.id)
+                  );
                   
                   const playersInInSub1 = sub1Players
                     .map(s => players.find(p => p.id === s.player_in_id))
-                    .filter(p => p);
+                    .filter((p): p is Player => p !== undefined);
                   
                   availableToGoOut = [...currentFieldPlayers, ...playersInInSub1];
                   
                   const playersWhoWentOutInSub1 = sub1Players
                     .map(s => players.find(p => p.id === s.player_out_id))
-                    .filter(p => p);
+                    .filter((p): p is Player => p !== undefined);
                   
                   availableToGoIn = [...benchPlayers, ...playersWhoWentOutInSub1];
                 }
@@ -569,7 +603,7 @@ export default function FootballApp() {
                         <select
                           value={sub.out?.id || ''}
                           onChange={(e) => {
-                            const player = availableToGoOut.find(p => p.id === parseInt(e.target.value));
+                            const player = availableToGoOut.find(p => p.id === parseInt(e.target.value)) || null;
                             updateTempSub(index, 'out', player);
                           }}
                           className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
@@ -588,7 +622,7 @@ export default function FootballApp() {
                         <select
                           value={sub.in?.id || ''}
                           onChange={(e) => {
-                            const player = availableToGoIn.find(p => p.id === parseInt(e.target.value));
+                            const player = availableToGoIn.find(p => p.id === parseInt(e.target.value)) || null;
                             updateTempSub(index, 'in', player);
                           }}
                           className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
@@ -744,7 +778,7 @@ export default function FootballApp() {
                 value={selectedMatch?.id || ''} 
                 onChange={(e) => {
                   const match = matches.find(m => m.id === parseInt(e.target.value));
-                  setSelectedMatch(match);
+                  setSelectedMatch(match || null);
                   setShowAbsenceModal(false);
                 }}
                 className="px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white text-lg font-bold"
@@ -842,14 +876,14 @@ export default function FootballApp() {
                       } flex items-center justify-center font-bold text-sm relative ${
                         fieldOccupants[i] ? 'bg-yellow-500 text-black' : 'bg-white/20 text-white'
                       }`}>
-                        {fieldOccupants[i] ? fieldOccupants[i].name.substring(0,2).toUpperCase() : '+'}
+                        {fieldOccupants[i] ? fieldOccupants[i]!.name.substring(0,2).toUpperCase() : '+'}
                         {showWarning && (
                           <span className="absolute -top-1 -right-1 text-red-500 text-lg">⚠️</span>
                         )}
                       </div>
                       {fieldOccupants[i] && (
                         <div className="text-xs font-bold text-center mt-1 text-white" style={{ textShadow: '1px 1px 2px black' }}>
-                          {fieldOccupants[i].name}
+                          {fieldOccupants[i]!.name}
                         </div>
                       )}
                     </div>
