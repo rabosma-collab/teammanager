@@ -91,7 +91,7 @@ export default function FootballApp() {
       { t: 22, l: 20 }, { t: 18, l: 50 }, { t: 22, l: 80 }
     ],
     '5-3-2': [
-      { t: 88, l: 50 },
+      { t: 93, l: 50 },
       { t: 72, l: 10 }, { t: 75, l: 30 }, { t: 78, l: 50 }, { t: 75, l: 70 }, { t: 72, l: 90 },
       { t: 50, l: 25 }, { t: 50, l: 50 }, { t: 50, l: 75 },
       { t: 22, l: 35 }, { t: 22, l: 65 }
@@ -149,16 +149,22 @@ export default function FootballApp() {
   };
 
   useEffect(() => {
-    fetchPlayers();
-    fetchMatches();
+    const initApp = async () => {
+      await fetchMatches();
+      await fetchPlayers();
+    };
+    initApp();
   }, []);
 
   useEffect(() => {
     if (selectedMatch) {
-      setFormation(normalizeFormation(selectedMatch.formation));
-      fetchMatchAbsences(selectedMatch.id);
-      fetchSubstitutions(selectedMatch.id);
-      fetchPlayers(); // Herlaad spelers om gastspelers te laden
+      const loadMatchData = async () => {
+        setFormation(normalizeFormation(selectedMatch.formation));
+        await fetchMatchAbsences(selectedMatch.id);
+        await fetchSubstitutions(selectedMatch.id);
+        await fetchPlayers();
+      };
+      loadMatchData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMatch?.id]);
@@ -168,7 +174,7 @@ export default function FootballApp() {
       loadLineup(selectedMatch.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players.length]);
+  }, [players.length, selectedMatch?.id]);
 
   useEffect(() => {
     updateBench();
@@ -185,7 +191,6 @@ export default function FootballApp() {
 
       let allPlayers = regularPlayers || [];
 
-      // Haal gastspelers op voor de geselecteerde wedstrijd
       if (selectedMatch) {
         const { data: guestPlayers, error: guestError } = await supabase
           .from('guest_players')
@@ -218,18 +223,15 @@ export default function FootballApp() {
       setMatches(data || []);
       
       if (data && data.length > 0) {
-        // Zoek de eerstvolgende wedstrijd (vanaf vandaag)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
         const upcomingMatches = data.filter(m => new Date(m.date) >= today);
         
         if (upcomingMatches.length > 0) {
-          // Sorteer oplopend op datum en pak de eerste
           upcomingMatches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
           setSelectedMatch(upcomingMatches[0]);
         } else {
-          // Geen toekomstige wedstrijden, pak de meest recente
           setSelectedMatch(data[0]);
         }
       }
@@ -491,21 +493,39 @@ export default function FootballApp() {
     if (!selectedMatch || !isAdmin) return;
     
     setSavingLineup(true);
+    
     try {
-      // Eerst de formatie opslaan in de matches tabel
+      console.log('Opslaan gestart voor match:', selectedMatch.id);
+      console.log('Formatie:', formation);
+      console.log('Opstelling:', fieldOccupants.map(p => p?.name || 'Leeg'));
+
+      // Stap 1: Update formatie
       const { error: formationError } = await supabase
         .from('matches')
         .update({ formation: formation })
         .eq('id', selectedMatch.id);
       
-      if (formationError) throw formationError;
+      if (formationError) {
+        console.error('Formatie opslaan mislukt:', formationError);
+        throw formationError;
+      }
+      
+      console.log('✓ Formatie opgeslagen');
 
-      // Dan de opstelling opslaan
-      await supabase
+      // Stap 2: Verwijder oude lineup
+      const { error: deleteError } = await supabase
         .from('lineups')
         .delete()
         .eq('match_id', selectedMatch.id);
       
+      if (deleteError) {
+        console.error('Oude lineup verwijderen mislukt:', deleteError);
+        throw deleteError;
+      }
+      
+      console.log('✓ Oude lineup verwijderd');
+
+      // Stap 3: Sla nieuwe lineup op
       const lineupData = fieldOccupants
         .map((player, position) => ({
           match_id: selectedMatch.id,
@@ -514,22 +534,34 @@ export default function FootballApp() {
         }))
         .filter(item => item.player_id !== null);
       
+      console.log('Lineup data om op te slaan:', lineupData);
+      
       if (lineupData.length > 0) {
         const { error: insertError } = await supabase
           .from('lineups')
           .insert(lineupData);
         
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Lineup opslaan mislukt:', insertError);
+          throw insertError;
+        }
+        
+        console.log('✓ Nieuwe lineup opgeslagen');
       }
       
-      // Update lokale state
-      setSelectedMatch({ ...selectedMatch, formation: formation });
+      // Update local state
+      const updatedMatch = { ...selectedMatch, formation: formation };
+      setSelectedMatch(updatedMatch);
+      setMatches(matches.map(m => m.id === selectedMatch.id ? updatedMatch : m));
       
       alert('✅ Opstelling en formatie opgeslagen!');
+      
+      // Herlaad om te bevestigen
       await loadLineup(selectedMatch.id);
+      
     } catch (error) {
       console.error('Error saving lineup:', error);
-      alert('❌ Kon opstelling niet opslaan');
+      alert('❌ Kon opstelling niet opslaan: ' + (error as Error).message);
     } finally {
       setSavingLineup(false);
     }
@@ -644,7 +676,6 @@ export default function FootballApp() {
         )}
       </nav>
 
-      {/* Gastspeler Modal */}
       {showGuestModal && isAdmin && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full">
@@ -998,6 +1029,7 @@ export default function FootballApp() {
                   const match = matches.find(m => m.id === parseInt(e.target.value));
                   setSelectedMatch(match || null);
                   setShowAbsenceModal(false);
+                  setFieldOccupants(Array(11).fill(null));
                 }}
                 className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white font-bold text-sm sm:text-base flex-1 sm:flex-initial"
               >
@@ -1030,7 +1062,7 @@ export default function FootballApp() {
                   disabled={savingLineup}
                   className="px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
                 >
-                  {savingLineup ? '💾' : '💾 Opslaan'}
+                  {savingLineup ? '💾 Bezig...' : '💾 Opslaan'}
                 </button>
               )}
             </div>
