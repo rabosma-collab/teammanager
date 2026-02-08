@@ -12,6 +12,8 @@ interface Player {
   was: number;
   min: number;
   injured: boolean;
+  is_guest?: boolean;
+  guest_match_id?: number;
 }
 
 interface Match {
@@ -49,6 +51,9 @@ export default function FootballApp() {
   const [showSubModal, setShowSubModal] = useState<number | null>(null);
   const [tempSubs, setTempSubs] = useState<Array<{out: Player | null, in: Player | null}>>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestPosition, setGuestPosition] = useState('Verdediger');
 
   const formations: Record<string, Array<{t: number, l: number}>> = {
     '4-3-3-aanvallend': [
@@ -153,9 +158,7 @@ export default function FootballApp() {
       setFormation(normalizeFormation(selectedMatch.formation));
       fetchMatchAbsences(selectedMatch.id);
       fetchSubstitutions(selectedMatch.id);
-      if (players.length > 0) {
-        loadLineup(selectedMatch.id);
-      }
+      fetchPlayers(); // Herlaad spelers om gastspelers te laden
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMatch?.id]);
@@ -174,12 +177,31 @@ export default function FootballApp() {
 
   const fetchPlayers = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: regularPlayers, error: regularError } = await supabase
         .from('players')
         .select('*');
       
-      if (error) throw error;
-      setPlayers(data || []);
+      if (regularError) throw regularError;
+
+      let allPlayers = regularPlayers || [];
+
+      // Haal gastspelers op voor de geselecteerde wedstrijd
+      if (selectedMatch) {
+        const { data: guestPlayers, error: guestError } = await supabase
+          .from('guest_players')
+          .select('*')
+          .eq('match_id', selectedMatch.id);
+        
+        if (!guestError && guestPlayers) {
+          allPlayers = [...allPlayers, ...guestPlayers.map(g => ({
+            ...g,
+            is_guest: true,
+            guest_match_id: g.match_id
+          }))];
+        }
+      }
+      
+      setPlayers(allPlayers);
     } catch (error) {
       console.error('Error fetching players:', error);
     }
@@ -196,8 +218,20 @@ export default function FootballApp() {
       setMatches(data || []);
       
       if (data && data.length > 0) {
-        const upcoming = data.find(m => new Date(m.date) >= new Date());
-        setSelectedMatch(upcoming || data[0]);
+        // Zoek de eerstvolgende wedstrijd (vanaf vandaag)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const upcomingMatches = data.filter(m => new Date(m.date) >= today);
+        
+        if (upcomingMatches.length > 0) {
+          // Sorteer oplopend op datum en pak de eerste
+          upcomingMatches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          setSelectedMatch(upcomingMatches[0]);
+        } else {
+          // Geen toekomstige wedstrijden, pak de meest recente
+          setSelectedMatch(data[0]);
+        }
       }
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -231,6 +265,58 @@ export default function FootballApp() {
       setSubstitutions(data || []);
     } catch (error) {
       console.error('Error fetching substitutions:', error);
+    }
+  };
+
+  const addGuestPlayer = async () => {
+    if (!guestName.trim() || !selectedMatch) {
+      alert('⚠️ Vul een naam in voor de gastspeler');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('guest_players')
+        .insert({
+          name: guestName.trim(),
+          position: guestPosition,
+          match_id: selectedMatch.id,
+          goals: 0,
+          assists: 0,
+          was: 0,
+          min: 0,
+          injured: false
+        })
+        .select();
+
+      if (error) throw error;
+
+      setGuestName('');
+      setShowGuestModal(false);
+      await fetchPlayers();
+      alert(`✅ Gastspeler ${guestName} toegevoegd!`);
+    } catch (error) {
+      console.error('Error adding guest player:', error);
+      alert('❌ Kon gastspeler niet toevoegen');
+    }
+  };
+
+  const removeGuestPlayer = async (playerId: number) => {
+    if (!confirm('Weet je zeker dat je deze gastspeler wilt verwijderen?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('guest_players')
+        .delete()
+        .eq('id', playerId);
+
+      if (error) throw error;
+
+      await fetchPlayers();
+      alert('✅ Gastspeler verwijderd');
+    } catch (error) {
+      console.error('Error removing guest player:', error);
+      alert('❌ Kon gastspeler niet verwijderen');
     }
   };
 
@@ -311,7 +397,7 @@ export default function FootballApp() {
 
   const togglePlayerInjury = async (playerId: number) => {
     const player = players.find(p => p.id === playerId);
-    if (!player) return;
+    if (!player || player.is_guest) return;
     
     const newInjuredStatus = !player.injured;
     
@@ -406,6 +492,15 @@ export default function FootballApp() {
     
     setSavingLineup(true);
     try {
+      // Eerst de formatie opslaan in de matches tabel
+      const { error: formationError } = await supabase
+        .from('matches')
+        .update({ formation: formation })
+        .eq('id', selectedMatch.id);
+      
+      if (formationError) throw formationError;
+
+      // Dan de opstelling opslaan
       await supabase
         .from('lineups')
         .delete()
@@ -427,12 +522,10 @@ export default function FootballApp() {
         if (insertError) throw insertError;
       }
       
-      await supabase
-        .from('matches')
-        .update({ formation })
-        .eq('id', selectedMatch.id);
+      // Update lokale state
+      setSelectedMatch({ ...selectedMatch, formation: formation });
       
-      alert('✅ Opstelling opgeslagen!');
+      alert('✅ Opstelling en formatie opgeslagen!');
       await loadLineup(selectedMatch.id);
     } catch (error) {
       console.error('Error saving lineup:', error);
@@ -443,9 +536,14 @@ export default function FootballApp() {
   };
 
   const updatePlayerStat = async (id: number, field: string, value: string) => {
+    const player = players.find(p => p.id === id);
+    if (!player) return;
+
+    const table = player.is_guest ? 'guest_players' : 'players';
+
     try {
       const { error } = await supabase
-        .from('players')
+        .from(table)
         .update({ [field]: parseInt(value) || 0 })
         .eq('id', id);
       
@@ -545,6 +643,71 @@ export default function FootballApp() {
           </button>
         )}
       </nav>
+
+      {/* Gastspeler Modal */}
+      {showGuestModal && isAdmin && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">👤 Gastspeler toevoegen</h2>
+              <button 
+                onClick={() => {
+                  setShowGuestModal(false);
+                  setGuestName('');
+                }}
+                className="text-2xl hover:text-red-500"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-2">Naam</label>
+                <input
+                  type="text"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Voer naam in..."
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-2">Positie</label>
+                <select
+                  value={guestPosition}
+                  onChange={(e) => setGuestPosition(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                >
+                  {positionOrder.map(pos => (
+                    <option key={pos} value={pos}>{positionEmojis[pos]} {pos}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={addGuestPlayer}
+                  className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold"
+                >
+                  ✅ Toevoegen
+                </button>
+                <button
+                  onClick={() => {
+                    setShowGuestModal(false);
+                    setGuestName('');
+                  }}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded font-bold"
+                >
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSubModal && isAdmin && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
@@ -702,14 +865,25 @@ export default function FootballApp() {
             <div className="p-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-yellow-500 font-bold text-xl">Selectie ({players.length})</h3>
-                {isAdmin && isMatchEditable() && (
-                  <button
-                    onClick={() => setShowAbsenceModal(!showAbsenceModal)}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                  >
-                    {showAbsenceModal ? '✓' : '👥'}
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {isAdmin && isMatchEditable() && (
+                    <>
+                      <button
+                        onClick={() => setShowGuestModal(true)}
+                        className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm"
+                        title="Gastspeler toevoegen"
+                      >
+                        👤+
+                      </button>
+                      <button
+                        onClick={() => setShowAbsenceModal(!showAbsenceModal)}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                      >
+                        {showAbsenceModal ? '✓' : '👥'}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
               
               {!isMatchEditable() && (
@@ -743,7 +917,7 @@ export default function FootballApp() {
                       <div
                         key={player.id}
                         onClick={() => {
-                          if (showAbsenceModal && isAdmin) {
+                          if (showAbsenceModal && isAdmin && !player.is_guest) {
                             toggleMatchAbsence(player.id);
                           } else if (isMatchEditable() && isAvailable && !onField) {
                             setSelectedPlayer(player);
@@ -753,7 +927,10 @@ export default function FootballApp() {
                           }
                         }}
                         onContextMenu={(e) => {
-                          if (isAdmin) {
+                          if (isAdmin && player.is_guest) {
+                            e.preventDefault();
+                            removeGuestPlayer(player.id);
+                          } else if (isAdmin) {
                             e.preventDefault();
                             togglePlayerInjury(player.id);
                           }
@@ -767,11 +944,16 @@ export default function FootballApp() {
                             ? 'bg-red-900/30 border-2 border-red-700'
                             : onField
                             ? 'bg-green-900/30 border-2 border-green-700'
+                            : player.is_guest
+                            ? 'bg-purple-900/30 border-2 border-purple-700'
                             : 'bg-gray-700/50 hover:bg-gray-700 border-2 border-transparent'
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <div className="font-bold flex-1">{player.name}</div>
+                          <div className="font-bold flex-1">
+                            {player.name}
+                            {player.is_guest && <span className="text-purple-400 text-xs ml-1">(Gast)</span>}
+                          </div>
                           <div className="text-xs opacity-70">{player.min} min</div>
                           {onField && <span className="text-green-500" title="Op het veld">⚽</span>}
                           {isInjured && <span className="text-red-500" title="Geblesseerd">🏥</span>}
@@ -792,6 +974,7 @@ export default function FootballApp() {
                 <div className="mt-4 p-3 bg-gray-700 rounded text-xs">
                   <strong>Admin tips:</strong><br/>
                   • Rechtermuisklik: Blessure aan/uit<br/>
+                  • Rechtermuisklik gast: Verwijderen<br/>
                   • 👥 knop: Afwezigheid instellen<br/>
                   • ⚽ = Speler staat op veld
                 </div>
@@ -841,29 +1024,15 @@ export default function FootballApp() {
                 ))}
               </select>
               
-              <div className="flex gap-2 sm:gap-4">
-                {isMatchEditable() && (
-                  <button 
-                    onClick={saveLineup}
-                    disabled={savingLineup}
-                    className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
-                  >
-                    {savingLineup ? '💾' : '💾 Opslaan'}
-                  </button>
-                )}
-                
+              {isMatchEditable() && (
                 <button 
-                  onClick={() => {
-                    const matchInfo = selectedMatch 
-                      ? `${new Date(selectedMatch.date).toLocaleDateString('nl-NL')} - ${selectedMatch.opponent}`
-                      : 'Wedstrijd';
-                    window.open(`https://wa.me/?text=Opstelling voor ${matchInfo} staat klaar!`);
-                  }}
-                  className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 text-sm sm:text-base"
+                  onClick={saveLineup}
+                  disabled={savingLineup}
+                  className="px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
                 >
-                  📱 Delen
+                  {savingLineup ? '💾' : '💾 Opslaan'}
                 </button>
-              </div>
+              )}
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
@@ -952,7 +1121,10 @@ export default function FootballApp() {
                               : 'border-amber-700'
                           } rounded-lg p-2 sm:p-3 text-center cursor-pointer hover:bg-amber-900/50 transition active:scale-95`}
                         >
-                          <div className="font-bold text-xs sm:text-sm">{player.name}</div>
+                          <div className="font-bold text-xs sm:text-sm">
+                            {player.name}
+                            {player.is_guest && <div className="text-purple-400 text-xs">(Gast)</div>}
+                          </div>
                           <div className="text-xs opacity-70 mt-1">
                             {player.goals}⚽ {player.assists}🎯
                           </div>
@@ -1088,7 +1260,7 @@ export default function FootballApp() {
                 </tr>
               </thead>
               <tbody>
-                {players.map(player => (
+                {players.filter(p => !p.is_guest).map(player => (
                   <tr key={player.id} className="border-t border-gray-700 hover:bg-gray-700/50">
                     <td className="p-2 sm:p-4 font-bold text-sm sm:text-base">{player.name}</td>
                     <td className="p-2 sm:p-4">
