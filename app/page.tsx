@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 
 interface Player {
@@ -54,6 +54,8 @@ export default function FootballApp() {
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [guestName, setGuestName] = useState('');
   const [guestPosition, setGuestPosition] = useState('Verdediger');
+  const [showPlayerMenu, setShowPlayerMenu] = useState<number | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const formations: Record<string, Array<{t: number, l: number}>> = {
     '4-3-3-aanvallend': [
@@ -146,6 +148,25 @@ export default function FootballApp() {
       !matchAbsences.includes(p.id)
     );
     setBenchPlayers(bench);
+  };
+
+  const handlePlayerLongPress = (playerId: number) => {
+    if (!isAdmin) return;
+    setShowPlayerMenu(playerId);
+  };
+
+  const handleTouchStart = (playerId: number) => {
+    if (!isAdmin) return;
+    longPressTimer.current = setTimeout(() => {
+      handlePlayerLongPress(playerId);
+    }, 500); // 500ms = half second
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   };
 
   useEffect(() => {
@@ -304,8 +325,6 @@ export default function FootballApp() {
   };
 
   const removeGuestPlayer = async (playerId: number) => {
-    if (!confirm('Weet je zeker dat je deze gastspeler wilt verwijderen?')) return;
-
     try {
       const { error } = await supabase
         .from('guest_players')
@@ -314,6 +333,7 @@ export default function FootballApp() {
 
       if (error) throw error;
 
+      setShowPlayerMenu(null);
       await fetchPlayers();
       alert('✅ Gastspeler verwijderd');
     } catch (error) {
@@ -415,6 +435,7 @@ export default function FootballApp() {
         p.id === playerId ? { ...p, injured: newInjuredStatus } : p
       ));
       
+      setShowPlayerMenu(null);
       alert(newInjuredStatus ? '🏥 Speler geblesseerd' : '✅ Speler hersteld');
     } catch (error) {
       console.error('Error updating injury:', error);
@@ -448,6 +469,7 @@ export default function FootballApp() {
         if (error) throw error;
         setMatchAbsences([...matchAbsences, playerId]);
       }
+      setShowPlayerMenu(null);
     } catch (error) {
       console.error('Error toggling absence:', error);
     }
@@ -499,7 +521,6 @@ export default function FootballApp() {
       console.log('Formatie:', formation);
       console.log('Opstelling:', fieldOccupants.map(p => p?.name || 'Leeg'));
 
-      // Stap 1: Update formatie
       const { error: formationError } = await supabase
         .from('matches')
         .update({ formation: formation })
@@ -512,7 +533,6 @@ export default function FootballApp() {
       
       console.log('✓ Formatie opgeslagen');
 
-      // Stap 2: Verwijder oude lineup
       const { error: deleteError } = await supabase
         .from('lineups')
         .delete()
@@ -525,7 +545,6 @@ export default function FootballApp() {
       
       console.log('✓ Oude lineup verwijderd');
 
-      // Stap 3: Sla nieuwe lineup op
       const lineupData = fieldOccupants
         .map((player, position) => ({
           match_id: selectedMatch.id,
@@ -549,14 +568,12 @@ export default function FootballApp() {
         console.log('✓ Nieuwe lineup opgeslagen');
       }
       
-      // Update local state
       const updatedMatch = { ...selectedMatch, formation: formation };
       setSelectedMatch(updatedMatch);
       setMatches(matches.map(m => m.id === selectedMatch.id ? updatedMatch : m));
       
       alert('✅ Opstelling en formatie opgeslagen!');
       
-      // Herlaad om te bevestigen
       await loadLineup(selectedMatch.id);
       
     } catch (error) {
@@ -675,6 +692,71 @@ export default function FootballApp() {
           </button>
         )}
       </nav>
+
+      {/* Player menu modal */}
+      {showPlayerMenu !== null && isAdmin && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPlayerMenu(null)}>
+          <div className="bg-gray-800 rounded-xl p-4 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            {(() => {
+              const player = players.find(p => p.id === showPlayerMenu);
+              if (!player) return null;
+              
+              return (
+                <>
+                  <h3 className="text-lg font-bold mb-4 text-center">{player.name}</h3>
+                  
+                  <div className="space-y-2">
+                    {!player.is_guest && (
+                      <button
+                        onClick={() => togglePlayerInjury(showPlayerMenu)}
+                        className={`w-full p-3 rounded-lg font-bold text-left flex items-center gap-3 ${
+                          player.injured 
+                            ? 'bg-green-600 hover:bg-green-700' 
+                            : 'bg-red-600 hover:bg-red-700'
+                        }`}
+                      >
+                        <span className="text-2xl">{player.injured ? '✅' : '🏥'}</span>
+                        <span>{player.injured ? 'Markeer als hersteld' : 'Markeer als geblesseerd'}</span>
+                      </button>
+                    )}
+                    
+                    {!player.is_guest && (
+                      <button
+                        onClick={() => toggleMatchAbsence(showPlayerMenu)}
+                        className={`w-full p-3 rounded-lg font-bold text-left flex items-center gap-3 ${
+                          matchAbsences.includes(showPlayerMenu)
+                            ? 'bg-green-600 hover:bg-green-700'
+                            : 'bg-orange-600 hover:bg-orange-700'
+                        }`}
+                      >
+                        <span className="text-2xl">{matchAbsences.includes(showPlayerMenu) ? '✅' : '❌'}</span>
+                        <span>{matchAbsences.includes(showPlayerMenu) ? 'Beschikbaar maken' : 'Afwezig deze wedstrijd'}</span>
+                      </button>
+                    )}
+                    
+                    {player.is_guest && (
+                      <button
+                        onClick={() => removeGuestPlayer(showPlayerMenu)}
+                        className="w-full p-3 rounded-lg font-bold text-left flex items-center gap-3 bg-red-600 hover:bg-red-700"
+                      >
+                        <span className="text-2xl">🗑️</span>
+                        <span>Verwijder gastspeler</span>
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => setShowPlayerMenu(null)}
+                      className="w-full p-3 rounded-lg font-bold bg-gray-600 hover:bg-gray-700"
+                    >
+                      Annuleren
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {showGuestModal && isAdmin && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
@@ -898,21 +980,13 @@ export default function FootballApp() {
                 <h3 className="text-yellow-500 font-bold text-xl">Selectie ({players.length})</h3>
                 <div className="flex gap-2">
                   {isAdmin && isMatchEditable() && (
-                    <>
-                      <button
-                        onClick={() => setShowGuestModal(true)}
-                        className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm"
-                        title="Gastspeler toevoegen"
-                      >
-                        👤+
-                      </button>
-                      <button
-                        onClick={() => setShowAbsenceModal(!showAbsenceModal)}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                      >
-                        {showAbsenceModal ? '✓' : '👥'}
-                      </button>
-                    </>
+                    <button
+                      onClick={() => setShowGuestModal(true)}
+                      className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm"
+                      title="Gastspeler toevoegen"
+                    >
+                      👤+
+                    </button>
                   )}
                 </div>
               </div>
@@ -923,10 +997,9 @@ export default function FootballApp() {
                 </div>
               )}
 
-              {showAbsenceModal && isAdmin && (
-                <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded">
-                  <h4 className="font-bold mb-2">Afwezigheid beheren</h4>
-                  <p className="text-xs mb-2 opacity-70">Klik op speler om afwezigheid te markeren</p>
+              {isAdmin && isMatchEditable() && (
+                <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded text-xs">
+                  💡 <strong>Tip:</strong> Druk lang op een speler voor opties
                 </div>
               )}
               
@@ -948,26 +1021,18 @@ export default function FootballApp() {
                       <div
                         key={player.id}
                         onClick={() => {
-                          if (showAbsenceModal && isAdmin && !player.is_guest) {
-                            toggleMatchAbsence(player.id);
-                          } else if (isMatchEditable() && isAvailable && !onField) {
+                          if (isMatchEditable() && isAvailable && !onField) {
                             setSelectedPlayer(player);
                             setSidebarOpen(false);
                           } else if (onField) {
                             alert('⚠️ Deze speler staat al op het veld');
                           }
                         }}
-                        onContextMenu={(e) => {
-                          if (isAdmin && player.is_guest) {
-                            e.preventDefault();
-                            removeGuestPlayer(player.id);
-                          } else if (isAdmin) {
-                            e.preventDefault();
-                            togglePlayerInjury(player.id);
-                          }
-                        }}
-                        className={`p-3 mb-2 rounded-lg transition relative ${
-                          (isMatchEditable() && isAvailable && !onField) || showAbsenceModal ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                        onTouchStart={() => handleTouchStart(player.id)}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchMove={handleTouchEnd}
+                        className={`p-3 mb-2 rounded-lg transition relative touch-manipulation ${
+                          (isMatchEditable() && isAvailable && !onField) ? 'cursor-pointer active:scale-95' : 'opacity-50'
                         } ${
                           selectedPlayer?.id === player.id 
                             ? 'bg-gray-700 border-2 border-yellow-500' 
@@ -1000,16 +1065,6 @@ export default function FootballApp() {
                   })}
                 </div>
               ))}
-              
-              {isAdmin && (
-                <div className="mt-4 p-3 bg-gray-700 rounded text-xs">
-                  <strong>Admin tips:</strong><br/>
-                  • Rechtermuisklik: Blessure aan/uit<br/>
-                  • Rechtermuisklik gast: Verwijderen<br/>
-                  • 👥 knop: Afwezigheid instellen<br/>
-                  • ⚽ = Speler staat op veld
-                </div>
-              )}
             </div>
           </div>
 
@@ -1104,8 +1159,8 @@ export default function FootballApp() {
                           setFieldOccupants(newField);
                         }
                       }}
-                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 ${
-                        isMatchEditable() ? 'cursor-pointer' : 'cursor-not-allowed'
+                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 touch-manipulation ${
+                        isMatchEditable() ? 'cursor-pointer active:scale-95' : 'cursor-not-allowed'
                       }`}
                       style={{ top: `${pos.t}%`, left: `${pos.l}%` }}
                     >
@@ -1151,7 +1206,7 @@ export default function FootballApp() {
                             selectedPlayer?.id === player.id 
                               ? 'border-yellow-400' 
                               : 'border-amber-700'
-                          } rounded-lg p-2 sm:p-3 text-center cursor-pointer hover:bg-amber-900/50 transition active:scale-95`}
+                          } rounded-lg p-2 sm:p-3 text-center cursor-pointer hover:bg-amber-900/50 transition active:scale-95 touch-manipulation`}
                         >
                           <div className="font-bold text-xs sm:text-sm">
                             {player.name}
@@ -1193,7 +1248,7 @@ export default function FootballApp() {
                   {isAdmin && isMatchEditable() && (
                     <button
                       onClick={() => openSubModal(1)}
-                      className="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs sm:text-sm"
+                      className="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs sm:text-sm touch-manipulation"
                     >
                       {sub1.length > 0 ? `✏️ (${sub1.length})` : '+ Instellen'}
                     </button>
@@ -1229,7 +1284,7 @@ export default function FootballApp() {
                   {isAdmin && isMatchEditable() && (
                     <button
                       onClick={() => openSubModal(2)}
-                      className="px-2 sm:px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs sm:text-sm"
+                      className="px-2 sm:px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs sm:text-sm touch-manipulation"
                     >
                       {sub2.length > 0 ? `✏️ (${sub2.length})` : '+ Instellen'}
                     </button>
@@ -1308,7 +1363,7 @@ export default function FootballApp() {
                           type="number" 
                           value={player.goals}
                           onChange={(e) => updatePlayerStat(player.id, 'goals', e.target.value)}
-                          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm touch-manipulation"
                         />
                       ) : player.goals}
                     </td>
@@ -1318,7 +1373,7 @@ export default function FootballApp() {
                           type="number" 
                           value={player.assists}
                           onChange={(e) => updatePlayerStat(player.id, 'assists', e.target.value)}
-                          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm touch-manipulation"
                         />
                       ) : player.assists}
                     </td>
@@ -1328,7 +1383,7 @@ export default function FootballApp() {
                           type="number" 
                           value={player.was}
                           onChange={(e) => updatePlayerStat(player.id, 'was', e.target.value)}
-                          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm touch-manipulation"
                         />
                       ) : player.was}
                     </td>
@@ -1338,7 +1393,7 @@ export default function FootballApp() {
                           type="number" 
                           value={player.min}
                           onChange={(e) => updatePlayerStat(player.id, 'min', e.target.value)}
-                          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm touch-manipulation"
                         />
                       ) : player.min}
                     </td>
