@@ -23,6 +23,7 @@ export function usePlayers() {
         }
       }
       let allPlayers: Player[] = Array.from(seen.values());
+      const regularNames = new Set(allPlayers.map(p => p.name.toLowerCase()));
 
       if (matchId) {
         const { data: guestPlayers, error: guestError } = await supabase
@@ -31,9 +32,21 @@ export function usePlayers() {
           .eq('match_id', matchId);
 
         if (!guestError && guestPlayers) {
+          // Filter out guest players that duplicate a regular player name,
+          // and deduplicate guest players among themselves
+          const guestSeen = new Set<string>();
+          const uniqueGuests = guestPlayers.filter(g => {
+            const nameLower = g.name.toLowerCase();
+            if (regularNames.has(nameLower) || guestSeen.has(nameLower)) {
+              return false;
+            }
+            guestSeen.add(nameLower);
+            return true;
+          });
+
           allPlayers = [
             ...allPlayers,
-            ...guestPlayers.map(g => ({
+            ...uniqueGuests.map(g => ({
               ...g,
               is_guest: true,
               guest_match_id: g.match_id
@@ -90,13 +103,21 @@ export function usePlayers() {
     position: string,
     matchId: number
   ): Promise<boolean> => {
-    if (!name.trim()) return false;
+    const trimmedName = name.trim();
+    if (!trimmedName) return false;
+
+    // Prevent adding a guest player with the same name as an existing player
+    const nameLower = trimmedName.toLowerCase();
+    if (players.some(p => p.name.toLowerCase() === nameLower)) {
+      alert(`⚠️ Er bestaat al een speler met de naam "${trimmedName}"`);
+      return false;
+    }
 
     try {
       const { error } = await supabase
         .from('guest_players')
         .insert({
-          name: name.trim(),
+          name: trimmedName,
           position,
           match_id: matchId,
           goals: 0,
@@ -113,7 +134,7 @@ export function usePlayers() {
       console.error('Error adding guest player:', error);
       return false;
     }
-  }, []);
+  }, [players]);
 
   const removeGuestPlayer = useCallback(async (playerId: number): Promise<boolean> => {
     try {
