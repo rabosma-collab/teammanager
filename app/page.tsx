@@ -130,13 +130,16 @@ export default function FootballApp() {
         alert('Deze speler is niet beschikbaar');
         return;
       }
-      if (isPlayerOnField(selectedPlayer.id)) {
-        alert('⚠️ Deze speler staat al op het veld');
-        return;
-      }
-      const newField = [...fieldOccupants];
-      newField[index] = selectedPlayer;
-      setFieldOccupants(newField);
+      // Use functional update to prevent stale closure duplicates on rapid clicks
+      const playerToPlace = selectedPlayer;
+      setFieldOccupants(prev => {
+        if (prev.some(p => p && p.id === playerToPlace.id)) {
+          return prev;
+        }
+        const newField = [...prev];
+        newField[index] = playerToPlace;
+        return newField;
+      });
       setSelectedPlayer(null);
     } else if (fieldOccupants[index]) {
       const newField = [...fieldOccupants];

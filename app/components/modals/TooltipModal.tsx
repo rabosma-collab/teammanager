@@ -31,6 +31,12 @@ export default function TooltipModal({ instruction, onClose }: TooltipModalProps
   );
 }
 
+const tipColorClasses: Record<string, string> = {
+  yellow: 'text-yellow-500',
+  green: 'text-green-500',
+  red: 'text-red-500',
+};
+
 function TipSection({ color, icon, title, tips }: {
   color: string;
   icon: string;
@@ -39,7 +45,7 @@ function TipSection({ color, icon, title, tips }: {
 }) {
   return (
     <div>
-      <h4 className={`font-bold text-${color}-500 mb-2`}>{icon} {title}</h4>
+      <h4 className={`font-bold ${tipColorClasses[color] || ''} mb-2`}>{icon} {title}</h4>
       <ul className="space-y-1 text-sm">
         {tips.map((tip, i) => (
           <li key={i} className="flex gap-2">

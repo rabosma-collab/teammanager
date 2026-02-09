@@ -42,7 +42,7 @@ export default function PitchView({
         return (
           <div
             key={i}
-            className={`absolute transform -translate-x-1/2 -translate-y-1/2 touch-manipulation ${
+            className={`absolute transform -translate-x-1/2 -translate-y-1/2 touch-manipulation select-none ${
               isEditable ? 'cursor-pointer active:scale-95' : 'cursor-not-allowed'
             }`}
             style={{ top: `${pos.t}%`, left: `${pos.l}%` }}

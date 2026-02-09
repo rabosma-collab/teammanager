@@ -13,7 +13,7 @@ interface SidebarProps {
   isEditable: boolean;
   isPlayerOnField: (id: number) => boolean;
   isPlayerAvailable: (player: Player | null, absences: number[]) => boolean;
-  onSelectPlayer: (player: Player) => void;
+  onSelectPlayer: (player: Player | null) => void;
   onPlayerMenu: (playerId: number) => void;
   onAddGuest: () => void;
 }
@@ -34,10 +34,13 @@ export default function Sidebar({
   onAddGuest
 }: SidebarProps) {
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressFired = useRef(false);
 
   const handleTouchStart = useCallback((playerId: number) => {
     if (!isAdmin) return;
+    longPressFired.current = false;
     longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true;
       onPlayerMenu(playerId);
     }, 500);
   }, [isAdmin, onPlayerMenu]);
@@ -48,6 +51,32 @@ export default function Sidebar({
       longPressTimer.current = null;
     }
   }, []);
+
+  const handlePlayerClick = useCallback((player: Player, available: boolean, onField: boolean) => {
+    // Prevent click from firing after a long-press opened the menu
+    if (longPressFired.current) {
+      longPressFired.current = false;
+      return;
+    }
+
+    if (isEditable && available && !onField) {
+      // Toggle: deselect if already selected, otherwise select
+      if (selectedPlayer?.id === player.id) {
+        onSelectPlayer(null);
+      } else {
+        onSelectPlayer(player);
+        onClose();
+      }
+    } else if (onField) {
+      alert('⚠️ Deze speler staat al op het veld');
+    }
+  }, [isEditable, selectedPlayer, onSelectPlayer, onClose]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, playerId: number) => {
+    if (!isAdmin) return;
+    e.preventDefault();
+    onPlayerMenu(playerId);
+  }, [isAdmin, onPlayerMenu]);
 
   return (
     <>
@@ -62,11 +91,11 @@ export default function Sidebar({
       `}>
         <div className="p-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-yellow-500 font-bold text-xl">Selectie ({players.length})</h3>
+            <h3 className="text-yellow-500 font-bold text-xl select-none">Selectie ({players.length})</h3>
             {isAdmin && isEditable && (
               <button
                 onClick={onAddGuest}
-                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm"
+                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm select-none"
                 title="Gastspeler toevoegen"
               >
                 👤+
@@ -75,20 +104,20 @@ export default function Sidebar({
           </div>
 
           {!isEditable && (
-            <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded text-sm">
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded text-sm select-none">
               🔒 {isAdmin ? 'Wedstrijd in verleden' : 'Login als admin'}
             </div>
           )}
 
           {isAdmin && isEditable && (
-            <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded text-xs">
-              💡 <strong>Tip:</strong> Druk lang op een speler voor opties
+            <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded text-xs select-none">
+              💡 <strong>Tip:</strong> Druk lang op een speler voor opties (mobiel) of klik rechts (browser)
             </div>
           )}
 
           {positionOrder.map(position => (
             <div key={position} className="mb-6">
-              <h4 className="font-bold text-sm text-gray-400 mb-2 flex items-center gap-2">
+              <h4 className="font-bold text-sm text-gray-400 mb-2 flex items-center gap-2 select-none">
                 <span>{positionEmojis[position]}</span>
                 <span>{position}</span>
                 <span className="text-xs opacity-70">({groupedPlayers[position]?.length || 0})</span>
@@ -103,18 +132,12 @@ export default function Sidebar({
                 return (
                   <div
                     key={player.id}
-                    onClick={() => {
-                      if (isEditable && available && !onField) {
-                        onSelectPlayer(player);
-                        onClose();
-                      } else if (onField) {
-                        alert('⚠️ Deze speler staat al op het veld');
-                      }
-                    }}
+                    onClick={() => handlePlayerClick(player, available, onField)}
+                    onContextMenu={(e) => handleContextMenu(e, player.id)}
                     onTouchStart={() => handleTouchStart(player.id)}
                     onTouchEnd={handleTouchEnd}
                     onTouchMove={handleTouchEnd}
-                    className={`p-3 mb-2 rounded-lg transition relative touch-manipulation ${
+                    className={`p-3 mb-2 rounded-lg transition relative touch-manipulation select-none ${
                       (isEditable && available && !onField) ? 'cursor-pointer active:scale-95' : 'opacity-50'
                     } ${
                       selectedPlayer?.id === player.id
