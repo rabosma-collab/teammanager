@@ -14,7 +14,15 @@ export function usePlayers() {
 
       if (regularError) throw regularError;
 
-      let allPlayers: Player[] = regularPlayers || [];
+      // Deduplicate regular players by name (keep lowest id = original record)
+      const seen = new Map<string, Player>();
+      for (const p of (regularPlayers || []) as Player[]) {
+        const existing = seen.get(p.name);
+        if (!existing || p.id < existing.id) {
+          seen.set(p.name, p);
+        }
+      }
+      let allPlayers: Player[] = Array.from(seen.values());
 
       if (matchId) {
         const { data: guestPlayers, error: guestError } = await supabase
