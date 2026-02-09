@@ -18,7 +18,7 @@ export default function Navbar({
   onToggleSidebar
 }: NavbarProps) {
   return (
-    <nav className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-800 border-b border-gray-700">
+    <nav className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-800 border-b border-gray-700 select-none">
       {view === 'pitch' && (
         <button
           onClick={onToggleSidebar}

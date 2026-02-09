@@ -71,6 +71,12 @@ export default function InstructionEditModal({
   );
 }
 
+const labelColorClasses: Record<string, string> = {
+  yellow: 'text-yellow-500',
+  green: 'text-green-500',
+  red: 'text-red-500',
+};
+
 function TipTextarea({ label, color, value, onChange }: {
   label: string;
   color: string;
@@ -79,7 +85,7 @@ function TipTextarea({ label, color, value, onChange }: {
 }) {
   return (
     <div>
-      <label className={`block font-bold text-sm mb-2 text-${color}-500`}>{label} (één per regel)</label>
+      <label className={`block font-bold text-sm mb-2 ${labelColorClasses[color] || ''}`}>{label} (één per regel)</label>
       <textarea
         value={value.join('\n')}
         onChange={(e) => onChange(e.target.value.split('\n').filter(t => t.trim()))}
