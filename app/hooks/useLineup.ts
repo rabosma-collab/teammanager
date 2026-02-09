@@ -5,6 +5,7 @@ import type { Player, Match } from '../lib/types';
 export function useLineup() {
   const [fieldOccupants, setFieldOccupants] = useState<(Player | null)[]>(Array(11).fill(null));
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [savingLineup, setSavingLineup] = useState(false);
 
   const loadLineup = useCallback(async (matchId: number, players: Player[]) => {
@@ -100,11 +101,20 @@ export function useLineup() {
       .filter((p): p is Player => p !== null)
       .map(p => p.id);
 
-    return players.filter(p =>
+    const bench = players.filter(p =>
       !fieldIds.includes(p.id) &&
       !p.injured &&
       !matchAbsences.includes(p.id)
     );
+
+    // Final deduplication safety net: deduplicate by name
+    const seen = new Set<string>();
+    return bench.filter(p => {
+      const key = p.name.toLowerCase().trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [fieldOccupants]);
 
   const isPlayerAvailable = useCallback((
@@ -117,6 +127,8 @@ export function useLineup() {
 
   const clearField = useCallback(() => {
     setFieldOccupants(Array(11).fill(null));
+    setSelectedPlayer(null);
+    setSelectedPosition(null);
   }, []);
 
   return {
@@ -124,6 +136,8 @@ export function useLineup() {
     setFieldOccupants,
     selectedPlayer,
     setSelectedPlayer,
+    selectedPosition,
+    setSelectedPosition,
     savingLineup,
     loadLineup,
     saveLineup,

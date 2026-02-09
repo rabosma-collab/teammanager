@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { formations, formationLabels, normalizeFormation } from './lib/constants';
+import type { Player } from './lib/types';
 
 // Hooks
 import { usePlayers } from './hooks/usePlayers';
@@ -50,7 +51,9 @@ export default function FootballApp() {
   } = useMatches();
 
   const {
-    fieldOccupants, setFieldOccupants, selectedPlayer, setSelectedPlayer,
+    fieldOccupants, setFieldOccupants,
+    selectedPlayer, setSelectedPlayer,
+    selectedPosition, setSelectedPosition,
     savingLineup, loadLineup, saveLineup,
     isPlayerOnField, getBenchPlayers, isPlayerAvailable, clearField
   } = useLineup();
@@ -83,8 +86,7 @@ export default function FootballApp() {
   // ---- DATA LADEN ----
   useEffect(() => {
     fetchMatches();
-    fetchPlayers();
-  }, [fetchMatches, fetchPlayers]);
+  }, [fetchMatches]);
 
   useEffect(() => {
     if (selectedMatch) {
@@ -92,14 +94,17 @@ export default function FootballApp() {
       fetchAbsences(selectedMatch.id);
       fetchSubstitutions(selectedMatch.id);
       fetchPlayers(selectedMatch.id);
+    } else {
+      // No match selected yet, fetch players without match context
+      fetchPlayers();
     }
-  }, [selectedMatch?.id, fetchAbsences, fetchSubstitutions, fetchPlayers, selectedMatch]);
+  }, [selectedMatch?.id, fetchAbsences, fetchSubstitutions, fetchPlayers]);
 
   useEffect(() => {
     if (selectedMatch && players.length > 0) {
       loadLineup(selectedMatch.id, players);
     }
-  }, [players.length, selectedMatch?.id, loadLineup, selectedMatch, players]);
+  }, [players.length, selectedMatch?.id, loadLineup]);
 
   useEffect(() => {
     fetchInstructions(formation);
@@ -122,31 +127,52 @@ export default function FootballApp() {
     }
   };
 
+  // Place a player at a specific field position
+  const placePlayerAtPosition = useCallback((player: Player, positionIndex: number) => {
+    if (!isPlayerAvailable(player, matchAbsences)) return;
+
+    setFieldOccupants(prev => {
+      if (prev.some(p => p && p.id === player.id)) return prev;
+      const newField = [...prev];
+      newField[positionIndex] = player;
+      return newField;
+    });
+    setSelectedPlayer(null);
+    setSelectedPosition(null);
+  }, [matchAbsences, isPlayerAvailable, setFieldOccupants, setSelectedPlayer, setSelectedPosition]);
+
   const handlePositionClick = (index: number) => {
     if (!editable) return;
 
     if (selectedPlayer) {
-      if (!isPlayerAvailable(selectedPlayer, matchAbsences)) {
-        alert('Deze speler is niet beschikbaar');
-        return;
-      }
-      // Use functional update to prevent stale closure duplicates on rapid clicks
-      const playerToPlace = selectedPlayer;
-      setFieldOccupants(prev => {
-        if (prev.some(p => p && p.id === playerToPlace.id)) {
-          return prev;
-        }
-        const newField = [...prev];
-        newField[index] = playerToPlace;
-        return newField;
-      });
-      setSelectedPlayer(null);
+      // Mode A: player was selected first → place at this position
+      placePlayerAtPosition(selectedPlayer, index);
     } else if (fieldOccupants[index]) {
+      // Click occupied position → remove player
       const newField = [...fieldOccupants];
       newField[index] = null;
       setFieldOccupants(newField);
+      setSelectedPosition(null);
+    } else {
+      // Mode B: click empty position first → highlight it, then pick a player
+      if (selectedPosition === index) {
+        setSelectedPosition(null); // toggle off
+      } else {
+        setSelectedPosition(index);
+      }
     }
   };
+
+  // When a player is selected (from sidebar or bench)
+  const handleSelectPlayer = useCallback((player: Player | null) => {
+    if (player && selectedPosition !== null && editable) {
+      // A position was already selected → place player there directly
+      placePlayerAtPosition(player, selectedPosition);
+    } else {
+      setSelectedPlayer(player);
+      setSelectedPosition(null);
+    }
+  }, [selectedPosition, editable, placePlayerAtPosition, setSelectedPlayer, setSelectedPosition]);
 
   const handleSaveLineup = async () => {
     if (!selectedMatch) return;
@@ -303,7 +329,7 @@ export default function FootballApp() {
             isEditable={editable}
             isPlayerOnField={isPlayerOnField}
             isPlayerAvailable={isPlayerAvailable}
-            onSelectPlayer={setSelectedPlayer}
+            onSelectPlayer={handleSelectPlayer}
             onPlayerMenu={setShowPlayerMenu}
             onAddGuest={() => setShowGuestModal(true)}
           />
@@ -359,6 +385,7 @@ export default function FootballApp() {
                 formation={formation}
                 fieldOccupants={fieldOccupants}
                 selectedPlayer={selectedPlayer}
+                selectedPosition={selectedPosition}
                 isEditable={editable}
                 matchAbsences={matchAbsences}
                 isPlayerAvailable={isPlayerAvailable}
@@ -373,7 +400,7 @@ export default function FootballApp() {
                 unavailablePlayers={unavailablePlayers}
                 selectedPlayer={selectedPlayer}
                 isEditable={editable}
-                onSelectPlayer={setSelectedPlayer}
+                onSelectPlayer={handleSelectPlayer}
               />
             </div>
 
@@ -387,16 +414,18 @@ export default function FootballApp() {
               onEditSub={(n) => openSubModal(n, players)}
             />
 
-            {/* Geselecteerde speler indicator */}
-            {selectedPlayer && editable && (
-              <div className="mt-4 sm:mt-6 text-yellow-500 text-center text-sm sm:text-base px-4">
-                {isPlayerAvailable(selectedPlayer, matchAbsences) && !isPlayerOnField(selectedPlayer.id) ? (
+            {/* Geselecteerde speler/positie indicator */}
+            {editable && (selectedPlayer || selectedPosition !== null) && (
+              <div className="mt-4 sm:mt-6 text-yellow-500 text-center text-sm sm:text-base px-4 select-none">
+                {selectedPosition !== null && !selectedPlayer ? (
+                  <>👆 Positie {selectedPosition + 1} geselecteerd — kies een speler uit de selectie of bank</>
+                ) : selectedPlayer && isPlayerAvailable(selectedPlayer, matchAbsences) && !isPlayerOnField(selectedPlayer.id) ? (
                   <>👆 Klik op het veld om <strong>{selectedPlayer.name}</strong> te plaatsen</>
-                ) : isPlayerOnField(selectedPlayer.id) ? (
+                ) : selectedPlayer && isPlayerOnField(selectedPlayer.id) ? (
                   <>⚠️ <strong>{selectedPlayer.name}</strong> staat al op het veld</>
-                ) : (
+                ) : selectedPlayer ? (
                   <>⚠️ <strong>{selectedPlayer.name}</strong> is niet beschikbaar</>
-                )}
+                ) : null}
               </div>
             )}
           </div>
