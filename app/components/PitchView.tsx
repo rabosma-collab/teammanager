@@ -6,6 +6,7 @@ interface PitchViewProps {
   formation: string;
   fieldOccupants: (Player | null)[];
   selectedPlayer: Player | null;
+  selectedPosition: number | null;
   isEditable: boolean;
   matchAbsences: number[];
   isPlayerAvailable: (player: Player | null, absences: number[]) => boolean;
@@ -19,6 +20,7 @@ export default function PitchView({
   formation,
   fieldOccupants,
   selectedPlayer,
+  selectedPosition,
   isEditable,
   matchAbsences,
   isPlayerAvailable,
@@ -38,6 +40,7 @@ export default function PitchView({
         const player = fieldOccupants[i];
         const showWarning = player && !isPlayerAvailable(player, matchAbsences);
         const instruction = getInstructionForPosition(i);
+        const isSelected = selectedPosition === i;
 
         return (
           <div
@@ -49,10 +52,14 @@ export default function PitchView({
           >
             <div
               onClick={() => onPositionClick(i)}
-              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 ${
-                showWarning ? 'border-red-500' : 'border-white'
-              } flex items-center justify-center font-bold text-xs sm:text-sm relative ${
-                player ? 'bg-yellow-500 text-black' : 'bg-white/20 text-white'
+              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex items-center justify-center font-bold text-xs sm:text-sm relative transition-all ${
+                player
+                  ? showWarning
+                    ? 'bg-yellow-500 text-black border-red-500'
+                    : 'bg-yellow-500 text-black border-white'
+                  : isSelected
+                  ? 'bg-yellow-500/40 text-white border-yellow-400 animate-pulse'
+                  : 'bg-white/20 text-white border-white'
               }`}
             >
               {player ? player.name.substring(0, 2).toUpperCase() : '+'}

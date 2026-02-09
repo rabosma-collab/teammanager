@@ -1,12 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { positionOrder } from '../lib/constants';
 import type { Player } from '../lib/types';
 
 export function usePlayers() {
   const [players, setPlayers] = useState<Player[]>([]);
+  const fetchIdRef = useRef(0);
 
   const fetchPlayers = useCallback(async (matchId?: number) => {
+    // Increment fetch ID to cancel stale responses
+    const currentFetchId = ++fetchIdRef.current;
+
     try {
       const { data: regularPlayers, error: regularError } = await supabase
         .from('players')
@@ -14,16 +18,18 @@ export function usePlayers() {
 
       if (regularError) throw regularError;
 
-      // Deduplicate regular players by name (keep lowest id = original record)
-      const seen = new Map<string, Player>();
+      // If a newer fetch was started, discard this result
+      if (currentFetchId !== fetchIdRef.current) return [];
+
+      // Deduplicate regular players by id (primary key should be unique, but be safe)
+      const byId = new Map<number, Player>();
       for (const p of (regularPlayers || []) as Player[]) {
-        const existing = seen.get(p.name);
-        if (!existing || p.id < existing.id) {
-          seen.set(p.name, p);
+        if (!byId.has(p.id)) {
+          byId.set(p.id, p);
         }
       }
-      let allPlayers: Player[] = Array.from(seen.values());
-      const regularNames = new Set(allPlayers.map(p => p.name.toLowerCase()));
+      let allPlayers: Player[] = Array.from(byId.values());
+      const regularNames = new Set(allPlayers.map(p => p.name.toLowerCase().trim()));
 
       if (matchId) {
         const { data: guestPlayers, error: guestError } = await supabase
@@ -31,12 +37,13 @@ export function usePlayers() {
           .select('*')
           .eq('match_id', matchId);
 
+        // If a newer fetch was started, discard this result
+        if (currentFetchId !== fetchIdRef.current) return [];
+
         if (!guestError && guestPlayers) {
-          // Filter out guest players that duplicate a regular player name,
-          // and deduplicate guest players among themselves
           const guestSeen = new Set<string>();
           const uniqueGuests = guestPlayers.filter(g => {
-            const nameLower = g.name.toLowerCase();
+            const nameLower = g.name.toLowerCase().trim();
             if (regularNames.has(nameLower) || guestSeen.has(nameLower)) {
               return false;
             }
@@ -55,7 +62,19 @@ export function usePlayers() {
         }
       }
 
-      setPlayers(allPlayers);
+      // Final safety: deduplicate by name (case-insensitive, trimmed)
+      const finalSeen = new Set<string>();
+      allPlayers = allPlayers.filter(p => {
+        const key = p.name.toLowerCase().trim();
+        if (finalSeen.has(key)) return false;
+        finalSeen.add(key);
+        return true;
+      });
+
+      // Only set state if this is still the latest fetch
+      if (currentFetchId === fetchIdRef.current) {
+        setPlayers(allPlayers);
+      }
       return allPlayers;
     } catch (error) {
       console.error('Error fetching players:', error);
@@ -106,9 +125,8 @@ export function usePlayers() {
     const trimmedName = name.trim();
     if (!trimmedName) return false;
 
-    // Prevent adding a guest player with the same name as an existing player
     const nameLower = trimmedName.toLowerCase();
-    if (players.some(p => p.name.toLowerCase() === nameLower)) {
+    if (players.some(p => p.name.toLowerCase().trim() === nameLower)) {
       alert(`⚠️ Er bestaat al een speler met de naam "${trimmedName}"`);
       return false;
     }
