@@ -16,7 +16,7 @@ interface PitchViewProps {
   onShowTooltip: (index: number) => void;
 }
 
-export default function PitchView({
+const PitchView = React.memo(function PitchView({
   formation,
   fieldOccupants,
   selectedPlayer,
@@ -94,4 +94,6 @@ export default function PitchView({
       })}
     </div>
   );
-}
+});
+
+export default PitchView;
