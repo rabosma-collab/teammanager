@@ -19,6 +19,9 @@ import BenchPanel from './components/BenchPanel';
 import SubstitutionCards from './components/SubstitutionCards';
 import StatsView from './components/StatsView';
 import InstructionsView from './components/InstructionsView';
+import PlayersManageView from './components/PlayersManageView';
+import MatchesManageView from './components/MatchesManageView';
+import PlayerStatsView from './components/PlayerStatsView';
 
 // Modals
 import TooltipModal from './components/modals/TooltipModal';
@@ -26,6 +29,7 @@ import InstructionEditModal from './components/modals/InstructionEditModal';
 import PlayerMenuModal from './components/modals/PlayerMenuModal';
 import GuestPlayerModal from './components/modals/GuestPlayerModal';
 import SubstitutionModal from './components/modals/SubstitutionModal';
+import PlayerCardModal from './components/modals/PlayerCardModal';
 
 export default function FootballApp() {
   // ---- UI STATE ----
@@ -37,17 +41,20 @@ export default function FootballApp() {
   const [showPlayerMenu, setShowPlayerMenu] = useState<number | null>(null);
   const [showTooltip, setShowTooltip] = useState<number | null>(null);
   const [instructionFormation, setInstructionFormation] = useState('4-3-3-aanvallend');
+  const [showPlayerCard, setShowPlayerCard] = useState<Player | null>(null);
 
   // ---- HOOKS ----
   const {
     players, fetchPlayers, getGroupedPlayers,
-    toggleInjury, addGuestPlayer, removeGuestPlayer, updateStat
+    toggleInjury, addGuestPlayer, removeGuestPlayer, updateStat,
+    addPlayer, updatePlayer, deletePlayer
   } = usePlayers();
 
   const {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
-    toggleAbsence, isMatchEditable
+    toggleAbsence, isMatchEditable,
+    addMatch, updateMatch, deleteMatch
   } = useMatches();
 
   const {
@@ -311,6 +318,13 @@ export default function FootballApp() {
         <GuestPlayerModal onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
       )}
 
+      {showPlayerCard && (
+        <PlayerCardModal
+          player={showPlayerCard}
+          onClose={() => setShowPlayerCard(null)}
+        />
+      )}
+
       {showSubModal && isAdmin && (
         <SubstitutionModal
           subNumber={showSubModal}
@@ -334,6 +348,28 @@ export default function FootballApp() {
           setInstructionFormation={setInstructionFormation}
           positionInstructions={positionInstructions}
           onEditInstruction={setEditingInstruction}
+        />
+      ) : view === 'players-manage' && isAdmin ? (
+        <PlayersManageView
+          players={players}
+          onAddPlayer={addPlayer}
+          onUpdatePlayer={updatePlayer}
+          onDeletePlayer={deletePlayer}
+          onRefresh={() => selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers()}
+        />
+      ) : view === 'matches-manage' && isAdmin ? (
+        <MatchesManageView
+          matches={matches}
+          onAddMatch={addMatch}
+          onUpdateMatch={updateMatch}
+          onDeleteMatch={deleteMatch}
+          onRefresh={fetchMatches}
+        />
+      ) : view === 'cards' ? (
+        <PlayerStatsView
+          players={players}
+          isAdmin={isAdmin}
+          onUpdateStat={updateStat}
         />
       ) : view === 'pitch' ? (
         <div className="flex flex-1 overflow-hidden relative">

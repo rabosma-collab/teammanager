@@ -92,6 +92,73 @@ export function useMatches() {
     return matchDate >= today;
   }, [selectedMatch]);
 
+  const addMatch = useCallback(async (
+    matchData: { date: string; opponent: string; home_away: string; formation: string }
+  ): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .insert(matchData);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error adding match:', error);
+      return false;
+    }
+  }, []);
+
+  const updateMatch = useCallback(async (
+    id: number,
+    matchData: { date: string; opponent: string; home_away: string; formation: string }
+  ): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .update(matchData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setMatches(prev =>
+        prev.map(m => m.id === id ? { ...m, ...matchData } : m)
+      );
+      if (selectedMatch?.id === id) {
+        setSelectedMatch(prev => prev ? { ...prev, ...matchData } : prev);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error updating match:', error);
+      return false;
+    }
+  }, [selectedMatch?.id]);
+
+  const deleteMatch = useCallback(async (matchId: number): Promise<boolean> => {
+    try {
+      // Clean up related records first
+      await supabase.from('lineups').delete().eq('match_id', matchId);
+      await supabase.from('substitutions').delete().eq('match_id', matchId);
+      await supabase.from('match_absences').delete().eq('match_id', matchId);
+      await supabase.from('guest_players').delete().eq('match_id', matchId);
+
+      const { error } = await supabase
+        .from('matches')
+        .delete()
+        .eq('id', matchId);
+
+      if (error) throw error;
+
+      setMatches(prev => prev.filter(m => m.id !== matchId));
+      if (selectedMatch?.id === matchId) {
+        setSelectedMatch(null);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error deleting match:', error);
+      return false;
+    }
+  }, [selectedMatch?.id]);
+
   return {
     matches,
     setMatches,
@@ -102,6 +169,9 @@ export function useMatches() {
     fetchMatches,
     fetchAbsences,
     toggleAbsence,
-    isMatchEditable
+    isMatchEditable,
+    addMatch,
+    updateMatch,
+    deleteMatch
   };
 }
