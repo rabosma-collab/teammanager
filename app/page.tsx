@@ -72,16 +72,35 @@ export default function FootballApp() {
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isAdmin);
   const groupedPlayers = useMemo(() => getGroupedPlayers(), [getGroupedPlayers]);
-  const benchPlayers = useMemo(
-    () => getBenchPlayers(players, matchAbsences),
-    [getBenchPlayers, players, matchAbsences]
-  );
+  const benchPlayers = useMemo(() => {
+    const raw = getBenchPlayers(players, matchAbsences);
+    // Final dedup safety: by player id
+    const seen = new Map<number, Player>();
+    for (const p of raw) {
+      if (!seen.has(p.id)) seen.set(p.id, p);
+    }
+    const result = Array.from(seen.values());
+    if (result.length !== raw.length) {
+      console.error(`[page] benchPlayers dedup removed ${raw.length - result.length} duplicates!`, raw.map(p => `${p.id}:${p.name}`));
+    }
+    return result;
+  }, [getBenchPlayers, players, matchAbsences]);
   const sub1 = useMemo(() => getSubsForNumber(1), [getSubsForNumber]);
   const sub2 = useMemo(() => getSubsForNumber(2), [getSubsForNumber]);
   const unavailablePlayers = useMemo(() => ({
     injured: players.filter(p => p.injured),
     absent: players.filter(p => matchAbsences.includes(p.id))
   }), [players, matchAbsences]);
+
+  // ---- DEBUG: track player changes ----
+  useEffect(() => {
+    const names = players.map(p => p.name);
+    const dupes = names.filter((n, i) => names.indexOf(n) !== i);
+    if (dupes.length > 0) {
+      console.error('[page] DUPLICATE players in state:', dupes, players.map(p => `${p.id}:${p.name}`));
+    }
+    console.log('[page] players state:', players.length, 'unique names:', new Set(names).size);
+  }, [players]);
 
   // ---- DATA LADEN ----
   useEffect(() => {
