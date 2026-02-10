@@ -71,6 +71,16 @@ export function usePlayers() {
         return true;
       });
 
+      // Debug: detect duplicates
+      const nameCount = new Map<string, number>();
+      allPlayers.forEach(p => {
+        const key = p.name.toLowerCase().trim();
+        nameCount.set(key, (nameCount.get(key) || 0) + 1);
+      });
+      nameCount.forEach((count, name) => {
+        if (count > 1) console.error(`[usePlayers] DUPLICATE after dedup: "${name}" appears ${count}x`);
+      });
+
       // Only set state if this is still the latest fetch
       if (currentFetchId === fetchIdRef.current) {
         setPlayers(allPlayers);

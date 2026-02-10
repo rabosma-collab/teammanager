@@ -13,18 +13,32 @@ interface BenchPanelProps {
 }
 
 export default function BenchPanel({
-  benchPlayers,
+  benchPlayers: rawBenchPlayers,
   unavailablePlayers,
   selectedPlayer,
   isEditable,
   onSelectPlayer
 }: BenchPanelProps) {
+  // NUCLEAR dedup: absolute last line of defense against duplicates
+  const benchPlayers = React.useMemo(() => {
+    const seen = new Map<number, typeof rawBenchPlayers[0]>();
+    for (const p of rawBenchPlayers) {
+      if (!seen.has(p.id)) seen.set(p.id, p);
+    }
+    const result = Array.from(seen.values());
+    if (result.length !== rawBenchPlayers.length) {
+      console.error(`[BenchPanel] DEDUP removed ${rawBenchPlayers.length - result.length} duplicates!`,
+        rawBenchPlayers.map(p => `${p.id}:${p.name}`));
+    }
+    return result;
+  }, [rawBenchPlayers]);
+
   const hasUnavailable = unavailablePlayers.injured.length > 0 || unavailablePlayers.absent.length > 0;
 
   return (
     <div className="w-full max-w-[350px] sm:max-w-[400px] lg:w-[380px] flex-shrink-0">
       <div className="bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-3xl p-3 sm:p-4 border-4 border-amber-800">
-        <h3 className="text-center font-bold text-lg sm:text-xl mb-3 text-amber-200 select-none">🪑 Wissels</h3>
+        <h3 className="text-center font-bold text-lg sm:text-xl mb-3 text-amber-200 select-none">🪑 Wissels ({benchPlayers.length})</h3>
 
         {benchPlayers.length === 0 ? (
           <div className="text-center py-6 sm:py-8 text-gray-400 text-sm select-none">
@@ -34,7 +48,7 @@ export default function BenchPanel({
           <div className="grid grid-cols-2 gap-2 sm:gap-3">
             {benchPlayers.map(player => (
               <div
-                key={player.id}
+                key={`bench-${player.id}`}
                 onClick={() => {
                   if (!isEditable) return;
                   // Toggle: deselect if already selected
