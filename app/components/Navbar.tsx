@@ -18,11 +18,11 @@ export default function Navbar({
   onToggleSidebar
 }: NavbarProps) {
   return (
-    <nav className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-800 border-b border-gray-700 select-none">
+    <nav className="flex items-center gap-1.5 sm:gap-3 p-2 sm:p-4 bg-gray-800 border-b border-gray-700 select-none overflow-x-auto">
       {view === 'pitch' && (
         <button
           onClick={onToggleSidebar}
-          className="lg:hidden p-2 hover:bg-gray-700 rounded"
+          className="lg:hidden p-2 hover:bg-gray-700 rounded flex-shrink-0"
           aria-label="Toggle menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -33,15 +33,20 @@ export default function Navbar({
 
       <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Tactiekveld" />
       <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
+      <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon="🃏" label="Kaarten" />
 
       {isAdmin && (
-        <NavButton active={view === 'instructions'} onClick={() => setView('instructions')} icon="📋" label="Instructies" />
+        <>
+          <NavButton active={view === 'instructions'} onClick={() => setView('instructions')} icon="📋" label="Instructies" />
+          <NavButton active={view === 'players-manage'} onClick={() => setView('players-manage')} icon="👥" label="Spelers" />
+          <NavButton active={view === 'matches-manage'} onClick={() => setView('matches-manage')} icon="📅" label="Wedstrijden" />
+        </>
       )}
 
       {!isAdmin ? (
         <button
           onClick={onLogin}
-          className="ml-auto px-3 sm:px-6 py-2 bg-yellow-500 text-black rounded font-bold hover:bg-yellow-400 text-sm sm:text-base"
+          className="ml-auto px-3 sm:px-6 py-2 bg-yellow-500 text-black rounded font-bold hover:bg-yellow-400 text-sm sm:text-base flex-shrink-0"
         >
           <span className="hidden sm:inline">🔒 Admin</span>
           <span className="sm:hidden">🔒</span>
@@ -49,7 +54,7 @@ export default function Navbar({
       ) : (
         <button
           onClick={onLogout}
-          className="ml-auto px-3 sm:px-6 py-2 bg-red-500 rounded font-bold hover:bg-red-600 text-sm sm:text-base"
+          className="ml-auto px-3 sm:px-6 py-2 bg-red-500 rounded font-bold hover:bg-red-600 text-sm sm:text-base flex-shrink-0"
         >
           <span className="hidden sm:inline">🔓 Logout</span>
           <span className="sm:hidden">🔓</span>
@@ -68,7 +73,7 @@ function NavButton({ active, onClick, icon, label }: {
   return (
     <button
       onClick={onClick}
-      className={`px-3 sm:px-6 py-2 rounded font-bold transition text-sm sm:text-base ${
+      className={`px-2.5 sm:px-5 py-2 rounded font-bold transition text-xs sm:text-base flex-shrink-0 ${
         active ? 'bg-yellow-500 text-black' : 'bg-gray-700 hover:bg-gray-600'
       }`}
     >

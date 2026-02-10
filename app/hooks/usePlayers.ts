@@ -206,6 +206,69 @@ export function usePlayers() {
     }
   }, [players]);
 
+  const addPlayer = useCallback(async (
+    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number }
+  ): Promise<boolean> => {
+    const trimmedName = playerData.name.trim();
+    if (!trimmedName) return false;
+
+    try {
+      const { error } = await supabase
+        .from('players')
+        .insert({ ...playerData, name: trimmedName });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error adding player:', error);
+      return false;
+    }
+  }, []);
+
+  const updatePlayer = useCallback(async (
+    id: number,
+    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number }
+  ): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('players')
+        .update(playerData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setPlayers(prev =>
+        prev.map(p => p.id === id ? { ...p, ...playerData } : p)
+      );
+      return true;
+    } catch (error) {
+      console.error('Error updating player:', error);
+      return false;
+    }
+  }, []);
+
+  const deletePlayer = useCallback(async (playerId: number): Promise<boolean> => {
+    try {
+      // Clean up related records first
+      await supabase.from('lineups').delete().eq('player_id', playerId);
+      await supabase.from('substitutions').delete().or(`player_out_id.eq.${playerId},player_in_id.eq.${playerId}`);
+      await supabase.from('match_absences').delete().eq('player_id', playerId);
+
+      const { error } = await supabase
+        .from('players')
+        .delete()
+        .eq('id', playerId);
+
+      if (error) throw error;
+
+      setPlayers(prev => prev.filter(p => p.id !== playerId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting player:', error);
+      return false;
+    }
+  }, []);
+
   return {
     players,
     setPlayers,
@@ -214,6 +277,9 @@ export function usePlayers() {
     toggleInjury,
     addGuestPlayer,
     removeGuestPlayer,
-    updateStat
+    updateStat,
+    addPlayer,
+    updatePlayer,
+    deletePlayer
   };
 }
