@@ -355,8 +355,7 @@ export default function FootballApp() {
         if (benchMinutes > 0 || data.wasInStartingEleven) {
           const table = player.is_guest ? 'guest_players' : 'players';
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const updates: any = {};
+          const updates: Record<string, number> = {};
 
           // Alleen wisselminuten toevoegen als er wisselminuten zijn
           if (benchMinutes > 0) {
