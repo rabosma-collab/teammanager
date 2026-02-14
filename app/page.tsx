@@ -60,7 +60,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, deleteMatch, finalizeMatch
+    addMatch, updateMatch, deleteMatch
   } = useMatches();
 
   const {
@@ -272,18 +272,134 @@ export default function FootballApp() {
   };
 
   const handleFinalizeMatch = async () => {
-    if (!selectedMatch) return;
-    if (!confirm(`Weet je zeker dat je de wedstrijd tegen ${selectedMatch.opponent} wilt afsluiten?\n\nDit berekent de gespeelde minuten en kan niet ongedaan worden gemaakt.`)) {
-      return;
-    }
+    if (!selectedMatch || !canFinalizeMatch()) return;
 
-    const success = await finalizeMatch(selectedMatch.id);
-    if (success) {
-      // Refresh players to see updated minutes
-      await fetchPlayers(selectedMatch.id);
-      alert('✅ Wedstrijd afgerond! Minuten en wedstrijden zijn bijgewerkt.');
-    } else {
-      alert('❌ Kon wedstrijd niet afsluiten');
+    const confirmed = confirm(
+      `Wedstrijd afsluiten?\n\n` +
+      `Dit doet het volgende:\n` +
+      `• Berekent wisselminuten (tijd op de bank)\n` +
+      `• Telt wisselminuten op bij spelers\n` +
+      `• Telt 'was' op voor spelers in basis\n` +
+      `• Maakt wedstrijd read-only\n\n` +
+      `Dit kan NIET ongedaan gemaakt worden!`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Haal alle substitutions op
+      const { data: subs, error: subsError } = await supabase
+        .from('substitutions')
+        .select('*')
+        .eq('match_id', selectedMatch.id);
+
+      if (subsError) throw subsError;
+
+      // Track speeltijd per speler
+      const playerPlayTime: Record<number, {
+        periodsPlayed: Array<{start: number, end: number}>,
+        wasInStartingEleven: boolean
+      }> = {};
+
+      // 1. Spelers in basis starten met 0-90
+      fieldOccupants.forEach(player => {
+        if (player) {
+          playerPlayTime[player.id] = {
+            periodsPlayed: [{start: 0, end: 90}],
+            wasInStartingEleven: true
+          };
+        }
+      });
+
+      // 2. Verwerk alle substitutions
+      subs?.forEach(sub => {
+        const minute = sub.custom_minute || sub.minute;
+
+        // Speler ERUIT: speelde van 0 tot minute
+        if (sub.player_out_id && playerPlayTime[sub.player_out_id]) {
+          playerPlayTime[sub.player_out_id].periodsPlayed = [{
+            start: 0,
+            end: minute
+          }];
+        }
+
+        // Speler ERIN: speelde van minute tot 90
+        if (sub.player_in_id) {
+          if (!playerPlayTime[sub.player_in_id]) {
+            playerPlayTime[sub.player_in_id] = {
+              periodsPlayed: [{start: minute, end: 90}],
+              wasInStartingEleven: false
+            };
+          } else {
+            playerPlayTime[sub.player_in_id].periodsPlayed.push({
+              start: minute,
+              end: 90
+            });
+          }
+        }
+      });
+
+      // 3. Bereken wisselminuten voor elke speler
+      for (const [playerId, data] of Object.entries(playerPlayTime)) {
+        const player = players.find(p => p.id === parseInt(playerId));
+        if (!player) continue;
+
+        // Bereken totale speeltijd
+        const totalPlayedMinutes = data.periodsPlayed.reduce((sum, period) => {
+          return sum + (period.end - period.start);
+        }, 0);
+
+        // Wisselminuten = 90 - gespeelde minuten
+        const benchMinutes = 90 - totalPlayedMinutes;
+
+        if (benchMinutes > 0 || data.wasInStartingEleven) {
+          const table = player.is_guest ? 'guest_players' : 'players';
+
+          const updates: Record<string, number> = {};
+
+          // Alleen wisselminuten toevoegen als er wisselminuten zijn
+          if (benchMinutes > 0) {
+            updates.min = player.min + benchMinutes;
+          }
+
+          // Was bijwerken als speler in basis stond
+          if (data.wasInStartingEleven) {
+            updates.was = player.was + 1;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            const { error } = await supabase
+              .from(table)
+              .update(updates)
+              .eq('id', parseInt(playerId));
+
+            if (error) throw error;
+          }
+        }
+      }
+
+      // 4. Update match status
+      const { error: matchError } = await supabase
+        .from('matches')
+        .update({ match_status: 'afgerond' })
+        .eq('id', selectedMatch.id);
+
+      if (matchError) throw matchError;
+
+      // 5. Update local state
+      setSelectedMatch({ ...selectedMatch, match_status: 'afgerond' });
+      setMatches(matches.map(m =>
+        m.id === selectedMatch.id ? { ...m, match_status: 'afgerond' } : m
+      ));
+
+      // 6. Reload players
+      await fetchPlayers();
+
+      alert('✅ Wedstrijd afgesloten! Wisselminuten zijn bijgewerkt.');
+
+    } catch (error) {
+      console.error('Error finalizing match:', error);
+      alert('❌ Fout bij afsluiten: ' + (error as Error).message);
     }
   };
 
