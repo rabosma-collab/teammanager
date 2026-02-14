@@ -24,7 +24,7 @@ export function useSubstitutions() {
   }, []);
 
   const getSubsForNumber = useCallback((subNumber: number): Substitution[] => {
-    return substitutions.filter(s => s.substitution_number === subNumber);
+    return substitutions.filter(s => s.substitution_number === subNumber && !s.is_extra);
   }, [substitutions]);
 
   const openSubModal = useCallback((
@@ -103,7 +103,8 @@ export function useSubstitutions() {
         minute: minute,
         player_out_id: s.out!.id,
         player_in_id: s.in!.id,
-        custom_minute: isCustom ? minute : null
+        custom_minute: isCustom ? minute : null,
+        is_extra: false
       }));
 
       const { error } = await supabase

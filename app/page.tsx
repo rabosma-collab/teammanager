@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { formations, formationLabels, normalizeFormation } from './lib/constants';
+import { supabase } from './lib/supabase';
 import type { Player } from './lib/types';
 
 // Hooks
@@ -43,6 +44,10 @@ export default function FootballApp() {
   const [showTooltip, setShowTooltip] = useState<number | null>(null);
   const [instructionFormation, setInstructionFormation] = useState('4-3-3-aanvallend');
   const [showPlayerCard, setShowPlayerCard] = useState<Player | null>(null);
+  const [showExtraSubModal, setShowExtraSubModal] = useState(false);
+  const [extraSubMinute, setExtraSubMinute] = useState(45);
+  const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
+  const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
 
   // ---- HOOKS ----
   const {
@@ -286,6 +291,55 @@ export default function FootballApp() {
     openSubModal(subNumber, players, minute);
   }, [openSubModal, players]);
 
+  const addExtraSubstitution = useCallback(async (minute: number, playerOutId: number, playerInId: number) => {
+    if (!selectedMatch) return;
+    try {
+      const { error } = await supabase
+        .from('substitutions')
+        .insert({
+          match_id: selectedMatch.id,
+          substitution_number: 0,
+          minute: 0,
+          custom_minute: minute,
+          player_out_id: playerOutId,
+          player_in_id: playerInId,
+          is_extra: true
+        });
+
+      if (error) throw error;
+
+      await fetchSubstitutions(selectedMatch.id);
+      setShowExtraSubModal(false);
+      setExtraSubMinute(45);
+      setExtraSubOut(null);
+      setExtraSubIn(null);
+      alert('✅ Extra wissel toegevoegd!');
+    } catch (error) {
+      console.error('Error adding extra sub:', error);
+      alert('❌ Kon wissel niet toevoegen');
+    }
+  }, [selectedMatch, fetchSubstitutions]);
+
+  const deleteExtraSubstitution = useCallback(async (subId: number) => {
+    if (!confirm('Weet je zeker dat je deze extra wissel wilt verwijderen?')) return;
+    try {
+      const { error } = await supabase
+        .from('substitutions')
+        .delete()
+        .eq('id', subId);
+
+      if (error) throw error;
+
+      if (selectedMatch) {
+        await fetchSubstitutions(selectedMatch.id);
+      }
+      alert('✅ Extra wissel verwijderd');
+    } catch (error) {
+      console.error('Error deleting extra sub:', error);
+      alert('❌ Kon wissel niet verwijderen');
+    }
+  }, [selectedMatch, fetchSubstitutions]);
+
   // ---- LOADING ----
   if (loading) {
     return (
@@ -393,6 +447,97 @@ export default function FootballApp() {
           onSave={handleSaveSubstitutions}
           onClose={closeSubModal}
         />
+      )}
+
+      {showExtraSubModal && isAdmin && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowExtraSubModal(false)}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">➕ Extra wissel toevoegen</h3>
+              <button
+                onClick={() => setShowExtraSubModal(false)}
+                className="text-2xl hover:text-red-500 p-2"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-2">Minuut</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="90"
+                  value={extraSubMinute}
+                  onChange={(e) => setExtraSubMinute(Math.max(1, Math.min(90, parseInt(e.target.value) || 1)))}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-lg font-bold text-center"
+                  placeholder="bijv. 45"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-2 text-red-400">⬇️ Eruit</label>
+                <select
+                  value={extraSubOut?.id || ''}
+                  onChange={(e) => {
+                    const player = players.find(p => p.id === parseInt(e.target.value));
+                    setExtraSubOut(player || null);
+                  }}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                >
+                  <option value="">Selecteer...</option>
+                  {players.filter(p => isPlayerAvailable(p, matchAbsences)).map(player => (
+                    <option key={player.id} value={player.id}>{player.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-2 text-green-400">⬆️ Erin</label>
+                <select
+                  value={extraSubIn?.id || ''}
+                  onChange={(e) => {
+                    const player = players.find(p => p.id === parseInt(e.target.value));
+                    setExtraSubIn(player || null);
+                  }}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                >
+                  <option value="">Selecteer...</option>
+                  {players.filter(p => isPlayerAvailable(p, matchAbsences)).map(player => (
+                    <option key={player.id} value={player.id}>{player.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  if (extraSubMinute && extraSubOut && extraSubIn) {
+                    addExtraSubstitution(extraSubMinute, extraSubOut.id, extraSubIn.id);
+                  } else {
+                    alert('⚠️ Vul alle velden in');
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold touch-manipulation active:scale-95"
+              >
+                ✅ Toevoegen
+              </button>
+              <button
+                onClick={() => {
+                  setShowExtraSubModal(false);
+                  setExtraSubMinute(45);
+                  setExtraSubOut(null);
+                  setExtraSubIn(null);
+                }}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded font-bold touch-manipulation active:scale-95"
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* === VIEWS === */}
@@ -548,6 +693,8 @@ export default function FootballApp() {
               isEditable={editable}
               isFinalized={!!isFinalized}
               onEditSub={handleEditSub}
+              onAddExtraSub={() => setShowExtraSubModal(true)}
+              onDeleteExtraSub={deleteExtraSubstitution}
             />
 
             {/* Geselecteerde speler/positie indicator */}

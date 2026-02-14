@@ -41,6 +41,7 @@ export interface Player {
     player_out_id: number;
     player_in_id: number;
     custom_minute: number | null;
+    is_extra: boolean;
   }
 
   export interface PositionInstruction {

@@ -9,6 +9,8 @@ interface SubstitutionCardsProps {
   isEditable: boolean;
   isFinalized: boolean;
   onEditSub: (subNumber: number, minute?: number) => void;
+  onAddExtraSub: () => void;
+  onDeleteExtraSub: (subId: number) => void;
 }
 
 const colorSchemes = ['blue', 'purple', 'emerald', 'orange', 'rose'] as const;
@@ -29,15 +31,71 @@ export default function SubstitutionCards({
   isAdmin,
   isEditable,
   isFinalized,
-  onEditSub
+  onEditSub,
+  onAddExtraSub,
+  onDeleteExtraSub
 }: SubstitutionCardsProps) {
   if (!scheme) return null;
 
+  const regularSubs = substitutions.filter(s => !s.is_extra);
+  const extraSubs = substitutions.filter(s => s.is_extra).sort((a, b) => {
+    const minA = a.custom_minute ?? a.minute;
+    const minB = b.custom_minute ?? b.minute;
+    return minA - minB;
+  });
+
   const isFreeSubstitution = scheme.minutes.length === 0;
 
+  const renderExtraSubsSection = () => (
+    <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl p-3 sm:p-4 border-2 border-gray-600">
+      <div className="flex justify-between items-center mb-3">
+        <h4 className="font-bold text-sm sm:text-lg">➕ Extra wissels</h4>
+        {isAdmin && isEditable && !isFinalized && (
+          <button
+            onClick={onAddExtraSub}
+            className="px-2 sm:px-3 py-1 bg-gray-500 hover:bg-gray-600 rounded text-xs sm:text-sm touch-manipulation active:scale-95"
+          >
+            + Toevoegen
+          </button>
+        )}
+      </div>
+
+      {extraSubs.length === 0 ? (
+        <div className="text-center py-3 text-gray-400 text-xs sm:text-sm">
+          Geen extra wissels
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {extraSubs.map(sub => {
+            const playerOut = players.find(p => p.id === sub.player_out_id);
+            const playerIn = players.find(p => p.id === sub.player_in_id);
+            return (
+              <div key={sub.id} className="bg-gray-800/50 rounded p-2 text-xs sm:text-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-yellow-400">{sub.custom_minute ?? sub.minute}&apos;</span>
+                  <span className="text-red-400">⬇️ {playerOut?.name}</span>
+                  <span>→</span>
+                  <span className="text-green-400">⬆️ {playerIn?.name}</span>
+                </div>
+                {isAdmin && isEditable && !isFinalized && (
+                  <button
+                    onClick={() => onDeleteExtraSub(sub.id)}
+                    className="text-red-500 hover:text-red-400 p-2 touch-manipulation active:scale-95"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   if (isFreeSubstitution) {
-    // Group all substitutions (they use custom_minute)
-    const freeSubs = substitutions.sort((a, b) => {
+    // Group all regular substitutions (they use custom_minute)
+    const freeSubs = [...regularSubs].sort((a, b) => {
       const minA = a.custom_minute ?? a.minute;
       const minB = b.custom_minute ?? b.minute;
       return minA - minB;
@@ -110,6 +168,9 @@ export default function SubstitutionCards({
               + Wissel toevoegen
             </button>
           )}
+
+          {/* Extra wissels sectie */}
+          {isAdmin && renderExtraSubsSection()}
         </div>
 
         {sortedGroups.length === 0 && !isAdmin && (
@@ -123,50 +184,55 @@ export default function SubstitutionCards({
 
   // Fixed scheme: render one card per minute
   return (
-    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 justify-center w-full max-w-[900px] mx-auto">
-      {scheme.minutes.map((minute, idx) => {
-        const subNumber = idx + 1;
-        const subs = substitutions.filter(s => s.substitution_number === subNumber);
-        const c = colors[colorSchemes[idx % colorSchemes.length]];
+    <div className="flex flex-col gap-3 sm:gap-4 w-full max-w-[900px] mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        {scheme.minutes.map((minute, idx) => {
+          const subNumber = idx + 1;
+          const subs = regularSubs.filter(s => s.substitution_number === subNumber);
+          const c = colors[colorSchemes[idx % colorSchemes.length]];
 
-        return (
-          <div key={subNumber} className={`flex-1 bg-gradient-to-br ${c.bg} rounded-xl p-3 sm:p-4 border-2 ${c.border}`}>
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="font-bold text-sm sm:text-lg">🔄 Wissel {subNumber} ({minute}&apos;)</h4>
-              {isAdmin && isEditable && !isFinalized && (
-                <button
-                  onClick={() => onEditSub(subNumber, minute)}
-                  className={`px-2 sm:px-3 py-1 ${c.button} rounded text-xs sm:text-sm touch-manipulation`}
-                >
-                  {subs.length > 0 ? `✏️ (${subs.length})` : '+ Instellen'}
-                </button>
+          return (
+            <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 sm:p-4 border-2 ${c.border}`}>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-bold text-sm sm:text-lg">🔄 Wissel {subNumber} ({minute}&apos;)</h4>
+                {isAdmin && isEditable && !isFinalized && (
+                  <button
+                    onClick={() => onEditSub(subNumber, minute)}
+                    className={`px-2 sm:px-3 py-1 ${c.button} rounded text-xs sm:text-sm touch-manipulation`}
+                  >
+                    {subs.length > 0 ? `✏️ (${subs.length})` : '+ Instellen'}
+                  </button>
+                )}
+              </div>
+
+              {subs.length === 0 ? (
+                <div className="text-center py-3 sm:py-4 text-gray-400 text-xs sm:text-sm">
+                  Nog niet ingesteld
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {subs.map(sub => {
+                    const playerOut = players.find(p => p.id === sub.player_out_id);
+                    const playerIn = players.find(p => p.id === sub.player_in_id);
+                    return (
+                      <div key={sub.id} className={`${c.inner} rounded p-2 text-xs sm:text-sm`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-red-400">⬇️ {playerOut?.name}</span>
+                          <span>→</span>
+                          <span className="text-green-400">⬆️ {playerIn?.name}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
+          );
+        })}
+      </div>
 
-            {subs.length === 0 ? (
-              <div className="text-center py-3 sm:py-4 text-gray-400 text-xs sm:text-sm">
-                Nog niet ingesteld
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {subs.map(sub => {
-                  const playerOut = players.find(p => p.id === sub.player_out_id);
-                  const playerIn = players.find(p => p.id === sub.player_in_id);
-                  return (
-                    <div key={sub.id} className={`${c.inner} rounded p-2 text-xs sm:text-sm`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-red-400">⬇️ {playerOut?.name}</span>
-                        <span>→</span>
-                        <span className="text-green-400">⬆️ {playerIn?.name}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {/* Extra wissels sectie */}
+      {isAdmin && renderExtraSubsSection()}
     </div>
   );
 }
