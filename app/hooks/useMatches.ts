@@ -86,11 +86,10 @@ export function useMatches() {
 
   const isMatchEditable = useCallback((isAdmin: boolean): boolean => {
     if (!selectedMatch || !isAdmin) return false;
+    // Afgesloten wedstrijden = nooit editable
     if (selectedMatch.match_status === 'afgerond') return false;
-    const matchDate = new Date(selectedMatch.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return matchDate >= today;
+    // Concept wedstrijden = altijd editable (ook oude)
+    return true;
   }, [selectedMatch]);
 
   const addMatch = useCallback(async (

@@ -83,6 +83,29 @@ export default function FootballApp() {
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isAdmin);
   const isFinalized = selectedMatch?.match_status === 'afgerond';
+
+  const canFinalizeMatch = useCallback((): boolean => {
+    if (!selectedMatch || !isAdmin) return false;
+    if (selectedMatch.match_status !== 'concept') return false;
+    const matchDate = new Date(selectedMatch.date);
+    matchDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return matchDate <= today;
+  }, [selectedMatch, isAdmin]);
+
+  const getMatchStatusBadge = useCallback((): string => {
+    if (!selectedMatch) return '';
+    if (selectedMatch.match_status === 'afgerond') return '✅ Afgerond';
+    const matchDate = new Date(selectedMatch.date);
+    matchDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (matchDate < today) return '⚠️ Nog afsluiten';
+    if (matchDate.getTime() === today.getTime()) return '🏟️ Vandaag';
+    return '📅 Binnenkort';
+  }, [selectedMatch]);
+
   const currentScheme = useMemo(
     () => selectedMatch ? getSchemeById(selectedMatch.substitution_scheme_id) : null,
     [selectedMatch, getSchemeById]
@@ -263,15 +286,6 @@ export default function FootballApp() {
     openSubModal(subNumber, players, minute);
   }, [openSubModal, players]);
 
-  // Check if match is in the past (for finalize button)
-  const isMatchInPast = useMemo(() => {
-    if (!selectedMatch) return false;
-    const matchDate = new Date(selectedMatch.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return matchDate < today;
-  }, [selectedMatch]);
-
   // ---- LOADING ----
   if (loading) {
     return (
@@ -432,11 +446,16 @@ export default function FootballApp() {
           />
 
           <div className="flex-1 flex flex-col p-2 sm:p-4 lg:p-8 overflow-y-auto">
-            {/* Afgeronde wedstrijd badge */}
-            {isFinalized && (
-              <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg text-center">
-                <span className="text-blue-400 font-bold text-sm sm:text-base">✅ Afgerond</span>
-                <span className="text-gray-400 text-xs sm:text-sm ml-2">— Deze wedstrijd is afgesloten en kan niet meer bewerkt worden</span>
+            {/* Wedstrijd status badge */}
+            {selectedMatch && (
+              <div className={`mb-4 p-3 rounded-lg text-sm font-bold text-center ${
+                selectedMatch.match_status === 'afgerond'
+                  ? 'bg-green-900/30 border border-green-700'
+                  : canFinalizeMatch()
+                  ? 'bg-orange-900/30 border border-orange-700'
+                  : 'bg-blue-900/30 border border-blue-700'
+              }`}>
+                {getMatchStatusBadge()}
               </div>
             )}
 
@@ -484,10 +503,10 @@ export default function FootballApp() {
                 </button>
               )}
 
-              {isAdmin && isMatchInPast && !isFinalized && (
+              {canFinalizeMatch() && (
                 <button
                   onClick={handleFinalizeMatch}
-                  className="px-3 sm:px-4 py-2 rounded font-bold bg-orange-600 hover:bg-orange-700 text-sm sm:text-base"
+                  className="px-3 sm:px-4 py-2 rounded font-bold bg-purple-600 hover:bg-purple-700 text-sm sm:text-base"
                 >
                   🏁 Wedstrijd afsluiten
                 </button>

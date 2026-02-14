@@ -108,7 +108,7 @@ export default function Sidebar({
 
           {!isEditable && (
             <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded text-sm select-none">
-              🔒 {isAdmin ? 'Wedstrijd in verleden' : 'Login als admin'}
+              🔒 {isAdmin ? 'Wedstrijd is afgerond' : 'Login als admin'}
             </div>
           )}
 
