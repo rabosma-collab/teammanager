@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
-import PlayerEditModal from './modals/PlayerEditModal';
+import PlayerEditModal, { type PlayerFormData } from './modals/PlayerEditModal';
 
 interface PlayersManageViewProps {
   players: Player[];
-  onAddPlayer: (data: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number }) => Promise<boolean>;
-  onUpdatePlayer: (id: number, data: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number }) => Promise<boolean>;
+  onAddPlayer: (data: PlayerFormData) => Promise<boolean>;
+  onUpdatePlayer: (id: number, data: PlayerFormData) => Promise<boolean>;
   onDeletePlayer: (id: number) => Promise<boolean>;
   onRefresh: () => void;
 }
@@ -22,7 +22,7 @@ export default function PlayersManageView({
 
   const regularPlayers = players.filter(p => !p.is_guest);
 
-  const handleSave = async (data: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number }) => {
+  const handleSave = async (data: PlayerFormData) => {
     let success: boolean;
     if (editingPlayer === 'new') {
       success = await onAddPlayer(data);

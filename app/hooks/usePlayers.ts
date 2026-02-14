@@ -207,7 +207,7 @@ export function usePlayers() {
   }, [players]);
 
   const addPlayer = useCallback(async (
-    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number }
+    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number }
   ): Promise<boolean> => {
     const trimmedName = playerData.name.trim();
     if (!trimmedName) return false;
@@ -227,7 +227,7 @@ export function usePlayers() {
 
   const updatePlayer = useCallback(async (
     id: number,
-    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number }
+    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number }
   ): Promise<boolean> => {
     try {
       const { error } = await supabase

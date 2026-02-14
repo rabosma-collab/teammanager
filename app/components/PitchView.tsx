@@ -14,6 +14,7 @@ interface PitchViewProps {
   getInstructionForPosition: (index: number) => PositionInstruction | null;
   onPositionClick: (index: number) => void;
   onShowTooltip: (index: number) => void;
+  onShowPlayerCard: (player: Player) => void;
 }
 
 const PitchView = React.memo(function PitchView({
@@ -27,7 +28,8 @@ const PitchView = React.memo(function PitchView({
   isPlayerOnField,
   getInstructionForPosition,
   onPositionClick,
-  onShowTooltip
+  onShowTooltip,
+  onShowPlayerCard
 }: PitchViewProps) {
   return (
     <div
@@ -83,7 +85,11 @@ const PitchView = React.memo(function PitchView({
 
             {player && (
               <div
-                className="text-xs font-bold text-center mt-1 text-white hidden sm:block"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShowPlayerCard(player);
+                }}
+                className="text-xs font-bold text-center mt-1 text-white hidden sm:block cursor-pointer hover:text-yellow-300"
                 style={{ textShadow: '1px 1px 2px black' }}
               >
                 {player.name}
