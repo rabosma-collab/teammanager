@@ -7,6 +7,11 @@ export interface Player {
     was: number;
     min: number;
     injured: boolean;
+    pac: number;
+    sho: number;
+    pas: number;
+    dri: number;
+    def: number;
     is_guest?: boolean;
     guest_match_id?: number;
   }

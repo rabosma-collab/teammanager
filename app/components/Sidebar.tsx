@@ -16,6 +16,7 @@ interface SidebarProps {
   onSelectPlayer: (player: Player | null) => void;
   onPlayerMenu: (playerId: number) => void;
   onAddGuest: () => void;
+  onShowPlayerCard: (player: Player) => void;
 }
 
 export default function Sidebar({
@@ -31,7 +32,8 @@ export default function Sidebar({
   isPlayerAvailable,
   onSelectPlayer,
   onPlayerMenu,
-  onAddGuest
+  onAddGuest,
+  onShowPlayerCard
 }: SidebarProps) {
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressFired = useRef(false);
@@ -67,8 +69,9 @@ export default function Sidebar({
         onSelectPlayer(player);
         onClose();
       }
-    } else if (onField) {
-      alert('⚠️ Deze speler staat al op het veld');
+    } else if (!isEditable || onField) {
+      // Show player card when not editable or player is already on field
+      onShowPlayerCard(player);
     }
   }, [isEditable, selectedPlayer, onSelectPlayer, onClose]);
 

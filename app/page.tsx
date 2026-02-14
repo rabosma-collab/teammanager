@@ -21,7 +21,7 @@ import StatsView from './components/StatsView';
 import InstructionsView from './components/InstructionsView';
 import PlayersManageView from './components/PlayersManageView';
 import MatchesManageView from './components/MatchesManageView';
-import PlayerStatsView from './components/PlayerStatsView';
+import PlayerCardsView from './components/PlayerCardsView';
 
 // Modals
 import TooltipModal from './components/modals/TooltipModal';
@@ -366,7 +366,7 @@ export default function FootballApp() {
           onRefresh={fetchMatches}
         />
       ) : view === 'cards' ? (
-        <PlayerStatsView
+        <PlayerCardsView
           players={players}
           isAdmin={isAdmin}
           onUpdateStat={updateStat}
@@ -387,6 +387,7 @@ export default function FootballApp() {
             onSelectPlayer={handleSelectPlayer}
             onPlayerMenu={setShowPlayerMenu}
             onAddGuest={() => setShowGuestModal(true)}
+            onShowPlayerCard={setShowPlayerCard}
           />
 
           <div className="flex-1 flex flex-col p-2 sm:p-4 lg:p-8 overflow-y-auto">
@@ -448,6 +449,7 @@ export default function FootballApp() {
                 getInstructionForPosition={getInstructionForPosition}
                 onPositionClick={handlePositionClick}
                 onShowTooltip={setShowTooltip}
+                onShowPlayerCard={setShowPlayerCard}
               />
 
               <BenchPanel
