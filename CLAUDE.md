@@ -26,7 +26,7 @@ Single-page Next.js 13 app (App Router) with client-side rendering. All UI runs 
 ### Data Flow
 
 `page.tsx` (FootballApp) is the orchestrator:
-1. Hooks (`usePlayers`, `useMatches`, `useLineup`, `useSubstitutions`, `useInstructions`) fetch from Supabase
+1. Hooks (`usePlayers`, `useMatches`, `useLineup`, `useSubstitutions`, `useInstructions`, `useSubstitutionSchemes`) fetch from Supabase
 2. `page.tsx` computes derived state via `useMemo` (benchPlayers, groupedPlayers, unavailablePlayers)
 3. Components receive data + callbacks via props
 4. Modals in `app/components/modals/` handle forms for CRUD operations
@@ -34,8 +34,10 @@ Single-page Next.js 13 app (App Router) with client-side rendering. All UI runs 
 ### Core Types (`app/lib/types.ts`)
 
 - `Player` — includes match stats (goals, assists, was, min) and FIFA stats (pac, sho, pas, dri, def)
-- `Match` — date, opponent, home_away, formation
-- `Substitution`, `PositionInstruction`, `TempSubstitution`
+- `Match` — date, opponent, home_away, formation, substitution_scheme_id, match_status (concept/afgerond)
+- `SubstitutionScheme` — name, minutes[] (empty array = free substitution), is_system
+- `Substitution` — includes custom_minute for free substitution schemes
+- `PositionInstruction`, `TempSubstitution`
 
 ### Formations (`app/lib/constants.ts`)
 
@@ -43,7 +45,7 @@ Six predefined formations (4-3-3-aanvallend, 4-3-3-verdedigend, 4-4-2-plat, 4-4-
 
 ### Supabase Tables
 
-`players`, `guest_players`, `matches`, `lineups`, `substitutions`, `match_absences`, `position_instructions`. Client initialized in `app/lib/supabase.js` with public anon key.
+`players`, `guest_players`, `matches`, `lineups`, `substitutions`, `substitution_schemes`, `match_absences`, `position_instructions`. Client initialized in `app/lib/supabase.js` with public anon key.
 
 ### Admin Authentication
 

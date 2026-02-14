@@ -6,6 +6,8 @@ export function useSubstitutions() {
   const [substitutions, setSubstitutions] = useState<Substitution[]>([]);
   const [tempSubs, setTempSubs] = useState<TempSubstitution[]>([]);
   const [showSubModal, setShowSubModal] = useState<number | null>(null);
+  const [showSubModalMinute, setShowSubModalMinute] = useState<number | null>(null);
+  const [customMinuteInput, setCustomMinuteInput] = useState<number>(45);
 
   const fetchSubstitutions = useCallback(async (matchId: number) => {
     try {
@@ -27,7 +29,8 @@ export function useSubstitutions() {
 
   const openSubModal = useCallback((
     subNumber: number,
-    players: Player[]
+    players: Player[],
+    minute?: number
   ) => {
     const existing = substitutions.filter(s => s.substitution_number === subNumber);
     setTempSubs(existing.map(s => ({
@@ -35,6 +38,10 @@ export function useSubstitutions() {
       in: players.find(p => p.id === s.player_in_id) || null
     })));
     setShowSubModal(subNumber);
+    setShowSubModalMinute(minute ?? null);
+    if (existing.length > 0 && existing[0].custom_minute) {
+      setCustomMinuteInput(existing[0].custom_minute);
+    }
   }, [substitutions]);
 
   const addTempSub = useCallback(() => {
@@ -57,7 +64,10 @@ export function useSubstitutions() {
     });
   }, []);
 
-  const saveSubstitutions = useCallback(async (matchId: number): Promise<boolean> => {
+  const saveSubstitutions = useCallback(async (
+    matchId: number,
+    minuteOverride?: number
+  ): Promise<boolean> => {
     if (!showSubModal) return false;
 
     const allComplete = tempSubs.every(s => s.out && s.in);
@@ -84,13 +94,16 @@ export function useSubstitutions() {
         .eq('match_id', matchId)
         .eq('substitution_number', showSubModal);
 
-      const minute = showSubModal === 1 ? 30 : 60;
+      const minute = minuteOverride ?? showSubModalMinute ?? 0;
+      const isCustom = minuteOverride !== undefined;
+
       const subsToInsert = tempSubs.map(s => ({
         match_id: matchId,
         substitution_number: showSubModal,
-        minute,
+        minute: minute,
         player_out_id: s.out!.id,
-        player_in_id: s.in!.id
+        player_in_id: s.in!.id,
+        custom_minute: isCustom ? minute : null
       }));
 
       const { error } = await supabase
@@ -101,16 +114,18 @@ export function useSubstitutions() {
 
       await fetchSubstitutions(matchId);
       setShowSubModal(null);
+      setShowSubModalMinute(null);
       setTempSubs([]);
       return true;
     } catch (error) {
       console.error('Error saving substitutions:', error);
       return false;
     }
-  }, [showSubModal, tempSubs, fetchSubstitutions]);
+  }, [showSubModal, showSubModalMinute, tempSubs, fetchSubstitutions]);
 
   const closeSubModal = useCallback(() => {
     setShowSubModal(null);
+    setShowSubModalMinute(null);
     setTempSubs([]);
   }, []);
 
@@ -118,6 +133,9 @@ export function useSubstitutions() {
     substitutions,
     tempSubs,
     showSubModal,
+    showSubModalMinute,
+    customMinuteInput,
+    setCustomMinuteInput,
     fetchSubstitutions,
     getSubsForNumber,
     openSubModal,

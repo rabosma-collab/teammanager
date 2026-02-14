@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Match } from '../lib/types';
+import type { Match, Substitution } from '../lib/types';
 
 export function useMatches() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -86,6 +86,7 @@ export function useMatches() {
 
   const isMatchEditable = useCallback((isAdmin: boolean): boolean => {
     if (!selectedMatch || !isAdmin) return false;
+    if (selectedMatch.match_status === 'afgerond') return false;
     const matchDate = new Date(selectedMatch.date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -93,7 +94,7 @@ export function useMatches() {
   }, [selectedMatch]);
 
   const addMatch = useCallback(async (
-    matchData: { date: string; opponent: string; home_away: string; formation: string }
+    matchData: { date: string; opponent: string; home_away: string; formation: string; substitution_scheme_id: number }
   ): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -110,7 +111,7 @@ export function useMatches() {
 
   const updateMatch = useCallback(async (
     id: number,
-    matchData: { date: string; opponent: string; home_away: string; formation: string }
+    matchData: { date: string; opponent: string; home_away: string; formation: string; substitution_scheme_id: number }
   ): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -159,6 +160,120 @@ export function useMatches() {
     }
   }, [selectedMatch?.id]);
 
+  const finalizeMatch = useCallback(async (matchId: number): Promise<boolean> => {
+    try {
+      // Fetch lineup for this match to know who started
+      const { data: lineupData, error: lineupError } = await supabase
+        .from('lineups')
+        .select('player_id')
+        .eq('match_id', matchId);
+
+      if (lineupError) throw lineupError;
+
+      const starterIds = new Set((lineupData || []).map(l => l.player_id));
+
+      // Fetch substitutions for this match
+      const { data: subsData, error: subsError } = await supabase
+        .from('substitutions')
+        .select('*')
+        .eq('match_id', matchId);
+
+      if (subsError) throw subsError;
+
+      const subs = (subsData || []) as Substitution[];
+
+      // Calculate minutes per player
+      const minutesMap = new Map<number, number>();
+
+      // Starters get 90 minutes by default
+      const starterArray = Array.from(starterIds);
+      starterArray.forEach(playerId => {
+        minutesMap.set(playerId, 90);
+      });
+
+      // Sort subs by minute
+      const sortedSubs = [...subs].sort((a, b) => {
+        const minA = a.custom_minute ?? a.minute;
+        const minB = b.custom_minute ?? b.minute;
+        return minA - minB;
+      });
+
+      // Adjust for substitutions
+      for (const sub of sortedSubs) {
+        const subMinute = sub.custom_minute ?? sub.minute;
+
+        // Player out: played from start (or from when they came in) to sub minute
+        if (starterIds.has(sub.player_out_id)) {
+          // Starter subbed out: gets subMinute instead of 90
+          minutesMap.set(sub.player_out_id, subMinute);
+        }
+
+        // Player in: played from sub minute to 90 (or until they get subbed out)
+        minutesMap.set(sub.player_in_id, (minutesMap.get(sub.player_in_id) || 0) + (90 - subMinute));
+      }
+
+      // Check if a player who came in was later subbed out
+      for (const sub of sortedSubs) {
+        const subMinute = sub.custom_minute ?? sub.minute;
+        // If player_out was previously subbed in, adjust their minutes
+        if (!starterIds.has(sub.player_out_id)) {
+          // This player was a sub who's now being subbed out
+          // Find when they came in
+          const cameInSub = sortedSubs.find(s => s.player_in_id === sub.player_out_id);
+          if (cameInSub) {
+            const cameInMinute = cameInSub.custom_minute ?? cameInSub.minute;
+            minutesMap.set(sub.player_out_id, subMinute - cameInMinute);
+          }
+        }
+      }
+
+      // Update each player's minutes and appearances
+      const minuteEntries = Array.from(minutesMap.entries());
+      for (let i = 0; i < minuteEntries.length; i++) {
+        const [playerId, minutes] = minuteEntries[i];
+        // Get current player stats
+        const { data: playerData, error: playerError } = await supabase
+          .from('players')
+          .select('min, was')
+          .eq('id', playerId)
+          .single();
+
+        if (playerError) {
+          // Might be a guest player, skip
+          continue;
+        }
+
+        const newMin = (playerData.min || 0) + minutes;
+        const newWas = (playerData.was || 0) + 1;
+        await supabase
+          .from('players')
+          .update({ min: newMin, was: newWas })
+          .eq('id', playerId);
+      }
+
+      // Set match_status to 'afgerond'
+      const { error: statusError } = await supabase
+        .from('matches')
+        .update({ match_status: 'afgerond' })
+        .eq('id', matchId);
+
+      if (statusError) throw statusError;
+
+      // Update local state
+      setMatches(prev =>
+        prev.map(m => m.id === matchId ? { ...m, match_status: 'afgerond' as const } : m)
+      );
+      if (selectedMatch?.id === matchId) {
+        setSelectedMatch(prev => prev ? { ...prev, match_status: 'afgerond' as const } : prev);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error finalizing match:', error);
+      return false;
+    }
+  }, [selectedMatch?.id]);
+
   return {
     matches,
     setMatches,
@@ -172,6 +287,7 @@ export function useMatches() {
     isMatchEditable,
     addMatch,
     updateMatch,
-    deleteMatch
+    deleteMatch,
+    finalizeMatch
   };
 }
