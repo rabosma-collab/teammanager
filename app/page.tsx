@@ -12,6 +12,7 @@ import { useLineup } from './hooks/useLineup';
 import { useSubstitutions } from './hooks/useSubstitutions';
 import { useInstructions } from './hooks/useInstructions';
 import { useSubstitutionSchemes } from './hooks/useSubstitutionSchemes';
+import { useVoting } from './hooks/useVoting';
 
 // Components
 import Navbar from './components/Navbar';
@@ -24,6 +25,7 @@ import InstructionsView from './components/InstructionsView';
 import PlayersManageView from './components/PlayersManageView';
 import MatchesManageView from './components/MatchesManageView';
 import PlayerCardsView from './components/PlayerCardsView';
+import VotingSection from './components/VotingSection';
 
 // Modals
 import TooltipModal from './components/modals/TooltipModal';
@@ -48,6 +50,7 @@ export default function FootballApp() {
   const [extraSubMinute, setExtraSubMinute] = useState(45);
   const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
   const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
+  const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
 
   // ---- HOOKS ----
   const {
@@ -84,6 +87,7 @@ export default function FootballApp() {
   } = useInstructions();
 
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
+  const { votingMatches, isLoadingVotes, fetchVotingMatches, submitVote } = useVoting();
 
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isAdmin);
@@ -178,6 +182,13 @@ export default function FootballApp() {
       fetchInstructions(instructionFormation);
     }
   }, [view, instructionFormation, fetchInstructions]);
+
+  // Load voting data when matches are available and currentPlayer changes
+  useEffect(() => {
+    if (matches.length > 0) {
+      fetchVotingMatches(matches, currentPlayerId);
+    }
+  }, [matches, currentPlayerId, fetchVotingMatches]);
 
   // ---- HANDLERS ----
   const login = () => {
@@ -395,6 +406,12 @@ export default function FootballApp() {
       // 6. Reload players
       await fetchPlayers();
 
+      // 7. Refresh voting (new finalized match may be eligible)
+      await fetchVotingMatches(
+        matches.map(m => m.id === selectedMatch.id ? { ...m, match_status: 'afgerond' as const } : m),
+        currentPlayerId
+      );
+
       alert('✅ Wedstrijd afgesloten! Wisselminuten zijn bijgewerkt.');
 
     } catch (error) {
@@ -406,6 +423,11 @@ export default function FootballApp() {
   const handleEditSub = useCallback((subNumber: number, minute?: number) => {
     openSubModal(subNumber, players, minute);
   }, [openSubModal, players]);
+
+  const handleVote = useCallback(async (matchId: number, votedForPlayerId: number) => {
+    if (!currentPlayerId) return;
+    await submitVote(matchId, currentPlayerId, votedForPlayerId, matches);
+  }, [currentPlayerId, submitVote, matches]);
 
   const addExtraSubstitution = useCallback(async (minute: number, playerOutId: number, playerInId: number) => {
     if (!selectedMatch) return;
@@ -811,6 +833,16 @@ export default function FootballApp() {
               onEditSub={handleEditSub}
               onAddExtraSub={() => setShowExtraSubModal(true)}
               onDeleteExtraSub={deleteExtraSubstitution}
+            />
+
+            {/* Speler van de Week stemmen */}
+            <VotingSection
+              votingMatches={votingMatches}
+              isLoading={isLoadingVotes}
+              players={players}
+              currentPlayerId={currentPlayerId}
+              onSelectCurrentPlayer={setCurrentPlayerId}
+              onVote={handleVote}
             />
 
             {/* Geselecteerde speler/positie indicator */}
