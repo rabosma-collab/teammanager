@@ -10,6 +10,7 @@ import { useMatches } from './hooks/useMatches';
 import { useLineup } from './hooks/useLineup';
 import { useSubstitutions } from './hooks/useSubstitutions';
 import { useInstructions } from './hooks/useInstructions';
+import { useSubstitutionSchemes } from './hooks/useSubstitutionSchemes';
 
 // Components
 import Navbar from './components/Navbar';
@@ -54,7 +55,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, deleteMatch
+    addMatch, updateMatch, deleteMatch, finalizeMatch
   } = useMatches();
 
   const {
@@ -66,7 +67,8 @@ export default function FootballApp() {
   } = useLineup();
 
   const {
-    tempSubs, showSubModal, fetchSubstitutions,
+    substitutions, tempSubs, showSubModal, showSubModalMinute,
+    fetchSubstitutions,
     getSubsForNumber, openSubModal, addTempSub,
     removeTempSub, updateTempSub, saveSubstitutions, closeSubModal
   } = useSubstitutions();
@@ -76,8 +78,17 @@ export default function FootballApp() {
     fetchInstructions, getInstructionForPosition, saveInstruction
   } = useInstructions();
 
+  const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
+
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isAdmin);
+  const isFinalized = selectedMatch?.match_status === 'afgerond';
+  const currentScheme = useMemo(
+    () => selectedMatch ? getSchemeById(selectedMatch.substitution_scheme_id) : null,
+    [selectedMatch, getSchemeById]
+  );
+  const isFreeSubstitution = currentScheme?.minutes.length === 0;
+
   const groupedPlayers = useMemo(() => getGroupedPlayers(), [getGroupedPlayers]);
   const benchPlayers = useMemo(() => {
     const raw = getBenchPlayers(players, matchAbsences);
@@ -92,8 +103,6 @@ export default function FootballApp() {
     }
     return result;
   }, [getBenchPlayers, players, matchAbsences]);
-  const sub1 = useMemo(() => getSubsForNumber(1), [getSubsForNumber]);
-  const sub2 = useMemo(() => getSubsForNumber(2), [getSubsForNumber]);
   const unavailablePlayers = useMemo(() => ({
     injured: players.filter(p => p.injured),
     absent: players.filter(p => matchAbsences.includes(p.id))
@@ -106,13 +115,13 @@ export default function FootballApp() {
     if (dupes.length > 0) {
       console.error('[page] DUPLICATE players in state:', dupes, players.map(p => `${p.id}:${p.name}`));
     }
-    console.log('[page] players state:', players.length, 'unique names:', new Set(names).size);
   }, [players]);
 
   // ---- DATA LADEN ----
   useEffect(() => {
     fetchMatches();
-  }, [fetchMatches]);
+    fetchSchemes();
+  }, [fetchMatches, fetchSchemes]);
 
   useEffect(() => {
     if (selectedMatch) {
@@ -226,13 +235,42 @@ export default function FootballApp() {
     }
   };
 
-  const handleSaveSubstitutions = async () => {
+  const handleSaveSubstitutions = async (customMinute?: number) => {
     if (!selectedMatch) return;
-    const success = await saveSubstitutions(selectedMatch.id);
+    const success = await saveSubstitutions(selectedMatch.id, customMinute);
     if (success) {
       alert('✅ Wissels opgeslagen!');
     }
   };
+
+  const handleFinalizeMatch = async () => {
+    if (!selectedMatch) return;
+    if (!confirm(`Weet je zeker dat je de wedstrijd tegen ${selectedMatch.opponent} wilt afsluiten?\n\nDit berekent de gespeelde minuten en kan niet ongedaan worden gemaakt.`)) {
+      return;
+    }
+
+    const success = await finalizeMatch(selectedMatch.id);
+    if (success) {
+      // Refresh players to see updated minutes
+      await fetchPlayers(selectedMatch.id);
+      alert('✅ Wedstrijd afgerond! Minuten en wedstrijden zijn bijgewerkt.');
+    } else {
+      alert('❌ Kon wedstrijd niet afsluiten');
+    }
+  };
+
+  const handleEditSub = useCallback((subNumber: number, minute?: number) => {
+    openSubModal(subNumber, players, minute);
+  }, [openSubModal, players]);
+
+  // Check if match is in the past (for finalize button)
+  const isMatchInPast = useMemo(() => {
+    if (!selectedMatch) return false;
+    const matchDate = new Date(selectedMatch.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return matchDate < today;
+  }, [selectedMatch]);
 
   // ---- LOADING ----
   if (loading) {
@@ -328,11 +366,13 @@ export default function FootballApp() {
       {showSubModal && isAdmin && (
         <SubstitutionModal
           subNumber={showSubModal}
+          minute={showSubModalMinute}
+          isFreeSubstitution={!!isFreeSubstitution}
           tempSubs={tempSubs}
           fieldOccupants={fieldOccupants}
           benchPlayers={benchPlayers}
           players={players}
-          sub1Substitutions={getSubsForNumber(1)}
+          allSubstitutions={substitutions}
           onAddSub={addTempSub}
           onRemoveSub={removeTempSub}
           onUpdateSub={updateTempSub}
@@ -360,6 +400,7 @@ export default function FootballApp() {
       ) : view === 'matches-manage' && isAdmin ? (
         <MatchesManageView
           matches={matches}
+          schemes={schemes}
           onAddMatch={addMatch}
           onUpdateMatch={updateMatch}
           onDeleteMatch={deleteMatch}
@@ -391,6 +432,14 @@ export default function FootballApp() {
           />
 
           <div className="flex-1 flex flex-col p-2 sm:p-4 lg:p-8 overflow-y-auto">
+            {/* Afgeronde wedstrijd badge */}
+            {isFinalized && (
+              <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg text-center">
+                <span className="text-blue-400 font-bold text-sm sm:text-base">✅ Afgerond</span>
+                <span className="text-gray-400 text-xs sm:text-sm ml-2">— Deze wedstrijd is afgesloten en kan niet meer bewerkt worden</span>
+              </div>
+            )}
+
             {/* Wedstrijd & formatie selectors */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6">
               <select
@@ -404,10 +453,11 @@ export default function FootballApp() {
               >
                 {matches.map(match => {
                   const isPast = new Date(match.date) < new Date();
+                  const done = match.match_status === 'afgerond';
                   return (
                     <option key={match.id} value={match.id}>
                       {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - {match.opponent}
-                      {isPast ? ' ✓' : ''}
+                      {done ? ' ✅' : isPast ? ' ✓' : ''}
                     </option>
                   );
                 })}
@@ -416,7 +466,7 @@ export default function FootballApp() {
               <select
                 value={formation}
                 onChange={(e) => editable && setFormation(e.target.value)}
-                disabled={!editable}
+                disabled={!editable || isFinalized}
                 className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 disabled:opacity-50 text-white text-sm sm:text-base"
               >
                 {Object.keys(formations).map(f => (
@@ -424,13 +474,22 @@ export default function FootballApp() {
                 ))}
               </select>
 
-              {editable && (
+              {editable && !isFinalized && (
                 <button
                   onClick={handleSaveLineup}
                   disabled={savingLineup}
                   className="px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
                 >
                   {savingLineup ? '💾 Bezig...' : '💾 Opslaan'}
+                </button>
+              )}
+
+              {isAdmin && isMatchInPast && !isFinalized && (
+                <button
+                  onClick={handleFinalizeMatch}
+                  className="px-3 sm:px-4 py-2 rounded font-bold bg-orange-600 hover:bg-orange-700 text-sm sm:text-base"
+                >
+                  🏁 Wedstrijd afsluiten
                 </button>
               )}
             </div>
@@ -463,16 +522,17 @@ export default function FootballApp() {
 
             {/* Wissels */}
             <SubstitutionCards
-              sub1={sub1}
-              sub2={sub2}
+              scheme={currentScheme}
+              substitutions={substitutions}
               players={players}
               isAdmin={isAdmin}
               isEditable={editable}
-              onEditSub={(n) => openSubModal(n, players)}
+              isFinalized={!!isFinalized}
+              onEditSub={handleEditSub}
             />
 
             {/* Geselecteerde speler/positie indicator */}
-            {editable && (selectedPlayer || selectedPosition !== null) && (
+            {editable && !isFinalized && (selectedPlayer || selectedPosition !== null) && (
               <div className="mt-4 sm:mt-6 text-yellow-500 text-center text-sm sm:text-base px-4 select-none">
                 {selectedPosition !== null && !selectedPlayer ? (
                   <>👆 Positie {selectedPosition + 1} geselecteerd — kies een speler uit de selectie of bank</>

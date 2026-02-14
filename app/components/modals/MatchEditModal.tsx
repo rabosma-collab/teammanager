@@ -1,23 +1,39 @@
 import React, { useState } from 'react';
 import { formations, formationLabels } from '../../lib/constants';
-import type { Match } from '../../lib/types';
+import type { Match, SubstitutionScheme } from '../../lib/types';
+
+export interface MatchFormData {
+  date: string;
+  opponent: string;
+  home_away: string;
+  formation: string;
+  substitution_scheme_id: number;
+}
 
 interface MatchEditModalProps {
   match: Match | null; // null = new match
-  onSave: (data: { date: string; opponent: string; home_away: string; formation: string }) => void;
+  schemes: SubstitutionScheme[];
+  onSave: (data: MatchFormData) => void;
   onClose: () => void;
 }
 
-export default function MatchEditModal({ match, onSave, onClose }: MatchEditModalProps) {
+export default function MatchEditModal({ match, schemes, onSave, onClose }: MatchEditModalProps) {
   const [date, setDate] = useState(match?.date || '');
   const [opponent, setOpponent] = useState(match?.opponent || '');
   const [homeAway, setHomeAway] = useState(match?.home_away || 'Thuis');
   const [formation, setFormation] = useState(match?.formation || '4-3-3-aanvallend');
+  const [schemeId, setSchemeId] = useState(match?.substitution_scheme_id || 1);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!date || !opponent.trim()) return;
-    onSave({ date, opponent: opponent.trim(), home_away: homeAway, formation });
+    onSave({
+      date,
+      opponent: opponent.trim(),
+      home_away: homeAway,
+      formation,
+      substitution_scheme_id: schemeId
+    });
   };
 
   return (
@@ -75,6 +91,22 @@ export default function MatchEditModal({ match, onSave, onClose }: MatchEditModa
             >
               {Object.keys(formations).map(f => (
                 <option key={f} value={f}>{formationLabels[f]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-400 mb-1">Wisselschema</label>
+            <select
+              value={schemeId}
+              onChange={(e) => setSchemeId(parseInt(e.target.value))}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+            >
+              {schemes.map(scheme => (
+                <option key={scheme.id} value={scheme.id}>
+                  {scheme.name}
+                  {scheme.minutes.length > 0 ? ` (${scheme.minutes.join("', ")}')` : ''}
+                </option>
               ))}
             </select>
           </div>

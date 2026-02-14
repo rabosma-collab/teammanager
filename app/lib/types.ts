@@ -15,15 +15,24 @@ export interface Player {
     is_guest?: boolean;
     guest_match_id?: number;
   }
-  
+
   export interface Match {
     id: number;
     date: string;
     opponent: string;
     home_away: string;
     formation: string;
+    substitution_scheme_id: number;
+    match_status: 'concept' | 'afgerond';
   }
-  
+
+  export interface SubstitutionScheme {
+    id: number;
+    name: string;
+    minutes: number[];
+    is_system: boolean;
+  }
+
   export interface Substitution {
     id: number;
     match_id: number;
@@ -31,8 +40,9 @@ export interface Player {
     minute: number;
     player_out_id: number;
     player_in_id: number;
+    custom_minute: number | null;
   }
-  
+
   export interface PositionInstruction {
     id: number;
     formation: string;
@@ -43,7 +53,7 @@ export interface Player {
     with_ball: string[];
     without_ball: string[];
   }
-  
+
   export interface TempSubstitution {
     out: Player | null;
     in: Player | null;

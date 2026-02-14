@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { formationLabels } from '../lib/constants';
-import type { Match } from '../lib/types';
-import MatchEditModal from './modals/MatchEditModal';
+import type { Match, SubstitutionScheme } from '../lib/types';
+import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 
 interface MatchesManageViewProps {
   matches: Match[];
-  onAddMatch: (data: { date: string; opponent: string; home_away: string; formation: string }) => Promise<boolean>;
-  onUpdateMatch: (id: number, data: { date: string; opponent: string; home_away: string; formation: string }) => Promise<boolean>;
+  schemes: SubstitutionScheme[];
+  onAddMatch: (data: MatchFormData) => Promise<boolean>;
+  onUpdateMatch: (id: number, data: MatchFormData) => Promise<boolean>;
   onDeleteMatch: (id: number) => Promise<boolean>;
   onRefresh: () => void;
 }
 
 export default function MatchesManageView({
   matches,
+  schemes,
   onAddMatch,
   onUpdateMatch,
   onDeleteMatch,
@@ -24,7 +26,7 @@ export default function MatchesManageView({
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
 
-  const handleSave = async (data: { date: string; opponent: string; home_away: string; formation: string }) => {
+  const handleSave = async (data: MatchFormData) => {
     let success: boolean;
     if (editingMatch === 'new') {
       success = await onAddMatch(data);
@@ -76,6 +78,7 @@ export default function MatchesManageView({
       {editingMatch !== null && (
         <MatchEditModal
           match={editingMatch === 'new' ? null : editingMatch}
+          schemes={schemes}
           onSave={handleSave}
           onClose={() => setEditingMatch(null)}
         />
@@ -88,15 +91,18 @@ export default function MatchesManageView({
           sortedMatches.map(match => {
             const matchDate = new Date(match.date);
             const isPast = matchDate < today;
+            const isFinalized = match.match_status === 'afgerond';
 
             return (
               <div
                 key={match.id}
                 className={`flex items-center gap-3 p-3 sm:p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50 ${
-                  isPast ? 'opacity-60' : ''
+                  isPast && !isFinalized ? 'opacity-60' : ''
                 }`}
               >
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isPast ? 'bg-gray-500' : 'bg-green-500'}`} />
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  isFinalized ? 'bg-blue-500' : isPast ? 'bg-gray-500' : 'bg-green-500'
+                }`} />
 
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-sm sm:text-base truncate">
@@ -106,6 +112,11 @@ export default function MatchesManageView({
                     }`}>
                       {match.home_away}
                     </span>
+                    {isFinalized && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-400">
+                        ✅ Afgerond
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
                     <span>📅 {matchDate.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -114,18 +125,22 @@ export default function MatchesManageView({
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => setEditingMatch(match)}
-                    className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-xs sm:text-sm font-bold"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => handleDelete(match)}
-                    className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold"
-                  >
-                    🗑️
-                  </button>
+                  {!isFinalized && (
+                    <>
+                      <button
+                        onClick={() => setEditingMatch(match)}
+                        className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-xs sm:text-sm font-bold"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDelete(match)}
+                        className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold"
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             );
