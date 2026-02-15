@@ -1,4 +1,9 @@
+'use client';
+
 import React from 'react';
+import { useRouter } from 'next/navigation';
+import { signOut } from '../lib/auth';
+import { useTeamContext } from '../contexts/TeamContext';
 
 interface NavbarProps {
   view: string;
@@ -13,10 +18,17 @@ export default function Navbar({
   view,
   setView,
   isAdmin,
-  onLogin,
   onLogout,
   onToggleSidebar
 }: NavbarProps) {
+  const router = useRouter();
+  const { currentTeam } = useTeamContext();
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push('/login');
+  };
+
   return (
     <nav className="flex items-center gap-1.5 sm:gap-3 p-2 sm:p-4 bg-gray-800 border-b border-gray-700 select-none overflow-x-auto">
       {view === 'pitch' && (
@@ -31,6 +43,12 @@ export default function Navbar({
         </button>
       )}
 
+      {currentTeam && (
+        <span className="text-xs text-gray-400 font-medium px-2 py-1 bg-gray-700/50 rounded flex-shrink-0 hidden sm:inline">
+          {currentTeam.name}
+        </span>
+      )}
+
       <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Tactiekveld" />
       <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
       <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon="🃏" label="Kaarten" />
@@ -43,23 +61,24 @@ export default function Navbar({
         </>
       )}
 
-      {!isAdmin ? (
-        <button
-          onClick={onLogin}
-          className="ml-auto px-3 sm:px-6 py-2 bg-yellow-500 text-black rounded font-bold hover:bg-yellow-400 text-sm sm:text-base flex-shrink-0"
-        >
-          <span className="hidden sm:inline">🔒 Admin</span>
-          <span className="sm:hidden">🔒</span>
-        </button>
-      ) : (
+      <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+        {!isAdmin && (
+          <span className="px-3 py-1.5 bg-gray-700 rounded text-xs sm:text-sm text-gray-300 font-medium">
+            Speler
+          </span>
+        )}
         <button
           onClick={onLogout}
-          className="ml-auto px-3 sm:px-6 py-2 bg-red-500 rounded font-bold hover:bg-red-600 text-sm sm:text-base flex-shrink-0"
+          className="px-3 sm:px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-medium text-sm flex-shrink-0"
         >
-          <span className="hidden sm:inline">🔓 Logout</span>
-          <span className="sm:hidden">🔓</span>
+          <span className="hidden sm:inline">Uitloggen</span>
+          <span className="sm:hidden">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </span>
         </button>
-      )}
+      </div>
     </nav>
   );
 }
