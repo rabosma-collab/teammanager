@@ -97,14 +97,18 @@ export interface Player {
     id: string;
     team_id: string;
     user_id: string;
-    role: 'owner' | 'admin' | 'coach' | 'viewer';
+    role: 'manager' | 'player';
+    status: 'active' | 'pending' | 'inactive';
     joined_at: string;
     invited_by: string | null;
   }
 
   export interface TeamContext {
-    team: Team | null;
-    members: TeamMember[];
-    currentUserRole: TeamMember['role'] | null;
+    currentTeam: Team | null;
+    userRole: TeamMember['role'] | null;
+    isManager: boolean;
     isLoading: boolean;
+    teams: Team[];
+    switchTeam: (teamId: string) => Promise<void>;
+    refreshTeam: () => Promise<void>;
   }
