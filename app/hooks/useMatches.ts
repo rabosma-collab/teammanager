@@ -31,8 +31,8 @@ export function useMatches() {
         today.setHours(0, 0, 0, 0);
 
         const upcoming = data
-          .filter(m => new Date(m.date) >= today)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          .filter((m: { date: string }) => new Date(m.date) >= today)
+          .sort((a: { date: string }, b: { date: string }) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         setSelectedMatch(upcoming.length > 0 ? upcoming[0] : data[0]);
       }
@@ -53,7 +53,7 @@ export function useMatches() {
         .eq('match_id', matchId);
 
       if (error) throw error;
-      setMatchAbsences(data?.map(a => a.player_id) || []);
+      setMatchAbsences(data?.map((a: { player_id: number }) => a.player_id) || []);
     } catch (error) {
       console.error('Error fetching absences:', error);
     }

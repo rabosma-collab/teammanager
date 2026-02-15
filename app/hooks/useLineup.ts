@@ -24,7 +24,7 @@ export function useLineup() {
       const lineup: (Player | null)[] = Array(11).fill(null);
 
       if (data && data.length > 0) {
-        data.forEach(entry => {
+        data.forEach((entry: { position: number; player_id: number }) => {
           if (entry.position >= 0 && entry.position < 11 && entry.player_id) {
             const player = players.find(p => p.id === entry.player_id);
             if (player) {

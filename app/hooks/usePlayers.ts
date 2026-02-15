@@ -48,7 +48,7 @@ export function usePlayers() {
 
         if (!guestError && guestPlayers) {
           const guestSeen = new Set<string>();
-          const uniqueGuests = guestPlayers.filter(g => {
+          const uniqueGuests = guestPlayers.filter((g: { name: string }) => {
             const nameLower = g.name.toLowerCase().trim();
             if (regularNames.has(nameLower) || guestSeen.has(nameLower)) {
               return false;
@@ -59,7 +59,7 @@ export function usePlayers() {
 
           allPlayers = [
             ...allPlayers,
-            ...uniqueGuests.map(g => ({
+            ...uniqueGuests.map((g: any) => ({
               ...g,
               is_guest: true,
               guest_match_id: g.match_id

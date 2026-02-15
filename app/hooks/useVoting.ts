@@ -46,7 +46,7 @@ export function useVoting() {
           continue;
         }
 
-        const playerIds = (lineupData || []).map(l => l.player_id);
+        const playerIds = (lineupData || []).map((l: { player_id: number }) => l.player_id);
         if (playerIds.length === 0) continue;
 
         // Fetch player names
@@ -60,7 +60,7 @@ export function useVoting() {
           continue;
         }
 
-        const matchPlayers = (playerData || []).map(p => ({ id: p.id, name: p.name }));
+        const matchPlayers = (playerData || []).map((p: { id: number; name: string }) => ({ id: p.id, name: p.name }));
 
         // Fetch votes for this match
         const { data: voteData, error: voteError } = await supabase
@@ -82,15 +82,15 @@ export function useVoting() {
           voteCounts[vote.voted_for_player_id] = (voteCounts[vote.voted_for_player_id] || 0) + 1;
         }
 
-        const voteResults: VoteResults[] = matchPlayers.map(p => ({
+        const voteResults: VoteResults[] = matchPlayers.map((p: { id: number; name: string }) => ({
           player_id: p.id,
           player_name: p.name,
           vote_count: voteCounts[p.id] || 0
-        })).sort((a, b) => b.vote_count - a.vote_count);
+        })).sort((a: VoteResults, b: VoteResults) => b.vote_count - a.vote_count);
 
         // Check if current player has voted
         const currentVote = currentPlayerId
-          ? votes.find(v => v.voter_player_id === currentPlayerId)
+          ? votes.find((v: any) => v.voter_player_id === currentPlayerId)
           : null;
 
         // Calculate days remaining

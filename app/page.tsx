@@ -335,7 +335,7 @@ export default function FootballApp() {
       });
 
       // 2. Verwerk alle substitutions
-      subs?.forEach(sub => {
+      subs?.forEach((sub: any) => {
         const minute = sub.custom_minute || sub.minute;
 
         // Speler ERUIT: speelde van 0 tot minute
