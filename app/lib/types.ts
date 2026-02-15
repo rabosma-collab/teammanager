@@ -82,3 +82,29 @@ export interface Player {
     votedFor?: number;
     daysRemaining: number;
   }
+
+  export interface Team {
+    id: string;
+    name: string;
+    slug: string;
+    team_size: number;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+  }
+
+  export interface TeamMember {
+    id: string;
+    team_id: string;
+    user_id: string;
+    role: 'owner' | 'admin' | 'coach' | 'viewer';
+    joined_at: string;
+    invited_by: string | null;
+  }
+
+  export interface TeamContext {
+    team: Team | null;
+    members: TeamMember[];
+    currentUserRole: TeamMember['role'] | null;
+    isLoading: boolean;
+  }
