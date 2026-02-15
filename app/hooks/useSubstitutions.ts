@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Substitution, TempSubstitution } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 export function useSubstitutions() {
+  const { currentTeam } = useTeamContext();
   const [substitutions, setSubstitutions] = useState<Substitution[]>([]);
   const [tempSubs, setTempSubs] = useState<TempSubstitution[]>([]);
   const [showSubModal, setShowSubModal] = useState<number | null>(null);
@@ -10,6 +12,8 @@ export function useSubstitutions() {
   const [customMinuteInput, setCustomMinuteInput] = useState<number>(45);
 
   const fetchSubstitutions = useCallback(async (matchId: number) => {
+    if (!currentTeam) return;
+
     try {
       const { data, error } = await supabase
         .from('substitutions')
@@ -21,7 +25,7 @@ export function useSubstitutions() {
     } catch (error) {
       console.error('Error fetching substitutions:', error);
     }
-  }, []);
+  }, [currentTeam]);
 
   const getSubsForNumber = useCallback((subNumber: number): Substitution[] => {
     return substitutions.filter(s => s.substitution_number === subNumber && !s.is_extra);
@@ -68,7 +72,7 @@ export function useSubstitutions() {
     matchId: number,
     minuteOverride?: number
   ): Promise<boolean> => {
-    if (!showSubModal) return false;
+    if (!currentTeam || !showSubModal) return false;
 
     const allComplete = tempSubs.every(s => s.out && s.in);
     if (!allComplete) {
@@ -122,7 +126,7 @@ export function useSubstitutions() {
       console.error('Error saving substitutions:', error);
       return false;
     }
-  }, [showSubModal, showSubModalMinute, tempSubs, fetchSubstitutions]);
+  }, [showSubModal, showSubModalMinute, tempSubs, fetchSubstitutions, currentTeam]);
 
   const closeSubModal = useCallback(() => {
     setShowSubModal(null);

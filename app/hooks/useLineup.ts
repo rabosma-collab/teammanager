@@ -1,15 +1,17 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Match } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 export function useLineup() {
+  const { currentTeam } = useTeamContext();
   const [fieldOccupants, setFieldOccupants] = useState<(Player | null)[]>(Array(11).fill(null));
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [savingLineup, setSavingLineup] = useState(false);
 
   const loadLineup = useCallback(async (matchId: number, players: Player[]) => {
-    if (players.length === 0) return;
+    if (!currentTeam || players.length === 0) return;
 
     try {
       const { data, error } = await supabase
@@ -37,20 +39,23 @@ export function useLineup() {
       console.error('Error loading lineup:', error);
       setFieldOccupants(Array(11).fill(null));
     }
-  }, []);
+  }, [currentTeam]);
 
   const saveLineup = useCallback(async (
     match: Match,
     formation: string,
     onMatchUpdate: (updatedMatch: Match) => void
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     setSavingLineup(true);
 
     try {
       const { error: formationError } = await supabase
         .from('matches')
         .update({ formation })
-        .eq('id', match.id);
+        .eq('id', match.id)
+        .eq('team_id', currentTeam.id);
 
       if (formationError) throw formationError;
 
@@ -87,7 +92,7 @@ export function useLineup() {
     } finally {
       setSavingLineup(false);
     }
-  }, [fieldOccupants]);
+  }, [fieldOccupants, currentTeam]);
 
   const isPlayerOnField = useCallback((playerId: number): boolean => {
     return fieldOccupants.some(p => p && p.id === playerId);

@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match, VotingMatch, VoteResults } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 const VOTING_PERIOD_DAYS = 4;
 
 export function useVoting() {
+  const { currentTeam } = useTeamContext();
   const [votingMatches, setVotingMatches] = useState<VotingMatch[]>([]);
   const [isLoadingVotes, setIsLoadingVotes] = useState(false);
 
@@ -12,6 +14,8 @@ export function useVoting() {
     allMatches: Match[],
     currentPlayerId: number | null
   ) => {
+    if (!currentTeam) return;
+
     setIsLoadingVotes(true);
     try {
       const today = new Date();
@@ -62,7 +66,8 @@ export function useVoting() {
         const { data: voteData, error: voteError } = await supabase
           .from('player_of_week_votes')
           .select('*')
-          .eq('match_id', match.id);
+          .eq('match_id', match.id)
+          .eq('team_id', currentTeam.id);
 
         if (voteError) {
           console.error('Error fetching votes:', voteError);
@@ -114,7 +119,7 @@ export function useVoting() {
     } finally {
       setIsLoadingVotes(false);
     }
-  }, []);
+  }, [currentTeam]);
 
   const submitVote = useCallback(async (
     matchId: number,
@@ -122,6 +127,8 @@ export function useVoting() {
     votedForPlayerId: number,
     allMatches: Match[]
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     // Validation: can't vote for yourself
     if (votedForPlayerId === currentPlayerId) {
       alert('Je kunt niet op jezelf stemmen');
@@ -148,6 +155,7 @@ export function useVoting() {
         .select('id')
         .eq('match_id', matchId)
         .eq('voter_player_id', currentPlayerId)
+        .eq('team_id', currentTeam.id)
         .single();
 
       if (existingVote) {
@@ -176,7 +184,8 @@ export function useVoting() {
         .insert({
           match_id: matchId,
           voter_player_id: currentPlayerId,
-          voted_for_player_id: votedForPlayerId
+          voted_for_player_id: votedForPlayerId,
+          team_id: currentTeam.id
         });
 
       if (error) throw error;
@@ -191,7 +200,7 @@ export function useVoting() {
       alert('Er ging iets mis, probeer opnieuw');
       return false;
     }
-  }, [fetchVotingMatches]);
+  }, [fetchVotingMatches, currentTeam]);
 
   return {
     votingMatches,
