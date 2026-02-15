@@ -2,14 +2,29 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/auth-helpers-nextjs';
 
+const FALLBACK_URL = 'https://hyjewtsmytpfojdvdsta.supabase.co';
+const FALLBACK_KEY = 'sb_publishable_7RPcZtEDjt9YVrP_Ohn1lA_B2FjFKzQ';
+
+function resolveUrl(): string {
+  const v = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (typeof v === 'string' && /^https?:\/\//i.test(v)) return v;
+  return FALLBACK_URL;
+}
+
+function resolveKey(): string {
+  const v = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (typeof v === 'string' && v.length > 0) return v;
+  return FALLBACK_KEY;
+}
+
 const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback'];
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hyjewtsmytpfojdvdsta.supabase.co',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7RPcZtEDjt9YVrP_Ohn1lA_B2FjFKzQ',
+    resolveUrl(),
+    resolveKey(),
     {
       cookies: {
         getAll() {

@@ -1,10 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
 
-export const supabaseUrl: string =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hyjewtsmytpfojdvdsta.supabase.co';
-export const supabaseAnonKey: string =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_7RPcZtEDjt9YVrP_Ohn1lA_B2FjFKzQ';
+const FALLBACK_URL = 'https://hyjewtsmytpfojdvdsta.supabase.co';
+const FALLBACK_KEY = 'sb_publishable_7RPcZtEDjt9YVrP_Ohn1lA_B2FjFKzQ';
+
+/**
+ * Resolve the Supabase URL with strict validation.
+ * Ensures we always return a valid https:// URL regardless of
+ * what webpack DefinePlugin injects for NEXT_PUBLIC_* env vars.
+ */
+function resolveUrl(): string {
+  const v = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (typeof v === 'string' && /^https?:\/\//i.test(v)) return v;
+  return FALLBACK_URL;
+}
+
+function resolveKey(): string {
+  const v = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (typeof v === 'string' && v.length > 0) return v;
+  return FALLBACK_KEY;
+}
+
+export const supabaseUrl: string = resolveUrl();
+export const supabaseAnonKey: string = resolveKey();
 
 /** Browser client with cookie-based auth session handling. */
 export function createClientComponentClient() {
