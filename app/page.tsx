@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { formations, formationLabels, normalizeFormation } from './lib/constants';
 import { supabase } from './lib/supabase';
+import { getCurrentUser, signOut } from './lib/auth';
+import { useTeamContext } from './contexts/TeamContext';
 import type { Player } from './lib/types';
 
 // Hooks
@@ -36,10 +39,24 @@ import SubstitutionModal from './components/modals/SubstitutionModal';
 import PlayerCardModal from './components/modals/PlayerCardModal';
 
 export default function FootballApp() {
+  const router = useRouter();
+  const [authChecking, setAuthChecking] = useState(true);
+  const { currentTeam, isManager, isLoading: teamLoading } = useTeamContext();
+
+  // ---- AUTH CHECK ----
+  useEffect(() => {
+    getCurrentUser().then(user => {
+      if (!user) {
+        router.push('/login');
+      } else {
+        setAuthChecking(false);
+      }
+    });
+  }, [router]);
+
   // ---- UI STATE ----
   const [view, setView] = useState('pitch');
   const [formation, setFormation] = useState('4-3-3-aanvallend');
-  const [isAdmin, setIsAdmin] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [showPlayerMenu, setShowPlayerMenu] = useState<number | null>(null);
@@ -90,18 +107,18 @@ export default function FootballApp() {
   const { votingMatches, isLoadingVotes, fetchVotingMatches, submitVote } = useVoting();
 
   // ---- BEREKENDE WAARDEN ----
-  const editable = isMatchEditable(isAdmin);
+  const editable = isMatchEditable(isManager);
   const isFinalized = selectedMatch?.match_status === 'afgerond';
 
   const canFinalizeMatch = useCallback((): boolean => {
-    if (!selectedMatch || !isAdmin) return false;
+    if (!selectedMatch || !isManager) return false;
     if (selectedMatch.match_status !== 'concept') return false;
     const matchDate = new Date(selectedMatch.date);
     matchDate.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return matchDate <= today;
-  }, [selectedMatch, isAdmin]);
+  }, [selectedMatch, isManager]);
 
   const getMatchStatusBadge = useCallback((): string => {
     if (!selectedMatch) return '';
@@ -191,14 +208,9 @@ export default function FootballApp() {
   }, [matches, currentPlayerId, fetchVotingMatches]);
 
   // ---- HANDLERS ----
-  const login = () => {
-    const password = prompt("Admin wachtwoord:");
-    if (password === "swenenrobin") {
-      setIsAdmin(true);
-      alert("✅ Admin ingelogd!");
-    } else if (password) {
-      alert("❌ Verkeerd wachtwoord");
-    }
+  const handleLogout = async () => {
+    await signOut();
+    router.push('/login');
   };
 
   // Place a player at a specific field position
@@ -323,7 +335,7 @@ export default function FootballApp() {
       });
 
       // 2. Verwerk alle substitutions
-      subs?.forEach(sub => {
+      subs?.forEach((sub: any) => {
         const minute = sub.custom_minute || sub.minute;
 
         // Speler ERUIT: speelde van 0 tot minute
@@ -479,6 +491,35 @@ export default function FootballApp() {
   }, [selectedMatch, fetchSubstitutions]);
 
   // ---- LOADING ----
+  if (authChecking || teamLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⚽</div>
+          <div>Laden...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentTeam) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⚽</div>
+          <h2 className="text-xl font-bold mb-2">Geen team gevonden</h2>
+          <p className="text-gray-400 mb-4">Je bent nog niet lid van een team.</p>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-bold"
+          >
+            Uitloggen
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
@@ -496,9 +537,9 @@ export default function FootballApp() {
       <Navbar
         view={view}
         setView={setView}
-        isAdmin={isAdmin}
-        onLogin={login}
-        onLogout={() => setIsAdmin(false)}
+        isAdmin={isManager}
+        onLogin={() => {}}
+        onLogout={handleLogout}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
 
@@ -522,7 +563,7 @@ export default function FootballApp() {
         />
       )}
 
-      {showPlayerMenu !== null && isAdmin && (() => {
+      {showPlayerMenu !== null && isManager && (() => {
         const player = players.find(p => p.id === showPlayerMenu);
         if (!player) return null;
         return (
@@ -558,7 +599,7 @@ export default function FootballApp() {
         );
       })()}
 
-      {showGuestModal && isAdmin && (
+      {showGuestModal && isManager && (
         <GuestPlayerModal onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
       )}
 
@@ -569,7 +610,7 @@ export default function FootballApp() {
         />
       )}
 
-      {showSubModal && isAdmin && (
+      {showSubModal && isManager && (
         <SubstitutionModal
           subNumber={showSubModal}
           minute={showSubModalMinute}
@@ -587,7 +628,7 @@ export default function FootballApp() {
         />
       )}
 
-      {showExtraSubModal && isAdmin && (
+      {showExtraSubModal && isManager && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowExtraSubModal(false)}>
           <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
@@ -679,14 +720,14 @@ export default function FootballApp() {
       )}
 
       {/* === VIEWS === */}
-      {view === 'instructions' && isAdmin ? (
+      {view === 'instructions' && isManager ? (
         <InstructionsView
           instructionFormation={instructionFormation}
           setInstructionFormation={setInstructionFormation}
           positionInstructions={positionInstructions}
           onEditInstruction={setEditingInstruction}
         />
-      ) : view === 'players-manage' && isAdmin ? (
+      ) : view === 'players-manage' && isManager ? (
         <PlayersManageView
           players={players}
           onAddPlayer={addPlayer}
@@ -694,7 +735,7 @@ export default function FootballApp() {
           onDeletePlayer={deletePlayer}
           onRefresh={() => selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers()}
         />
-      ) : view === 'matches-manage' && isAdmin ? (
+      ) : view === 'matches-manage' && isManager ? (
         <MatchesManageView
           matches={matches}
           schemes={schemes}
@@ -706,7 +747,7 @@ export default function FootballApp() {
       ) : view === 'cards' ? (
         <PlayerCardsView
           players={players}
-          isAdmin={isAdmin}
+          isAdmin={isManager}
           onUpdateStat={updateStat}
         />
       ) : view === 'pitch' ? (
@@ -718,7 +759,7 @@ export default function FootballApp() {
             groupedPlayers={groupedPlayers}
             matchAbsences={matchAbsences}
             selectedPlayer={selectedPlayer}
-            isAdmin={isAdmin}
+            isAdmin={isManager}
             isEditable={editable}
             isPlayerOnField={isPlayerOnField}
             isPlayerAvailable={isPlayerAvailable}
@@ -827,7 +868,7 @@ export default function FootballApp() {
               scheme={currentScheme}
               substitutions={substitutions}
               players={players}
-              isAdmin={isAdmin}
+              isAdmin={isManager}
               isEditable={editable}
               isFinalized={!!isFinalized}
               onEditSub={handleEditSub}
@@ -862,7 +903,7 @@ export default function FootballApp() {
           </div>
         </div>
       ) : (
-        <StatsView players={players} isAdmin={isAdmin} onUpdateStat={updateStat} />
+        <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} />
       )}
     </div>
   );

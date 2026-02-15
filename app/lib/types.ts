@@ -82,3 +82,33 @@ export interface Player {
     votedFor?: number;
     daysRemaining: number;
   }
+
+  export interface Team {
+    id: string;
+    name: string;
+    slug: string;
+    team_size: number;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+  }
+
+  export interface TeamMember {
+    id: string;
+    team_id: string;
+    user_id: string;
+    role: 'manager' | 'player';
+    status: 'active' | 'pending' | 'inactive';
+    joined_at: string;
+    invited_by: string | null;
+  }
+
+  export interface TeamContext {
+    currentTeam: Team | null;
+    userRole: TeamMember['role'] | null;
+    isManager: boolean;
+    isLoading: boolean;
+    teams: Team[];
+    switchTeam: (teamId: string) => Promise<void>;
+    refreshTeam: () => Promise<void>;
+  }

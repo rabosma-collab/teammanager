@@ -2,19 +2,24 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { positionOrder } from '../lib/constants';
 import type { Player } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 export function usePlayers() {
+  const { currentTeam } = useTeamContext();
   const [players, setPlayers] = useState<Player[]>([]);
   const fetchIdRef = useRef(0);
 
   const fetchPlayers = useCallback(async (matchId?: number) => {
+    if (!currentTeam) return [];
+
     // Increment fetch ID to cancel stale responses
     const currentFetchId = ++fetchIdRef.current;
 
     try {
       const { data: regularPlayers, error: regularError } = await supabase
         .from('players')
-        .select('*');
+        .select('*')
+        .eq('team_id', currentTeam.id);
 
       if (regularError) throw regularError;
 
@@ -35,14 +40,15 @@ export function usePlayers() {
         const { data: guestPlayers, error: guestError } = await supabase
           .from('guest_players')
           .select('*')
-          .eq('match_id', matchId);
+          .eq('match_id', matchId)
+          .eq('team_id', currentTeam.id);
 
         // If a newer fetch was started, discard this result
         if (currentFetchId !== fetchIdRef.current) return [];
 
         if (!guestError && guestPlayers) {
           const guestSeen = new Set<string>();
-          const uniqueGuests = guestPlayers.filter(g => {
+          const uniqueGuests = guestPlayers.filter((g: { name: string }) => {
             const nameLower = g.name.toLowerCase().trim();
             if (regularNames.has(nameLower) || guestSeen.has(nameLower)) {
               return false;
@@ -53,7 +59,7 @@ export function usePlayers() {
 
           allPlayers = [
             ...allPlayers,
-            ...uniqueGuests.map(g => ({
+            ...uniqueGuests.map((g: any) => ({
               ...g,
               is_guest: true,
               guest_match_id: g.match_id
@@ -90,7 +96,7 @@ export function usePlayers() {
       console.error('Error fetching players:', error);
       return [];
     }
-  }, []);
+  }, [currentTeam]);
 
   const getGroupedPlayers = useCallback((): Record<string, Player[]> => {
     const grouped: Record<string, Player[]> = {};
@@ -103,6 +109,8 @@ export function usePlayers() {
   }, [players]);
 
   const toggleInjury = useCallback(async (playerId: number): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     const player = players.find(p => p.id === playerId);
     if (!player || player.is_guest) return false;
 
@@ -112,7 +120,8 @@ export function usePlayers() {
       const { error } = await supabase
         .from('players')
         .update({ injured: newInjuredStatus })
-        .eq('id', playerId);
+        .eq('id', playerId)
+        .eq('team_id', currentTeam.id);
 
       if (error) throw error;
 
@@ -125,13 +134,15 @@ export function usePlayers() {
       console.error('Error updating injury:', error);
       return false;
     }
-  }, [players]);
+  }, [players, currentTeam]);
 
   const addGuestPlayer = useCallback(async (
     name: string,
     position: string,
     matchId: number
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     const trimmedName = name.trim();
     if (!trimmedName) return false;
 
@@ -148,6 +159,7 @@ export function usePlayers() {
           name: trimmedName,
           position,
           match_id: matchId,
+          team_id: currentTeam.id,
           goals: 0,
           assists: 0,
           was: 0,
@@ -162,14 +174,17 @@ export function usePlayers() {
       console.error('Error adding guest player:', error);
       return false;
     }
-  }, [players]);
+  }, [players, currentTeam]);
 
   const removeGuestPlayer = useCallback(async (playerId: number): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     try {
       const { error } = await supabase
         .from('guest_players')
         .delete()
-        .eq('id', playerId);
+        .eq('id', playerId)
+        .eq('team_id', currentTeam.id);
 
       if (error) throw error;
       return true;
@@ -177,13 +192,15 @@ export function usePlayers() {
       console.error('Error removing guest player:', error);
       return false;
     }
-  }, []);
+  }, [currentTeam]);
 
   const updateStat = useCallback(async (
     id: number,
     field: string,
     value: string
   ) => {
+    if (!currentTeam) return;
+
     const player = players.find(p => p.id === id);
     if (!player) return;
 
@@ -194,7 +211,8 @@ export function usePlayers() {
       const { error } = await supabase
         .from(table)
         .update({ [field]: numValue })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('team_id', currentTeam.id);
 
       if (error) throw error;
 
@@ -204,18 +222,20 @@ export function usePlayers() {
     } catch (error) {
       console.error('Error updating player:', error);
     }
-  }, [players]);
+  }, [players, currentTeam]);
 
   const addPlayer = useCallback(async (
     playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number }
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     const trimmedName = playerData.name.trim();
     if (!trimmedName) return false;
 
     try {
       const { error } = await supabase
         .from('players')
-        .insert({ ...playerData, name: trimmedName });
+        .insert({ ...playerData, name: trimmedName, team_id: currentTeam.id });
 
       if (error) throw error;
       return true;
@@ -223,17 +243,20 @@ export function usePlayers() {
       console.error('Error adding player:', error);
       return false;
     }
-  }, []);
+  }, [currentTeam]);
 
   const updatePlayer = useCallback(async (
     id: number,
     playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number }
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     try {
       const { error } = await supabase
         .from('players')
         .update(playerData)
-        .eq('id', id);
+        .eq('id', id)
+        .eq('team_id', currentTeam.id);
 
       if (error) throw error;
 
@@ -245,9 +268,11 @@ export function usePlayers() {
       console.error('Error updating player:', error);
       return false;
     }
-  }, []);
+  }, [currentTeam]);
 
   const deletePlayer = useCallback(async (playerId: number): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     try {
       // Clean up related records first
       await supabase.from('lineups').delete().eq('player_id', playerId);
@@ -257,7 +282,8 @@ export function usePlayers() {
       const { error } = await supabase
         .from('players')
         .delete()
-        .eq('id', playerId);
+        .eq('id', playerId)
+        .eq('team_id', currentTeam.id);
 
       if (error) throw error;
 
@@ -267,7 +293,7 @@ export function usePlayers() {
       console.error('Error deleting player:', error);
       return false;
     }
-  }, []);
+  }, [currentTeam]);
 
   return {
     players,

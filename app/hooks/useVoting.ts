@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match, VotingMatch, VoteResults } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 const VOTING_PERIOD_DAYS = 4;
 
 export function useVoting() {
+  const { currentTeam } = useTeamContext();
   const [votingMatches, setVotingMatches] = useState<VotingMatch[]>([]);
   const [isLoadingVotes, setIsLoadingVotes] = useState(false);
 
@@ -12,6 +14,8 @@ export function useVoting() {
     allMatches: Match[],
     currentPlayerId: number | null
   ) => {
+    if (!currentTeam) return;
+
     setIsLoadingVotes(true);
     try {
       const today = new Date();
@@ -42,7 +46,7 @@ export function useVoting() {
           continue;
         }
 
-        const playerIds = (lineupData || []).map(l => l.player_id);
+        const playerIds = (lineupData || []).map((l: { player_id: number }) => l.player_id);
         if (playerIds.length === 0) continue;
 
         // Fetch player names
@@ -56,13 +60,14 @@ export function useVoting() {
           continue;
         }
 
-        const matchPlayers = (playerData || []).map(p => ({ id: p.id, name: p.name }));
+        const matchPlayers = (playerData || []).map((p: { id: number; name: string }) => ({ id: p.id, name: p.name }));
 
         // Fetch votes for this match
         const { data: voteData, error: voteError } = await supabase
           .from('player_of_week_votes')
           .select('*')
-          .eq('match_id', match.id);
+          .eq('match_id', match.id)
+          .eq('team_id', currentTeam.id);
 
         if (voteError) {
           console.error('Error fetching votes:', voteError);
@@ -77,15 +82,15 @@ export function useVoting() {
           voteCounts[vote.voted_for_player_id] = (voteCounts[vote.voted_for_player_id] || 0) + 1;
         }
 
-        const voteResults: VoteResults[] = matchPlayers.map(p => ({
+        const voteResults: VoteResults[] = matchPlayers.map((p: { id: number; name: string }) => ({
           player_id: p.id,
           player_name: p.name,
           vote_count: voteCounts[p.id] || 0
-        })).sort((a, b) => b.vote_count - a.vote_count);
+        })).sort((a: VoteResults, b: VoteResults) => b.vote_count - a.vote_count);
 
         // Check if current player has voted
         const currentVote = currentPlayerId
-          ? votes.find(v => v.voter_player_id === currentPlayerId)
+          ? votes.find((v: any) => v.voter_player_id === currentPlayerId)
           : null;
 
         // Calculate days remaining
@@ -114,7 +119,7 @@ export function useVoting() {
     } finally {
       setIsLoadingVotes(false);
     }
-  }, []);
+  }, [currentTeam]);
 
   const submitVote = useCallback(async (
     matchId: number,
@@ -122,6 +127,8 @@ export function useVoting() {
     votedForPlayerId: number,
     allMatches: Match[]
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     // Validation: can't vote for yourself
     if (votedForPlayerId === currentPlayerId) {
       alert('Je kunt niet op jezelf stemmen');
@@ -148,6 +155,7 @@ export function useVoting() {
         .select('id')
         .eq('match_id', matchId)
         .eq('voter_player_id', currentPlayerId)
+        .eq('team_id', currentTeam.id)
         .single();
 
       if (existingVote) {
@@ -176,7 +184,8 @@ export function useVoting() {
         .insert({
           match_id: matchId,
           voter_player_id: currentPlayerId,
-          voted_for_player_id: votedForPlayerId
+          voted_for_player_id: votedForPlayerId,
+          team_id: currentTeam.id
         });
 
       if (error) throw error;
@@ -191,7 +200,7 @@ export function useVoting() {
       alert('Er ging iets mis, probeer opnieuw');
       return false;
     }
-  }, [fetchVotingMatches]);
+  }, [fetchVotingMatches, currentTeam]);
 
   return {
     votingMatches,

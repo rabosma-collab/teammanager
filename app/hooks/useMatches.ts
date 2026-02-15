@@ -1,18 +1,26 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 export function useMatches() {
+  const { currentTeam } = useTeamContext();
   const [matches, setMatches] = useState<Match[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [matchAbsences, setMatchAbsences] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchMatches = useCallback(async () => {
+    if (!currentTeam) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('matches')
         .select('*')
+        .eq('team_id', currentTeam.id)
         .order('date', { ascending: false });
 
       if (error) throw error;
@@ -23,8 +31,8 @@ export function useMatches() {
         today.setHours(0, 0, 0, 0);
 
         const upcoming = data
-          .filter(m => new Date(m.date) >= today)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          .filter((m: { date: string }) => new Date(m.date) >= today)
+          .sort((a: { date: string }, b: { date: string }) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         setSelectedMatch(upcoming.length > 0 ? upcoming[0] : data[0]);
       }
@@ -33,9 +41,11 @@ export function useMatches() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentTeam]);
 
   const fetchAbsences = useCallback(async (matchId: number) => {
+    if (!currentTeam) return;
+
     try {
       const { data, error } = await supabase
         .from('match_absences')
@@ -43,16 +53,18 @@ export function useMatches() {
         .eq('match_id', matchId);
 
       if (error) throw error;
-      setMatchAbsences(data?.map(a => a.player_id) || []);
+      setMatchAbsences(data?.map((a: { player_id: number }) => a.player_id) || []);
     } catch (error) {
       console.error('Error fetching absences:', error);
     }
-  }, []);
+  }, [currentTeam]);
 
   const toggleAbsence = useCallback(async (
     playerId: number,
     matchId: number
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     const isAbsent = matchAbsences.includes(playerId);
 
     try {
@@ -82,7 +94,7 @@ export function useMatches() {
       console.error('Error toggling absence:', error);
       return false;
     }
-  }, [matchAbsences]);
+  }, [matchAbsences, currentTeam]);
 
   const isMatchEditable = useCallback((isAdmin: boolean): boolean => {
     if (!selectedMatch || !isAdmin) return false;
@@ -95,10 +107,12 @@ export function useMatches() {
   const addMatch = useCallback(async (
     matchData: { date: string; opponent: string; home_away: string; formation: string; substitution_scheme_id: number }
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     try {
       const { error } = await supabase
         .from('matches')
-        .insert(matchData);
+        .insert({ ...matchData, team_id: currentTeam.id });
 
       if (error) throw error;
       return true;
@@ -106,17 +120,20 @@ export function useMatches() {
       console.error('Error adding match:', error);
       return false;
     }
-  }, []);
+  }, [currentTeam]);
 
   const updateMatch = useCallback(async (
     id: number,
     matchData: { date: string; opponent: string; home_away: string; formation: string; substitution_scheme_id: number }
   ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     try {
       const { error } = await supabase
         .from('matches')
         .update(matchData)
-        .eq('id', id);
+        .eq('id', id)
+        .eq('team_id', currentTeam.id);
 
       if (error) throw error;
 
@@ -131,9 +148,11 @@ export function useMatches() {
       console.error('Error updating match:', error);
       return false;
     }
-  }, [selectedMatch?.id]);
+  }, [selectedMatch?.id, currentTeam]);
 
   const deleteMatch = useCallback(async (matchId: number): Promise<boolean> => {
+    if (!currentTeam) return false;
+
     try {
       // Clean up related records first
       await supabase.from('lineups').delete().eq('match_id', matchId);
@@ -144,7 +163,8 @@ export function useMatches() {
       const { error } = await supabase
         .from('matches')
         .delete()
-        .eq('id', matchId);
+        .eq('id', matchId)
+        .eq('team_id', currentTeam.id);
 
       if (error) throw error;
 
@@ -157,7 +177,7 @@ export function useMatches() {
       console.error('Error deleting match:', error);
       return false;
     }
-  }, [selectedMatch?.id]);
+  }, [selectedMatch?.id, currentTeam]);
 
   return {
     matches,
