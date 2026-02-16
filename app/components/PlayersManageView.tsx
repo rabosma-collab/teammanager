@@ -6,6 +6,11 @@ import { useTeamContext } from '../contexts/TeamContext';
 import PlayerEditModal, { type PlayerFormData } from './modals/PlayerEditModal';
 import InvitePlayerModal from './modals/InvitePlayerModal';
 
+interface PlayerAccount {
+  userId: string;
+  role: 'manager' | 'player';
+}
+
 interface ActiveInvite {
   token: string;
   expires_at: string;
@@ -29,9 +34,10 @@ export default function PlayersManageView({
   const { currentTeam } = useTeamContext();
   const [editingPlayer, setEditingPlayer] = useState<Player | null | 'new'>(null);
   const [invitingPlayer, setInvitingPlayer] = useState<Player | null>(null);
-  const [linkedPlayerIds, setLinkedPlayerIds] = useState<Set<number>>(new Set());
+  const [playerAccounts, setPlayerAccounts] = useState<Map<number, PlayerAccount>>(new Map());
   const [activeInvites, setActiveInvites] = useState<Map<number, ActiveInvite>>(new Map());
   const [copiedPlayerId, setCopiedPlayerId] = useState<number | null>(null);
+  const [togglingPlayerId, setTogglingPlayerId] = useState<number | null>(null);
 
   const regularPlayers = players.filter(p => !p.is_guest);
 
@@ -39,16 +45,23 @@ export default function PlayersManageView({
   const fetchLinkStatus = useCallback(async () => {
     if (!currentTeam) return;
 
-    // Fetch linked team members
+    // Fetch linked team members with role info
     const { data: members } = await supabase
       .from('team_members')
-      .select('player_id')
+      .select('player_id, user_id, role')
       .eq('team_id', currentTeam.id)
       .eq('status', 'active')
       .not('player_id', 'is', null);
 
     if (members) {
-      setLinkedPlayerIds(new Set(members.map(m => m.player_id as number)));
+      const map = new Map<number, PlayerAccount>();
+      for (const m of members) {
+        map.set(m.player_id as number, {
+          userId: m.user_id,
+          role: m.role as 'manager' | 'player',
+        });
+      }
+      setPlayerAccounts(map);
     }
 
     // Fetch active (unused, not expired) invite tokens
@@ -126,6 +139,36 @@ export default function PlayersManageView({
     }
   };
 
+  const handleToggleRole = async (playerId: number) => {
+    const account = playerAccounts.get(playerId);
+    if (!account || !currentTeam) return;
+
+    const newRole = account.role === 'manager' ? 'player' : 'manager';
+    setTogglingPlayerId(playerId);
+
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .update({ role: newRole })
+        .eq('team_id', currentTeam.id)
+        .eq('user_id', account.userId);
+
+      if (error) throw error;
+
+      // Update local state immediately
+      setPlayerAccounts(prev => {
+        const next = new Map(prev);
+        next.set(playerId, { ...account, role: newRole });
+        return next;
+      });
+    } catch (err) {
+      console.error('Fout bij wijzigen rol:', err);
+      alert('❌ Kon rol niet wijzigen');
+    } finally {
+      setTogglingPlayerId(null);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-8 overflow-y-auto flex-1">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -172,9 +215,12 @@ export default function PlayersManageView({
 
               <div className="bg-gray-800 rounded-lg overflow-hidden">
                 {posPlayers.map(player => {
-                  const isLinked = linkedPlayerIds.has(player.id);
+                  const account = playerAccounts.get(player.id);
+                  const isLinked = !!account;
+                  const isManager = account?.role === 'manager';
                   const invite = activeInvites.get(player.id);
                   const isCopied = copiedPlayerId === player.id;
+                  const isToggling = togglingPlayerId === player.id;
 
                   return (
                     <div
@@ -182,12 +228,19 @@ export default function PlayersManageView({
                       className="flex items-center gap-3 p-3 sm:p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2">
+                        <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2 flex-wrap">
                           {player.name}
                           {isLinked ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-900/40 border border-green-700/50 rounded-full text-xs text-green-400 font-medium">
-                              ✅ Gekoppeld
-                            </span>
+                            <>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-900/40 border border-green-700/50 rounded-full text-xs text-green-400 font-medium">
+                                ✅ Gekoppeld
+                              </span>
+                              {isManager && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-600/50 rounded-full text-xs text-yellow-300 font-medium">
+                                  👑 Manager
+                                </span>
+                              )}
+                            </>
                           ) : invite ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs text-yellow-400 font-medium">
                               ⏳ Uitgenodigd
@@ -209,6 +262,26 @@ export default function PlayersManageView({
                       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                         {player.injured && (
                           <span className="text-red-500 text-sm" title="Geblesseerd">🏥</span>
+                        )}
+
+                        {/* Manager role toggle — only for linked players */}
+                        {isLinked && (
+                          <button
+                            onClick={() => handleToggleRole(player.id)}
+                            disabled={isToggling}
+                            className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
+                              isToggling
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'cursor-pointer'
+                            } ${isManager ? 'bg-yellow-600' : 'bg-gray-600'}`}
+                            title={isManager ? 'Manager rechten uitschakelen' : 'Manager rechten inschakelen'}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${
+                                isManager ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
                         )}
 
                         {/* Invite / copy link actions */}
