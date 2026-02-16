@@ -69,7 +69,6 @@ export default function FootballApp() {
   const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
   const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
-  const [pendingInviteCount, setPendingInviteCount] = useState(0);
 
   // ---- HOOKS ----
   const {
@@ -208,24 +207,6 @@ export default function FootballApp() {
       fetchVotingMatches(matches, currentPlayerId);
     }
   }, [matches, currentPlayerId, fetchVotingMatches]);
-
-  // Fetch pending invite count for badge
-  useEffect(() => {
-    if (!currentTeam || !isManager) {
-      setPendingInviteCount(0);
-      return;
-    }
-    const fetchCount = async () => {
-      const { count } = await supabase
-        .from('invite_tokens')
-        .select('id', { count: 'exact', head: true })
-        .eq('team_id', currentTeam.id)
-        .is('used_at', null)
-        .gt('expires_at', new Date().toISOString());
-      setPendingInviteCount(count ?? 0);
-    };
-    fetchCount();
-  }, [currentTeam, isManager]);
 
   // ---- HANDLERS ----
   const handleLogout = async () => {
@@ -561,7 +542,6 @@ export default function FootballApp() {
         onLogin={() => {}}
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        pendingInviteCount={pendingInviteCount}
       />
 
       {/* === MODALS === */}
