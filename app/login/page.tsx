@@ -19,7 +19,14 @@ export default function LoginPage() {
 
     try {
       await signInWithEmail(email, password);
-      router.push('/');
+      // Redirect back to pending invite if one exists
+      const pendingToken = localStorage.getItem('pending_invite_token');
+      if (pendingToken) {
+        localStorage.removeItem('pending_invite_token');
+        router.push(`/join/${pendingToken}`);
+      } else {
+        router.push('/');
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
