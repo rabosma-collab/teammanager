@@ -1,9 +1,15 @@
 'use client';
 
-import React, { useState, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signInWithEmail, signInWithGoogle } from '../lib/auth';
+import { supabase } from '../lib/supabase';
+
+interface InviteInfo {
+  teamName: string;
+  playerName: string;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +17,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
+
+  // Check for pending invite token on mount
+  useEffect(() => {
+    const token = localStorage.getItem('inviteToken');
+    if (!token) return;
+
+    supabase
+      .from('invite_tokens')
+      .select('team:teams!team_id(name), player:players!player_id(name)')
+      .eq('token', token)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          const team = Array.isArray(data.team) ? data.team[0] : data.team;
+          const player = Array.isArray(data.player) ? data.player[0] : data.player;
+          if (team && player) {
+            setInviteInfo({ teamName: (team as { name: string }).name, playerName: (player as { name: string }).name });
+          }
+        }
+      });
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -20,10 +48,10 @@ export default function LoginPage() {
     try {
       await signInWithEmail(email, password);
       // Redirect back to pending invite if one exists
-      const pendingToken = localStorage.getItem('pending_invite_token');
-      if (pendingToken) {
-        localStorage.removeItem('pending_invite_token');
-        router.push(`/join/${pendingToken}`);
+      const inviteToken = localStorage.getItem('inviteToken');
+      if (inviteToken) {
+        localStorage.removeItem('inviteToken');
+        router.push(`/join/${inviteToken}`);
       } else {
         router.push('/');
       }
@@ -52,6 +80,19 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-white">Team Manager</h1>
           <p className="text-gray-400 mt-2">Log in om verder te gaan</p>
         </div>
+
+        {/* Invite banner */}
+        {inviteInfo && (
+          <div className="mb-4 p-4 bg-blue-900/40 border border-blue-700 rounded-xl flex items-center gap-3">
+            <span className="text-2xl">🎟️</span>
+            <div>
+              <p className="text-blue-200 text-sm font-medium">
+                Je wordt lid van <strong className="text-white">{inviteInfo.teamName}</strong> als <strong className="text-white">{inviteInfo.playerName}</strong>
+              </p>
+              <p className="text-blue-300/70 text-xs mt-0.5">Log in om de uitnodiging te accepteren</p>
+            </div>
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700">

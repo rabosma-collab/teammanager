@@ -32,7 +32,7 @@ type PageState =
   | { kind: 'success'; teamName: string }
   | { kind: 'error'; message: string };
 
-const STORAGE_KEY = 'pending_invite_token';
+const STORAGE_KEY = 'inviteToken';
 
 export default function JoinPage() {
   const params = useParams();

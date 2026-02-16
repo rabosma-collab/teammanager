@@ -1,8 +1,14 @@
 'use client';
 
-import React, { useState, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import { signUpWithEmail } from '../lib/auth';
+import { supabase } from '../lib/supabase';
+
+interface InviteInfo {
+  teamName: string;
+  playerName: string;
+}
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
@@ -12,6 +18,28 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
+
+  // Check for pending invite token on mount
+  useEffect(() => {
+    const token = localStorage.getItem('inviteToken');
+    if (!token) return;
+
+    supabase
+      .from('invite_tokens')
+      .select('team:teams!team_id(name), player:players!player_id(name)')
+      .eq('token', token)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          const team = Array.isArray(data.team) ? data.team[0] : data.team;
+          const player = Array.isArray(data.player) ? data.player[0] : data.player;
+          if (team && player) {
+            setInviteInfo({ teamName: (team as { name: string }).name, playerName: (player as { name: string }).name });
+          }
+        }
+      });
+  }, []);
 
   const validate = (): string | null => {
     if (fullName.trim().length < 2) return 'Vul je volledige naam in (minimaal 2 tekens)';
@@ -47,6 +75,19 @@ export default function RegisterPage() {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
+          {/* Invite reminder */}
+          {inviteInfo && (
+            <div className="mb-4 p-4 bg-blue-900/40 border border-blue-700 rounded-xl flex items-center gap-3">
+              <span className="text-2xl">🎟️</span>
+              <div>
+                <p className="text-blue-200 text-sm font-medium">
+                  Na verificatie kun je lid worden van <strong className="text-white">{inviteInfo.teamName}</strong>
+                </p>
+                <p className="text-blue-300/70 text-xs mt-0.5">De uitnodiging wacht op je na het inloggen</p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="text-5xl mb-4">📧</div>
             <h2 className="text-2xl font-bold text-white mb-3">Controleer je e-mail</h2>
@@ -79,6 +120,19 @@ export default function RegisterPage() {
           <h1 className="text-3xl font-bold text-white">Account aanmaken</h1>
           <p className="text-gray-400 mt-2">Registreer voor Team Manager</p>
         </div>
+
+        {/* Invite banner */}
+        {inviteInfo && (
+          <div className="mb-4 p-4 bg-blue-900/40 border border-blue-700 rounded-xl flex items-center gap-3">
+            <span className="text-2xl">🎟️</span>
+            <div>
+              <p className="text-blue-200 text-sm font-medium">
+                Je wordt lid van <strong className="text-white">{inviteInfo.teamName}</strong> als <strong className="text-white">{inviteInfo.playerName}</strong>
+              </p>
+              <p className="text-blue-300/70 text-xs mt-0.5">Maak een account aan om de uitnodiging te accepteren</p>
+            </div>
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700">
