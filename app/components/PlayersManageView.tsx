@@ -1,10 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import PlayerEditModal, { type PlayerFormData } from './modals/PlayerEditModal';
 import InvitePlayerModal from './modals/InvitePlayerModal';
+
+interface Toast {
+  id: number;
+  message: string;
+  type: 'success' | 'error';
+}
 
 interface PlayerAccount {
   userId: string;
@@ -38,8 +44,16 @@ export default function PlayersManageView({
   const [activeInvites, setActiveInvites] = useState<Map<number, ActiveInvite>>(new Map());
   const [copiedPlayerId, setCopiedPlayerId] = useState<number | null>(null);
   const [togglingPlayerId, setTogglingPlayerId] = useState<number | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastIdRef = useRef(0);
 
   const regularPlayers = players.filter(p => !p.is_guest);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  }, []);
 
   // Fetch linked players and active invites
   const fetchLinkStatus = useCallback(async () => {
@@ -139,12 +153,37 @@ export default function PlayersManageView({
     }
   };
 
-  const handleToggleRole = async (playerId: number) => {
+  const handleToggleRole = async (playerId: number, playerName: string) => {
     const account = playerAccounts.get(playerId);
     if (!account || !currentTeam) return;
 
     const newRole = account.role === 'manager' ? 'player' : 'manager';
+
+    // Last-manager protection: count current managers from local state
+    if (newRole === 'player') {
+      const managerCount = Array.from(playerAccounts.values()).filter(a => a.role === 'manager').length;
+      if (managerCount <= 1) {
+        showToast('Er moet minimaal 1 manager in het team blijven', 'error');
+        return;
+      }
+    }
+
+    // Confirmation dialog
+    if (newRole === 'manager') {
+      if (!confirm(`Geef ${playerName} manager rechten? Ze kunnen dan alles bewerken.`)) return;
+    } else {
+      if (!confirm(`${playerName} kan dan alleen nog lezen, niet bewerken. Doorgaan?`)) return;
+    }
+
     setTogglingPlayerId(playerId);
+
+    // Optimistic update
+    const previousRole = account.role;
+    setPlayerAccounts(prev => {
+      const next = new Map(prev);
+      next.set(playerId, { ...account, role: newRole });
+      return next;
+    });
 
     try {
       const { error } = await supabase
@@ -155,15 +194,21 @@ export default function PlayersManageView({
 
       if (error) throw error;
 
-      // Update local state immediately
-      setPlayerAccounts(prev => {
-        const next = new Map(prev);
-        next.set(playerId, { ...account, role: newRole });
-        return next;
-      });
+      showToast(
+        newRole === 'manager'
+          ? `${playerName} is nu manager`
+          : `${playerName} is nu speler`,
+        'success'
+      );
     } catch (err) {
       console.error('Fout bij wijzigen rol:', err);
-      alert('❌ Kon rol niet wijzigen');
+      // Rollback optimistic update
+      setPlayerAccounts(prev => {
+        const next = new Map(prev);
+        next.set(playerId, { ...account, role: previousRole });
+        return next;
+      });
+      showToast('Kon rol niet wijzigen. Probeer het opnieuw.', 'error');
     } finally {
       setTogglingPlayerId(null);
     }
@@ -267,7 +312,7 @@ export default function PlayersManageView({
                         {/* Manager role toggle — only for linked players */}
                         {isLinked && (
                           <button
-                            onClick={() => handleToggleRole(player.id)}
+                            onClick={() => handleToggleRole(player.id, player.name)}
                             disabled={isToggling}
                             className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
                               isToggling
@@ -334,6 +379,25 @@ export default function PlayersManageView({
       <div className="mt-6 text-center text-gray-500 text-sm">
         Totaal: {regularPlayers.length} spelers
       </div>
+
+      {/* Toast notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+          {toasts.map(toast => (
+            <div
+              key={toast.id}
+              className={`px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-fade-in flex items-center gap-2 ${
+                toast.type === 'success'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-red-600 text-white'
+              }`}
+            >
+              <span>{toast.type === 'success' ? '✅' : '❌'}</span>
+              <span>{toast.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
