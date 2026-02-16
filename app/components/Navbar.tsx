@@ -12,6 +12,7 @@ interface NavbarProps {
   onLogin: () => void;
   onLogout: () => void;
   onToggleSidebar: () => void;
+  pendingInviteCount?: number;
 }
 
 export default function Navbar({
@@ -19,7 +20,8 @@ export default function Navbar({
   setView,
   isAdmin,
   onLogout,
-  onToggleSidebar
+  onToggleSidebar,
+  pendingInviteCount = 0
 }: NavbarProps) {
   const router = useRouter();
   const { currentTeam } = useTeamContext();
@@ -58,6 +60,14 @@ export default function Navbar({
           <NavButton active={view === 'instructions'} onClick={() => setView('instructions')} icon="📋" label="Instructies" />
           <NavButton active={view === 'players-manage'} onClick={() => setView('players-manage')} icon="👥" label="Spelers" />
           <NavButton active={view === 'matches-manage'} onClick={() => setView('matches-manage')} icon="📅" label="Wedstrijden" />
+          <div className="relative flex-shrink-0">
+            <NavButton active={view === 'invites'} onClick={() => setView('invites')} icon="📨" label="Uitnodigingen" />
+            {pendingInviteCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1">
+                {pendingInviteCount}
+              </span>
+            )}
+          </div>
         </>
       )}
 
