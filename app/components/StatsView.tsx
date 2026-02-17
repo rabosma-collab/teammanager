@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
 
@@ -8,8 +8,62 @@ interface StatsViewProps {
   onUpdateStat: (id: number, field: string, value: string) => void;
 }
 
+type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'was' | 'min';
+type SortDir = 'asc' | 'desc';
+
+const positionOrder: Record<string, number> = {
+  Keeper: 0,
+  Verdediger: 1,
+  Middenvelder: 2,
+  Aanvaller: 3,
+};
+
 export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewProps) {
-  const regularPlayers = players.filter(p => !p.is_guest);
+  const [sortKey, setSortKey] = useState<SortKey>('goals');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const regularPlayers = useMemo(() => players.filter(p => !p.is_guest), [players]);
+
+  const sortedPlayers = useMemo(() => {
+    const sorted = [...regularPlayers];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'position':
+          cmp = (positionOrder[a.position] ?? 99) - (positionOrder[b.position] ?? 99);
+          break;
+        case 'injured':
+          cmp = (a.injured ? 1 : 0) - (b.injured ? 1 : 0);
+          break;
+        default:
+          cmp = a[sortKey] - b[sortKey];
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [regularPlayers, sortKey, sortDir]);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'name' || key === 'position' ? 'asc' : 'desc');
+    }
+  };
+
+  const columns: { key: SortKey; label: string }[] = [
+    { key: 'name', label: 'Speler' },
+    { key: 'position', label: 'Positie' },
+    { key: 'injured', label: 'Status' },
+    { key: 'goals', label: 'Goals' },
+    { key: 'assists', label: 'Assists' },
+    { key: 'was', label: 'Was' },
+    { key: 'min', label: 'Wissel' },
+  ];
 
   return (
     <div className="p-4 sm:p-8 overflow-x-auto">
@@ -19,17 +73,22 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
         <table className="w-full">
           <thead className="bg-gray-700">
             <tr className="text-left">
-              <th className="p-2 sm:p-4 text-sm sm:text-base">Speler</th>
-              <th className="p-2 sm:p-4 text-sm sm:text-base">Positie</th>
-              <th className="p-2 sm:p-4 text-sm sm:text-base">Status</th>
-              <th className="p-2 sm:p-4 text-sm sm:text-base">Goals</th>
-              <th className="p-2 sm:p-4 text-sm sm:text-base">Assists</th>
-              <th className="p-2 sm:p-4 text-sm sm:text-base">Was</th>
-              <th className="p-2 sm:p-4 text-sm sm:text-base">Wissel</th>
+              {columns.map(col => (
+                <th
+                  key={col.key}
+                  className="p-2 sm:p-4 text-sm sm:text-base cursor-pointer select-none hover:bg-gray-600 transition-colors"
+                  onClick={() => handleSort(col.key)}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {col.label}
+                    <SortIndicator active={sortKey === col.key} dir={sortDir} />
+                  </span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {regularPlayers.map(player => (
+            {sortedPlayers.map(player => (
               <tr key={player.id} className="border-t border-gray-700 hover:bg-gray-700/50">
                 <td className="p-2 sm:p-4 font-bold text-sm sm:text-base">{player.name}</td>
                 <td className="p-2 sm:p-4">
@@ -51,6 +110,17 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
         </table>
       </div>
     </div>
+  );
+}
+
+function SortIndicator({ active, dir }: { active: boolean; dir: SortDir }) {
+  if (!active) {
+    return <span className="text-gray-500 text-xs ml-0.5">↕</span>;
+  }
+  return (
+    <span className="text-blue-400 text-xs ml-0.5">
+      {dir === 'asc' ? '▲' : '▼'}
+    </span>
   );
 }
 
