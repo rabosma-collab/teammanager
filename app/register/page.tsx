@@ -30,7 +30,7 @@ export default function RegisterPage() {
       .select('team:teams!team_id(name), player:players!player_id(name)')
       .eq('token', token)
       .single()
-      .then(({ data }) => {
+      .then(({ data }: { data: any }) => {
         if (data) {
           const team = Array.isArray(data.team) ? data.team[0] : data.team;
           const player = Array.isArray(data.player) ? data.player[0] : data.player;
