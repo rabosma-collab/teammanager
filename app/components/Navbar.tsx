@@ -36,7 +36,7 @@ export default function Navbar({
         .eq('team_id', currentTeam.id)
         .is('used_at', null)
         .gt('expires_at', new Date().toISOString())
-        .then(({ count }) => setPendingCount(count ?? 0));
+        .then(({ count }: { count: number | null }) => setPendingCount(count ?? 0));
     };
 
     fetchCount();
