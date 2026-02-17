@@ -29,6 +29,7 @@ import PlayersManageView from './components/PlayersManageView';
 import MatchesManageView from './components/MatchesManageView';
 import PlayerCardsView from './components/PlayerCardsView';
 import VotingSection from './components/VotingSection';
+import InvitesManageView from './components/InvitesManageView';
 
 // Modals
 import TooltipModal from './components/modals/TooltipModal';
@@ -538,7 +539,6 @@ export default function FootballApp() {
         view={view}
         setView={setView}
         isAdmin={isManager}
-        onLogin={() => {}}
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />
@@ -744,6 +744,8 @@ export default function FootballApp() {
           onDeleteMatch={deleteMatch}
           onRefresh={fetchMatches}
         />
+      ) : view === 'invites' && isManager ? (
+        <InvitesManageView />
       ) : view === 'cards' ? (
         <PlayerCardsView
           players={players}

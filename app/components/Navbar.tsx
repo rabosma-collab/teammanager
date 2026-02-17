@@ -1,15 +1,13 @@
 'use client';
 
-import React from 'react';
-import { useRouter } from 'next/navigation';
-import { signOut } from '../lib/auth';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 
 interface NavbarProps {
   view: string;
   setView: (view: string) => void;
   isAdmin: boolean;
-  onLogin: () => void;
   onLogout: () => void;
   onToggleSidebar: () => void;
 }
@@ -21,13 +19,34 @@ export default function Navbar({
   onLogout,
   onToggleSidebar
 }: NavbarProps) {
-  const router = useRouter();
   const { currentTeam } = useTeamContext();
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const handleLogout = async () => {
-    await signOut();
-    router.push('/login');
-  };
+  // Fetch pending invites count
+  useEffect(() => {
+    if (!isAdmin || !currentTeam) {
+      setPendingCount(0);
+      return;
+    }
+
+    const fetchCount = () => {
+      supabase
+        .from('invite_tokens')
+        .select('id', { count: 'exact', head: true })
+        .eq('team_id', currentTeam.id)
+        .is('used_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .then(({ count }: { count: number | null }) => setPendingCount(count ?? 0));
+    };
+
+    fetchCount();
+
+    // Refresh count when switching to/from invites view
+    if (view === 'invites' || view === 'players-manage') {
+      const interval = setInterval(fetchCount, 10_000);
+      return () => clearInterval(interval);
+    }
+  }, [isAdmin, currentTeam, view]);
 
   return (
     <nav className="flex items-center gap-1.5 sm:gap-3 p-2 sm:p-4 bg-gray-800 border-b border-gray-700 select-none overflow-x-auto">
@@ -58,6 +77,14 @@ export default function Navbar({
           <NavButton active={view === 'instructions'} onClick={() => setView('instructions')} icon="📋" label="Instructies" />
           <NavButton active={view === 'players-manage'} onClick={() => setView('players-manage')} icon="👥" label="Spelers" />
           <NavButton active={view === 'matches-manage'} onClick={() => setView('matches-manage')} icon="📅" label="Wedstrijden" />
+          <div className="relative flex-shrink-0">
+            <NavButton active={view === 'invites'} onClick={() => setView('invites')} icon="📨" label="Uitnodigingen" />
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1">
+                {pendingCount}
+              </span>
+            )}
+          </div>
         </>
       )}
 
