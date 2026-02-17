@@ -55,7 +55,7 @@ export default function InvitesManageView() {
 
     if (!error && data) {
       setInvites(
-        data.map(d => ({
+        data.map((d: any) => ({
           ...d,
           player: Array.isArray(d.player) ? d.player[0] : d.player,
         })) as InviteRow[]
