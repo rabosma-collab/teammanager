@@ -19,8 +19,11 @@ function resolveKey(): string {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
+  const inviteToken = searchParams.get('inviteToken');
 
-  const redirectUrl = new URL('/', request.url);
+  const redirectUrl = inviteToken
+    ? new URL(`/join/${inviteToken}`, request.url)
+    : new URL('/', request.url);
 
   if (code) {
     const response = NextResponse.redirect(redirectUrl);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
@@ -12,6 +12,7 @@ interface InviteData {
   token: string;
   team_id: string;
   player_id: number;
+  created_by: string;
   expires_at: string;
   used_at: string | null;
   max_uses: number | null;
@@ -41,6 +42,7 @@ export default function JoinPage() {
   const token = params.token as string;
 
   const [state, setState] = useState<PageState>({ kind: 'loading' });
+  const acceptingRef = useRef(false);
 
   const validateToken = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -48,7 +50,7 @@ export default function JoinPage() {
     // 1. Fetch invite token with team and player details
     const { data: invite, error } = await supabase
       .from('invite_tokens')
-      .select('token, team_id, player_id, expires_at, used_at, max_uses, use_count, team:teams!team_id(id, name), player:players!player_id(id, name, position)')
+      .select('token, team_id, player_id, created_by, expires_at, used_at, max_uses, use_count, team:teams!team_id(id, name), player:players!player_id(id, name, position)')
       .eq('token', token)
       .single();
 
@@ -63,6 +65,12 @@ export default function JoinPage() {
       team: Array.isArray(invite.team) ? invite.team[0] : invite.team,
       player: Array.isArray(invite.player) ? invite.player[0] : invite.player,
     } as InviteData;
+
+    // Check that referenced team and player still exist
+    if (!inviteData.team || !inviteData.player) {
+      setState({ kind: 'invalid' });
+      return;
+    }
 
     // 2. Check expired
     if (new Date(inviteData.expires_at) < new Date()) {
@@ -116,6 +124,8 @@ export default function JoinPage() {
 
   const handleAccept = async () => {
     if (state.kind !== 'confirm') return;
+    if (acceptingRef.current) return; // Prevent double-click
+    acceptingRef.current = true;
     const { invite } = state;
 
     setState({ kind: 'accepting' });
@@ -136,7 +146,7 @@ export default function JoinPage() {
           role: 'player' as const,
           player_id: invite.player_id,
           status: 'active',
-          invited_by: invite.team_id, // track which invite was used
+          invited_by: invite.created_by,
         });
 
       if (memberError) {
@@ -161,6 +171,7 @@ export default function JoinPage() {
       setTimeout(() => router.push('/'), 2000);
     } catch (err) {
       console.error('Fout bij accepteren uitnodiging:', err);
+      acceptingRef.current = false;
       setState({ kind: 'error', message: 'Er ging iets mis bij het accepteren. Probeer het opnieuw.' });
     }
   };

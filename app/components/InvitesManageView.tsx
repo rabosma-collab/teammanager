@@ -132,7 +132,7 @@ export default function InvitesManageView() {
         .select('id, token, player_id, created_at, expires_at')
         .single();
 
-      if (error || !newInvite) throw error;
+      if (error || !newInvite) throw error ?? new Error('Geen uitnodiging ontvangen');
 
       // Replace old invite with new one in the list
       setInvites(prev =>

@@ -539,7 +539,6 @@ export default function FootballApp() {
         view={view}
         setView={setView}
         isAdmin={isManager}
-        onLogin={() => {}}
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       />

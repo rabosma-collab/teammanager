@@ -60,11 +60,15 @@ export async function signUpWithEmail(
 }
 
 /** Start Google OAuth flow. Redirects the browser to Google sign-in. */
-export async function signInWithGoogle(): Promise<void> {
+export async function signInWithGoogle(inviteToken?: string): Promise<void> {
+  const callbackUrl = new URL('/auth/callback', window.location.origin);
+  if (inviteToken) {
+    callbackUrl.searchParams.set('inviteToken', inviteToken);
+  }
   const { error } = await getAuthClient().auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: callbackUrl.toString(),
     },
   });
   if (error) throw error;

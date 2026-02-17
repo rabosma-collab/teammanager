@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { signOut } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 
@@ -10,7 +8,6 @@ interface NavbarProps {
   view: string;
   setView: (view: string) => void;
   isAdmin: boolean;
-  onLogin: () => void;
   onLogout: () => void;
   onToggleSidebar: () => void;
 }
@@ -22,7 +19,6 @@ export default function Navbar({
   onLogout,
   onToggleSidebar
 }: NavbarProps) {
-  const router = useRouter();
   const { currentTeam } = useTeamContext();
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -51,11 +47,6 @@ export default function Navbar({
       return () => clearInterval(interval);
     }
   }, [isAdmin, currentTeam, view]);
-
-  const handleLogout = async () => {
-    await signOut();
-    router.push('/login');
-  };
 
   return (
     <nav className="flex items-center gap-1.5 sm:gap-3 p-2 sm:p-4 bg-gray-800 border-b border-gray-700 select-none overflow-x-auto">

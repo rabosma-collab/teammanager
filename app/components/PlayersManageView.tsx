@@ -135,9 +135,9 @@ export default function PlayersManageView({
     }
   };
 
-  const handleInviteCreated = (_token: string) => {
+  const handleInviteCreated = useCallback((_token: string) => {
     fetchLinkStatus();
-  };
+  }, [fetchLinkStatus]);
 
   const handleCopyLink = async (playerId: number) => {
     const invite = activeInvites.get(playerId);
@@ -161,7 +161,7 @@ export default function PlayersManageView({
 
     // Last-manager protection: count current managers from local state
     if (newRole === 'player') {
-      const managerCount = Array.from(playerAccounts.values()).filter(a => a.role === 'manager').length;
+      const managerCount = Array.from(playerAccounts.values()).filter((a: PlayerAccount) => a.role === 'manager').length;
       if (managerCount <= 1) {
         showToast('Er moet minimaal 1 manager in het team blijven', 'error');
         return;

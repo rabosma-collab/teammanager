@@ -65,7 +65,8 @@ export default function LoginPage() {
   const handleGoogle = async () => {
     setError(null);
     try {
-      await signInWithGoogle();
+      const inviteToken = localStorage.getItem('inviteToken') ?? undefined;
+      await signInWithGoogle(inviteToken);
     } catch (err) {
       setError((err as Error).message);
     }

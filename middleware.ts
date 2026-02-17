@@ -17,7 +17,7 @@ function resolveKey(): string {
   return FALLBACK_KEY;
 }
 
-const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback'];
+const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback', '/join'];
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
@@ -49,8 +49,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Logged in + auth page → redirect to home
+  // Logged in + auth page → redirect to home (or to pending invite)
   if (user && (pathname === '/login' || pathname === '/register')) {
+    // Check for invite token in query param (passed along by OAuth callback)
+    const inviteToken = request.nextUrl.searchParams.get('inviteToken');
+    if (inviteToken) {
+      return NextResponse.redirect(new URL(`/join/${inviteToken}`, request.url));
+    }
     return NextResponse.redirect(new URL('/', request.url));
   }
 
