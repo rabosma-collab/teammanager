@@ -70,8 +70,8 @@ export default function DashboardView({
       .from('match_absences')
       .select('player_id')
       .eq('match_id', dashboardMatch.id)
-      .then(({ data }) => {
-        setDashboardAbsences(data?.map((a: { player_id: number }) => a.player_id) || []);
+      .then(({ data }: { data: { player_id: number }[] | null }) => {
+        setDashboardAbsences(data?.map((a) => a.player_id) || []);
       });
   }, [dashboardMatch?.id]);
 
