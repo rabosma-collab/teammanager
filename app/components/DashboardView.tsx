@@ -199,7 +199,6 @@ export default function DashboardView({
               players={players}
               matchAbsences={dashboardAbsences}
               match={dashboardMatch}
-              fieldOccupants={fieldOccupants}
               isFinalized={!!isFinalized}
               onToggleAbsence={handleToggleAbsence}
             />
