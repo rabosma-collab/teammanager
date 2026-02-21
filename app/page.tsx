@@ -28,7 +28,7 @@ import InstructionsView from './components/InstructionsView';
 import PlayersManageView from './components/PlayersManageView';
 import MatchesManageView from './components/MatchesManageView';
 import PlayerCardsView from './components/PlayerCardsView';
-import VotingSection from './components/VotingSection';
+import DashboardView from './components/DashboardView';
 import InvitesManageView from './components/InvitesManageView';
 
 // Modals
@@ -56,7 +56,7 @@ export default function FootballApp() {
   }, [router]);
 
   // ---- UI STATE ----
-  const [view, setView] = useState('pitch');
+  const [view, setView] = useState('dashboard');
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isEditingLineup, setIsEditingLineup] = useState(false);
@@ -836,6 +836,21 @@ export default function FootballApp() {
           isAdmin={isManager}
           onUpdateStat={updateStat}
         />
+      ) : view === 'dashboard' ? (
+        <DashboardView
+          players={players}
+          selectedMatch={selectedMatch}
+          matchAbsences={matchAbsences}
+          fieldOccupants={fieldOccupants}
+          onToggleAbsence={toggleAbsence}
+          onNavigateToWedstrijd={() => setView('pitch')}
+          onNavigateToMatches={() => setView('matches-manage')}
+          votingMatches={votingMatches}
+          isLoadingVotes={isLoadingVotes}
+          votingCurrentPlayerId={currentPlayerId}
+          onSelectVotingPlayer={setCurrentPlayerId}
+          onVote={handleVote}
+        />
       ) : view === 'pitch' ? (
         <div className="flex flex-1 overflow-hidden relative">
           <Sidebar
@@ -978,16 +993,6 @@ export default function FootballApp() {
               onEditSub={handleEditSub}
               onAddExtraSub={() => setShowExtraSubModal(true)}
               onDeleteExtraSub={deleteExtraSubstitution}
-            />
-
-            {/* Speler van de Week stemmen */}
-            <VotingSection
-              votingMatches={votingMatches}
-              isLoading={isLoadingVotes}
-              players={players}
-              currentPlayerId={currentPlayerId}
-              onSelectCurrentPlayer={setCurrentPlayerId}
-              onVote={handleVote}
             />
 
             {/* Geselecteerde speler/positie indicator */}
