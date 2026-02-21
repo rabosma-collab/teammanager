@@ -14,6 +14,7 @@ export interface Player {
     def: number;
     is_guest?: boolean;
     guest_match_id?: number;
+    lineup_position?: number | null;
   }
 
   export interface Match {
