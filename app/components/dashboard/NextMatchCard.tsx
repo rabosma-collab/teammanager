@@ -14,7 +14,7 @@ interface NextMatchCardProps {
   players: Player[];
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
   onToggleInjury: (playerId: number) => Promise<boolean>;
-  onNavigateToWedstrijd: () => void;
+  onNavigateToWedstrijd: (match: Match) => void;
   onNavigateToMatches?: () => void;
 }
 
@@ -173,7 +173,7 @@ export default function NextMatchCard({
 
       {/* Bekijk opstelling knop */}
       <button
-        onClick={onNavigateToWedstrijd}
+        onClick={() => onNavigateToWedstrijd(match)}
         className="w-full px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
       >
         <span>⚽</span>
