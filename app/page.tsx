@@ -155,7 +155,8 @@ export default function FootballApp() {
   }, [getBenchPlayers, players, matchAbsences]);
   const unavailablePlayers = useMemo(() => ({
     injured: players.filter(p => p.injured),
-    absent: players.filter(p => matchAbsences.includes(p.id))
+    // Guest players are never in matchAbsences (different ID space from guest_players table)
+    absent: players.filter(p => !p.is_guest && matchAbsences.includes(p.id))
   }), [players, matchAbsences]);
 
   // ---- DEBUG: track player changes ----
@@ -219,7 +220,8 @@ export default function FootballApp() {
     if (!isPlayerAvailable(player, matchAbsences)) return;
 
     setFieldOccupants(prev => {
-      if (prev.some(p => p && p.id === player.id)) return prev;
+      // Use composite key (is_guest + id) to avoid false match between regular and guest players
+      if (prev.some(p => p && p.id === player.id && Boolean(p.is_guest) === Boolean(player.is_guest))) return prev;
       const newField = [...prev];
       newField[positionIndex] = player;
       return newField;
@@ -893,9 +895,9 @@ export default function FootballApp() {
               <div className="mt-4 sm:mt-6 text-yellow-500 text-center text-sm sm:text-base px-4 select-none">
                 {selectedPosition !== null && !selectedPlayer ? (
                   <>👆 Positie {selectedPosition + 1} geselecteerd — kies een speler uit de selectie of bank</>
-                ) : selectedPlayer && isPlayerAvailable(selectedPlayer, matchAbsences) && !isPlayerOnField(selectedPlayer.id) ? (
+                ) : selectedPlayer && isPlayerAvailable(selectedPlayer, matchAbsences) && !isPlayerOnField(selectedPlayer) ? (
                   <>👆 Klik op het veld om <strong>{selectedPlayer.name}</strong> te plaatsen</>
-                ) : selectedPlayer && isPlayerOnField(selectedPlayer.id) ? (
+                ) : selectedPlayer && isPlayerOnField(selectedPlayer) ? (
                   <>⚠️ <strong>{selectedPlayer.name}</strong> staat al op het veld</>
                 ) : selectedPlayer ? (
                   <>⚠️ <strong>{selectedPlayer.name}</strong> is niet beschikbaar</>
