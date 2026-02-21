@@ -10,6 +10,7 @@ interface SidebarProps {
   matchAbsences: number[];
   selectedPlayer: Player | null;
   isAdmin: boolean;
+  canEdit: boolean;
   isEditable: boolean;
   isPlayerOnField: (player: Player) => boolean;
   isPlayerAvailable: (player: Player | null, absences: number[]) => boolean;
@@ -27,6 +28,7 @@ export default function Sidebar({
   matchAbsences,
   selectedPlayer,
   isAdmin,
+  canEdit,
   isEditable,
   isPlayerOnField,
   isPlayerAvailable,
@@ -106,7 +108,7 @@ export default function Sidebar({
             )}
           </div>
 
-          {!isEditable && (
+          {!canEdit && (
             <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded text-sm select-none">
               🔒 {isAdmin ? 'Wedstrijd is afgerond' : 'Login als admin'}
             </div>
@@ -140,8 +142,8 @@ export default function Sidebar({
                     onTouchStart={() => handleTouchStart(player.id)}
                     onTouchEnd={handleTouchEnd}
                     onTouchMove={handleTouchEnd}
-                    className={`p-3 mb-2 rounded-lg transition relative touch-manipulation select-none ${
-                      (isEditable && available && !onField) ? 'cursor-pointer active:scale-95' : 'opacity-50'
+                    className={`p-3 mb-2 rounded-lg transition relative touch-manipulation select-none cursor-pointer active:scale-95 ${
+                      !available ? 'opacity-50' : onField ? 'opacity-75' : ''
                     } ${
                       selectedPlayer?.id === player.id
                         ? 'bg-gray-700 border-2 border-yellow-500'

@@ -59,11 +59,15 @@ export default function FootballApp() {
   const [view, setView] = useState('pitch');
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isEditingLineup, setIsEditingLineup] = useState(false);
+  const [isEditingMatchInstruction, setIsEditingMatchInstruction] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [showPlayerMenu, setShowPlayerMenu] = useState<number | null>(null);
   const [showTooltip, setShowTooltip] = useState<number | null>(null);
   const [instructionFormation, setInstructionFormation] = useState('4-3-3-aanvallend');
   const [showPlayerCard, setShowPlayerCard] = useState<Player | null>(null);
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [finalizeCalcMinutes, setFinalizeCalcMinutes] = useState(true);
   const [showExtraSubModal, setShowExtraSubModal] = useState(false);
   const [extraSubMinute, setExtraSubMinute] = useState(45);
   const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
@@ -100,8 +104,9 @@ export default function FootballApp() {
   } = useSubstitutions();
 
   const {
-    positionInstructions, editingInstruction, setEditingInstruction,
-    fetchInstructions, getInstructionForPosition, saveInstruction
+    positionInstructions, matchInstructions, editingInstruction, setEditingInstruction,
+    fetchInstructions, fetchMatchInstructions, clearMatchInstructions,
+    getInstructionForPosition, saveInstruction, saveMatchInstruction, deleteMatchInstruction
   } = useInstructions();
 
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
@@ -110,6 +115,7 @@ export default function FootballApp() {
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isManager);
   const isFinalized = selectedMatch?.match_status === 'afgerond';
+  const activelyEditing = editable && isEditingLineup;
 
   const canFinalizeMatch = useCallback((): boolean => {
     if (!selectedMatch || !isManager) return false;
@@ -180,6 +186,7 @@ export default function FootballApp() {
       fetchAbsences(selectedMatch.id);
       fetchSubstitutions(selectedMatch.id);
       fetchPlayers(selectedMatch.id);
+      setIsEditingLineup(false);
     } else {
       // No match selected yet, fetch players without match context
       fetchPlayers();
@@ -194,13 +201,21 @@ export default function FootballApp() {
 
   useEffect(() => {
     fetchInstructions(formation);
-  }, [formation, fetchInstructions]);
+    if (selectedMatch) {
+      fetchMatchInstructions(selectedMatch.id, formation);
+    } else {
+      clearMatchInstructions();
+    }
+  }, [formation, selectedMatch?.id, fetchInstructions, fetchMatchInstructions, clearMatchInstructions]);
 
   useEffect(() => {
     if (view === 'instructions') {
       fetchInstructions(instructionFormation);
+      if (selectedMatch) {
+        fetchMatchInstructions(selectedMatch.id, instructionFormation);
+      }
     }
-  }, [view, instructionFormation, fetchInstructions]);
+  }, [view, instructionFormation, selectedMatch?.id, fetchInstructions, fetchMatchInstructions]);
 
   // Load voting data when matches are available and currentPlayer changes
   useEffect(() => {
@@ -231,7 +246,12 @@ export default function FootballApp() {
   }, [matchAbsences, isPlayerAvailable, setFieldOccupants, setSelectedPlayer, setSelectedPosition]);
 
   const handlePositionClick = (index: number) => {
-    if (!editable) return;
+    if (!activelyEditing) {
+      // In view-modus: tik op positie met speler → toon FIFA stats card (mobiel)
+      const player = fieldOccupants[index];
+      if (player) setShowPlayerCard(player);
+      return;
+    }
 
     if (selectedPlayer) {
       // Mode A: player was selected first → place at this position
@@ -254,14 +274,14 @@ export default function FootballApp() {
 
   // When a player is selected (from sidebar or bench)
   const handleSelectPlayer = useCallback((player: Player | null) => {
-    if (player && selectedPosition !== null && editable) {
+    if (player && selectedPosition !== null && activelyEditing) {
       // A position was already selected → place player there directly
       placePlayerAtPosition(player, selectedPosition);
     } else {
       setSelectedPlayer(player);
       setSelectedPosition(null);
     }
-  }, [selectedPosition, editable, placePlayerAtPosition, setSelectedPlayer, setSelectedPosition]);
+  }, [selectedPosition, activelyEditing, placePlayerAtPosition, setSelectedPlayer, setSelectedPosition]);
 
   const handleSaveLineup = async () => {
     if (!selectedMatch) return;
@@ -298,20 +318,9 @@ export default function FootballApp() {
     }
   };
 
-  const handleFinalizeMatch = async () => {
+  const handleFinalizeMatch = async (calculateMinutes: boolean) => {
     if (!selectedMatch || !canFinalizeMatch()) return;
-
-    const confirmed = confirm(
-      `Wedstrijd afsluiten?\n\n` +
-      `Dit doet het volgende:\n` +
-      `• Berekent wisselminuten (tijd op de bank)\n` +
-      `• Telt wisselminuten op bij spelers\n` +
-      `• Telt 'was' op voor spelers in basis\n` +
-      `• Maakt wedstrijd read-only\n\n` +
-      `Dit kan NIET ongedaan gemaakt worden!`
-    );
-
-    if (!confirmed) return;
+    setShowFinalizeModal(false);
 
     try {
       // Haal alle substitutions op
@@ -366,42 +375,37 @@ export default function FootballApp() {
         }
       });
 
-      // 3. Bereken wisselminuten voor elke speler
+      // 3. Bereken statistieken per speler
       for (const [playerId, data] of Object.entries(playerPlayTime)) {
         const player = players.find(p => p.id === parseInt(playerId));
         if (!player) continue;
 
-        // Bereken totale speeltijd
-        const totalPlayedMinutes = data.periodsPlayed.reduce((sum, period) => {
-          return sum + (period.end - period.start);
-        }, 0);
+        const table = player.is_guest ? 'guest_players' : 'players';
+        const updates: Record<string, number> = {};
 
-        // Wisselminuten = 90 - gespeelde minuten
-        const benchMinutes = 90 - totalPlayedMinutes;
-
-        if (benchMinutes > 0 || data.wasInStartingEleven) {
-          const table = player.is_guest ? 'guest_players' : 'players';
-
-          const updates: Record<string, number> = {};
-
-          // Alleen wisselminuten toevoegen als er wisselminuten zijn
+        // Wisselminuten optioneel berekenen
+        if (calculateMinutes) {
+          const totalPlayedMinutes = data.periodsPlayed.reduce((sum, period) => {
+            return sum + (period.end - period.start);
+          }, 0);
+          const benchMinutes = 90 - totalPlayedMinutes;
           if (benchMinutes > 0) {
             updates.min = player.min + benchMinutes;
           }
+        }
 
-          // Was bijwerken als speler in basis stond
-          if (data.wasInStartingEleven) {
-            updates.was = player.was + 1;
-          }
+        // Was altijd bijwerken (speler heeft gespeeld, ongeacht minuten-keuze)
+        if (data.wasInStartingEleven) {
+          updates.was = player.was + 1;
+        }
 
-          if (Object.keys(updates).length > 0) {
-            const { error } = await supabase
-              .from(table)
-              .update(updates)
-              .eq('id', parseInt(playerId));
+        if (Object.keys(updates).length > 0) {
+          const { error } = await supabase
+            .from(table)
+            .update(updates)
+            .eq('id', parseInt(playerId));
 
-            if (error) throw error;
-          }
+          if (error) throw error;
         }
       }
 
@@ -414,6 +418,7 @@ export default function FootballApp() {
       if (matchError) throw matchError;
 
       // 5. Update local state
+      setIsEditingLineup(false);
       setSelectedMatch({ ...selectedMatch, match_status: 'afgerond' });
       setMatches(matches.map(m =>
         m.id === selectedMatch.id ? { ...m, match_status: 'afgerond' } : m
@@ -428,7 +433,10 @@ export default function FootballApp() {
         currentPlayerId
       );
 
-      alert('✅ Wedstrijd afgesloten! Wisselminuten zijn bijgewerkt.');
+      alert(calculateMinutes
+        ? '✅ Wedstrijd afgesloten! Wisselminuten zijn bijgewerkt.'
+        : '✅ Wedstrijd afgesloten! Speelminuten zijn niet berekend.'
+      );
 
     } catch (error) {
       console.error('Error finalizing match:', error);
@@ -559,10 +567,16 @@ export default function FootballApp() {
           instruction={editingInstruction}
           onChange={setEditingInstruction}
           onSave={async () => {
-            const success = await saveInstruction(editingInstruction, instructionFormation);
-            alert(success ? '✅ Instructie opgeslagen!' : '❌ Kon instructie niet opslaan');
+            if (isEditingMatchInstruction && selectedMatch) {
+              const success = await saveMatchInstruction(editingInstruction, selectedMatch.id, instructionFormation);
+              alert(success ? '✅ Wedstrijd-afwijking opgeslagen!' : '❌ Kon afwijking niet opslaan');
+            } else {
+              const success = await saveInstruction(editingInstruction, instructionFormation);
+              alert(success ? '✅ Instructie opgeslagen!' : '❌ Kon instructie niet opslaan');
+            }
+            setIsEditingMatchInstruction(false);
           }}
-          onClose={() => setEditingInstruction(null)}
+          onClose={() => { setEditingInstruction(null); setIsEditingMatchInstruction(false); }}
         />
       )}
 
@@ -629,6 +643,57 @@ export default function FootballApp() {
           onSave={handleSaveSubstitutions}
           onClose={closeSubModal}
         />
+      )}
+
+      {showFinalizeModal && isManager && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowFinalizeModal(false)}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">🏁 Wedstrijd afsluiten</h3>
+              <button onClick={() => setShowFinalizeModal(false)} className="text-2xl hover:text-red-500 p-2">✕</button>
+            </div>
+
+            <div className="mb-4 p-3 bg-orange-900/30 border border-orange-700 rounded text-sm">
+              <p className="font-bold mb-2">Dit doet het volgende:</p>
+              <ul className="space-y-1 text-gray-300">
+                <li>• Telt 'gestart' op voor spelers in basis</li>
+                <li>• Maakt wedstrijd read-only</li>
+              </ul>
+            </div>
+
+            <label className="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 mb-4">
+              <input
+                type="checkbox"
+                checked={finalizeCalcMinutes}
+                onChange={(e) => setFinalizeCalcMinutes(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-green-500 flex-shrink-0"
+              />
+              <div>
+                <div className="font-bold text-sm">Speelminuten automatisch berekenen</div>
+                <div className="text-xs text-gray-400 mt-0.5">Berekent wisselminuten (tijd op de bank) en telt deze op bij spelers. Schakel uit bij extra tijd, bijzondere situaties of handmatige invoer.</div>
+              </div>
+            </label>
+
+            <div className="mb-4 p-2 bg-red-900/30 border border-red-700 rounded text-xs text-center text-red-300">
+              ⚠️ Dit kan NIET ongedaan gemaakt worden!
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleFinalizeMatch(finalizeCalcMinutes)}
+                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded font-bold touch-manipulation active:scale-95"
+              >
+                🏁 Afsluiten
+              </button>
+              <button
+                onClick={() => setShowFinalizeModal(false)}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded font-bold touch-manipulation active:scale-95"
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showExtraSubModal && isManager && (
@@ -728,7 +793,22 @@ export default function FootballApp() {
           instructionFormation={instructionFormation}
           setInstructionFormation={setInstructionFormation}
           positionInstructions={positionInstructions}
-          onEditInstruction={setEditingInstruction}
+          matchInstructions={matchInstructions}
+          selectedMatchId={selectedMatch && instructionFormation === formation ? selectedMatch.id : undefined}
+          onEditInstruction={(instruction) => {
+            setIsEditingMatchInstruction(false);
+            setEditingInstruction(instruction);
+          }}
+          onEditMatchInstruction={(instruction) => {
+            setIsEditingMatchInstruction(true);
+            setEditingInstruction(instruction);
+          }}
+          onDeleteMatchInstruction={async (positionIndex) => {
+            if (!selectedMatch) return;
+            if (!confirm('Wedstrijd-afwijking verwijderen? De globale instructie geldt dan weer.')) return;
+            const success = await deleteMatchInstruction(selectedMatch.id, positionIndex, instructionFormation);
+            alert(success ? '✅ Afwijking verwijderd' : '❌ Kon afwijking niet verwijderen');
+          }}
         />
       ) : view === 'players-manage' && isManager ? (
         <PlayersManageView
@@ -765,7 +845,8 @@ export default function FootballApp() {
             matchAbsences={matchAbsences}
             selectedPlayer={selectedPlayer}
             isAdmin={isManager}
-            isEditable={editable}
+            canEdit={editable}
+            isEditable={activelyEditing}
             isPlayerOnField={isPlayerOnField}
             isPlayerAvailable={isPlayerAvailable}
             onSelectPlayer={handleSelectPlayer}
@@ -813,8 +894,8 @@ export default function FootballApp() {
 
               <select
                 value={formation}
-                onChange={(e) => editable && setFormation(e.target.value)}
-                disabled={!editable || isFinalized}
+                onChange={(e) => activelyEditing && setFormation(e.target.value)}
+                disabled={!activelyEditing || isFinalized}
                 className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 disabled:opacity-50 text-white text-sm sm:text-base"
               >
                 {Object.keys(formations).map(f => (
@@ -822,19 +903,36 @@ export default function FootballApp() {
                 ))}
               </select>
 
-              {editable && !isFinalized && (
+              {editable && !isFinalized && !isEditingLineup && (
                 <button
-                  onClick={handleSaveLineup}
-                  disabled={savingLineup}
-                  className="px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
+                  onClick={() => setIsEditingLineup(true)}
+                  className="px-3 sm:px-4 py-2 rounded font-bold bg-blue-600 hover:bg-blue-700 text-sm sm:text-base"
                 >
-                  {savingLineup ? '💾 Bezig...' : '💾 Opslaan'}
+                  ✏️ Aanpassen
                 </button>
+              )}
+
+              {editable && !isFinalized && isEditingLineup && (
+                <>
+                  <button
+                    onClick={handleSaveLineup}
+                    disabled={savingLineup}
+                    className="px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
+                  >
+                    {savingLineup ? '💾 Bezig...' : '💾 Opslaan'}
+                  </button>
+                  <button
+                    onClick={() => setIsEditingLineup(false)}
+                    className="px-3 sm:px-4 py-2 rounded font-bold bg-gray-600 hover:bg-gray-700 text-sm sm:text-base"
+                  >
+                    ✅ Klaar
+                  </button>
+                </>
               )}
 
               {canFinalizeMatch() && (
                 <button
-                  onClick={handleFinalizeMatch}
+                  onClick={() => { setFinalizeCalcMinutes(true); setShowFinalizeModal(true); }}
                   className="px-3 sm:px-4 py-2 rounded font-bold bg-purple-600 hover:bg-purple-700 text-sm sm:text-base"
                 >
                   🏁 Wedstrijd afsluiten
@@ -849,7 +947,7 @@ export default function FootballApp() {
                 fieldOccupants={fieldOccupants}
                 selectedPlayer={selectedPlayer}
                 selectedPosition={selectedPosition}
-                isEditable={editable}
+                isEditable={activelyEditing}
                 matchAbsences={matchAbsences}
                 isPlayerAvailable={isPlayerAvailable}
                 isPlayerOnField={isPlayerOnField}
@@ -863,7 +961,7 @@ export default function FootballApp() {
                 benchPlayers={benchPlayers}
                 unavailablePlayers={unavailablePlayers}
                 selectedPlayer={selectedPlayer}
-                isEditable={editable}
+                isEditable={activelyEditing}
                 onSelectPlayer={handleSelectPlayer}
               />
             </div>
@@ -874,7 +972,7 @@ export default function FootballApp() {
               substitutions={substitutions}
               players={players}
               isAdmin={isManager}
-              isEditable={editable}
+              isEditable={activelyEditing}
               isFinalized={!!isFinalized}
               onEditSub={handleEditSub}
               onAddExtraSub={() => setShowExtraSubModal(true)}
@@ -892,7 +990,7 @@ export default function FootballApp() {
             />
 
             {/* Geselecteerde speler/positie indicator */}
-            {editable && !isFinalized && (selectedPlayer || selectedPosition !== null) && (
+            {activelyEditing && !isFinalized && (selectedPlayer || selectedPosition !== null) && (
               <div className="mt-4 sm:mt-6 text-yellow-500 text-center text-sm sm:text-base px-4 select-none">
                 {selectedPosition !== null && !selectedPlayer ? (
                   <>👆 Positie {selectedPosition + 1} geselecteerd — kies een speler uit de selectie of bank</>
