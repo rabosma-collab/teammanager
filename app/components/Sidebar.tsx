@@ -11,7 +11,7 @@ interface SidebarProps {
   selectedPlayer: Player | null;
   isAdmin: boolean;
   isEditable: boolean;
-  isPlayerOnField: (id: number) => boolean;
+  isPlayerOnField: (player: Player) => boolean;
   isPlayerAvailable: (player: Player | null, absences: number[]) => boolean;
   onSelectPlayer: (player: Player | null) => void;
   onPlayerMenu: (playerId: number) => void;
@@ -130,7 +130,7 @@ export default function Sidebar({
                 const isInjured = player.injured;
                 const isAbsent = matchAbsences.includes(player.id);
                 const available = isPlayerAvailable(player, matchAbsences);
-                const onField = isPlayerOnField(player.id);
+                const onField = isPlayerOnField(player);
 
                 return (
                   <div
@@ -163,6 +163,18 @@ export default function Sidebar({
                       {onField && <span className="text-green-500" title="Op het veld">⚽</span>}
                       {isInjured && <span className="text-red-500" title="Geblesseerd">🏥</span>}
                       {isAbsent && <span className="text-orange-500" title="Afwezig">❌</span>}
+                      {isAdmin && isEditable && player.is_guest && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPlayerMenu(player.id);
+                          }}
+                          className="text-red-400 hover:text-red-300 leading-none"
+                          title="Verwijder gastspeler"
+                        >
+                          🗑️
+                        </button>
+                      )}
                     </div>
                     <div className="text-xs flex gap-3 mt-1 opacity-70">
                       <span>⚽{player.goals}</span>

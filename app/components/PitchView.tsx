@@ -10,7 +10,7 @@ interface PitchViewProps {
   isEditable: boolean;
   matchAbsences: number[];
   isPlayerAvailable: (player: Player | null, absences: number[]) => boolean;
-  isPlayerOnField: (id: number) => boolean;
+  isPlayerOnField: (player: Player) => boolean;
   getInstructionForPosition: (index: number) => PositionInstruction | null;
   onPositionClick: (index: number) => void;
   onShowTooltip: (index: number) => void;

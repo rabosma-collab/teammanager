@@ -70,7 +70,9 @@ export function useLineup() {
         .map((player, position) => ({
           match_id: match.id,
           position,
-          player_id: player?.id || null
+          // Filter out guest players — their IDs are from a different table (guest_players)
+          // and cannot be stored in lineups due to the FK constraint on player_id → players(id)
+          player_id: player && !player.is_guest ? player.id : null
         }))
         .filter(item => item.player_id !== null);
 
@@ -94,23 +96,32 @@ export function useLineup() {
     }
   }, [fieldOccupants, currentTeam]);
 
-  const isPlayerOnField = useCallback((playerId: number): boolean => {
-    return fieldOccupants.some(p => p && p.id === playerId);
+  const isPlayerOnField = useCallback((player: Player): boolean => {
+    return fieldOccupants.some(p =>
+      p !== null &&
+      p.id === player.id &&
+      Boolean(p.is_guest) === Boolean(player.is_guest)
+    );
   }, [fieldOccupants]);
 
   const getBenchPlayers = useCallback((
     players: Player[],
     matchAbsences: number[]
   ): Player[] => {
-    const fieldIds = fieldOccupants
-      .filter((p): p is Player => p !== null)
-      .map(p => p.id);
-
-    const bench = players.filter(p =>
-      !fieldIds.includes(p.id) &&
-      !p.injured &&
-      !matchAbsences.includes(p.id)
+    // Use composite key (is_guest flag + id) to avoid ID collision between tables
+    const fieldKeys = new Set<string>(
+      fieldOccupants
+        .filter((p: Player | null): p is Player => p !== null)
+        .map((p: Player) => `${p.is_guest ? 'g' : 'r'}_${p.id}`)
     );
+
+    const bench = players.filter(p => {
+      const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+      // Guest players are never in matchAbsences (different ID space)
+      return !fieldKeys.has(key) &&
+        !p.injured &&
+        (p.is_guest || !matchAbsences.includes(p.id));
+    });
 
     // Final deduplication safety net: deduplicate by name
     const seen = new Set<string>();
@@ -127,6 +138,8 @@ export function useLineup() {
     matchAbsences: number[]
   ): boolean => {
     if (!player) return false;
+    // Guest players are never in matchAbsences (different table, different ID space)
+    if (player.is_guest) return !player.injured;
     return !player.injured && !matchAbsences.includes(player.id);
   }, []);
 
