@@ -19,6 +19,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [userRole, setUserRole] = useState<TeamMember['role'] | null>(null);
+  const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const fetchIdRef = useRef(0);
 
@@ -29,7 +30,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
 
     const { data, error } = await supabase
       .from('team_members')
-      .select('team_id, role, teams:team_id(*)')
+      .select('team_id, role, player_id, teams:team_id(*)')
       .eq('user_id', userId)
       .eq('status', 'active');
 
@@ -41,7 +42,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const rows = data as unknown as Array<{ team_id: string; role: TeamMember['role']; teams: Team }>;
+    const rows = data as unknown as Array<{ team_id: string; role: TeamMember['role']; player_id: number | null; teams: Team }>;
     const loadedTeams = rows.map((r) => r.teams);
     setTeams(loadedTeams);
 
@@ -57,10 +58,9 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     const activeTeam = savedTeam ?? loadedTeams[0] ?? null;
     setCurrentTeam(activeTeam);
 
-    const activeRole = activeTeam
-      ? rows.find((r) => r.team_id === activeTeam.id)?.role ?? null
-      : null;
-    setUserRole(activeRole);
+    const activeRow = activeTeam ? rows.find((r) => r.team_id === activeTeam.id) : null;
+    setUserRole(activeRow?.role ?? null);
+    setCurrentPlayerId(activeRow?.player_id ?? null);
 
     setIsLoading(false);
   }, [supabase]);
@@ -71,7 +71,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
 
     const { data, error } = await supabase
       .from('team_members')
-      .select('role, teams:team_id(*)')
+      .select('role, player_id, teams:team_id(*)')
       .eq('user_id', user.id)
       .eq('team_id', teamId)
       .eq('status', 'active')
@@ -82,9 +82,10 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const row = data as unknown as { role: TeamMember['role']; teams: Team };
+    const row = data as unknown as { role: TeamMember['role']; player_id: number | null; teams: Team };
     setCurrentTeam(row.teams);
     setUserRole(row.role);
+    setCurrentPlayerId(row.player_id ?? null);
     localStorage.setItem('selectedTeamId', teamId);
   }, [supabase]);
 
@@ -128,7 +129,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <TeamContext.Provider
-      value={{ currentTeam, userRole, isManager, isLoading, teams, switchTeam, refreshTeam }}
+      value={{ currentTeam, userRole, isManager, isLoading, teams, currentPlayerId, switchTeam, refreshTeam }}
     >
       {children}
     </TeamContext.Provider>

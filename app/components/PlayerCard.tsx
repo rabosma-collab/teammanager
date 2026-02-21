@@ -70,7 +70,7 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
           </div>
         )}
 
-        {/* Rating + Position */}
+        {/* Rating + Position + Avatar */}
         <div className="flex justify-between items-start mb-1 relative z-0">
           <div className="text-center">
             <div className={`${isSm ? 'text-2xl' : 'text-3xl sm:text-4xl'} font-black text-yellow-400 leading-none`}>
@@ -80,9 +80,16 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
               {abbr}
             </div>
           </div>
-          {player.is_guest && (
-            <span className={`${isSm ? 'text-[10px]' : 'text-xs'} bg-purple-600 px-1.5 py-0.5 rounded font-bold`}>GAST</span>
-          )}
+          <div className="flex flex-col items-end gap-1">
+            {player.avatar_url ? (
+              <div className={`${isSm ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14'} rounded-full overflow-hidden border-2 border-yellow-400/50 flex-shrink-0`}>
+                <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
+              </div>
+            ) : null}
+            {player.is_guest && (
+              <span className={`${isSm ? 'text-[10px]' : 'text-xs'} bg-purple-600 px-1.5 py-0.5 rounded font-bold`}>GAST</span>
+            )}
+          </div>
         </div>
 
         {/* Divider */}
