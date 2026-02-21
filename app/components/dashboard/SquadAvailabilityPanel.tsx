@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import type { Match, Player } from '../../lib/types';
-import { positionEmojis } from '../../lib/constants';
-import { getLineupStatus } from './LineupStatusBadge';
+import { positionEmojis, positionOrder } from '../../lib/constants';
 
 interface PlayerRowProps {
   player: Player;
@@ -45,7 +44,6 @@ interface SquadAvailabilityPanelProps {
   players: Player[];
   matchAbsences: number[];
   match: Match;
-  fieldOccupants: (Player | null)[];
   isFinalized: boolean;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
 }
@@ -54,7 +52,6 @@ export default function SquadAvailabilityPanel({
   players,
   matchAbsences,
   match,
-  fieldOccupants,
   isFinalized,
   onToggleAbsence,
 }: SquadAvailabilityPanelProps) {
@@ -74,17 +71,10 @@ export default function SquadAvailabilityPanel({
     }
   };
 
-  const basisspelers = regularPlayers.filter(p =>
-    getLineupStatus(p.id, fieldOccupants, matchAbsences, players) === 'basisspeler'
-  );
-  const wisselspelers = regularPlayers.filter(p => {
-    const s = getLineupStatus(p.id, fieldOccupants, matchAbsences, players);
-    return s === 'wisselspeler' || s === 'opstelling-onbekend';
-  });
-  const unavailable = regularPlayers.filter(p => {
-    const s = getLineupStatus(p.id, fieldOccupants, matchAbsences, players);
-    return s === 'afwezig' || s === 'geblesseerd';
-  });
+  const byPosition = positionOrder.map(pos => ({
+    pos,
+    group: regularPlayers.filter(p => p.position === pos),
+  })).filter(({ group }) => group.length > 0);
 
   if (regularPlayers.length === 0) return null;
 
@@ -97,10 +87,12 @@ export default function SquadAvailabilityPanel({
         </span>
       </div>
       <div className="space-y-3">
-        {basisspelers.length > 0 && (
-          <div>
-            <div className="text-xs font-bold text-green-400 mb-1">✅ Basisspelers ({basisspelers.length})</div>
-            {basisspelers.map(p => (
+        {byPosition.map(({ pos, group }) => (
+          <div key={pos}>
+            <div className="text-xs font-bold text-gray-400 mb-1">
+              {positionEmojis[pos]} {pos} ({group.length})
+            </div>
+            {group.map(p => (
               <PlayerRow
                 key={p.id}
                 player={p}
@@ -111,37 +103,7 @@ export default function SquadAvailabilityPanel({
               />
             ))}
           </div>
-        )}
-        {wisselspelers.length > 0 && (
-          <div>
-            <div className="text-xs font-bold text-yellow-400 mb-1">🪑 Bank ({wisselspelers.length})</div>
-            {wisselspelers.map(p => (
-              <PlayerRow
-                key={p.id}
-                player={p}
-                isAbsent={matchAbsences.includes(p.id)}
-                isFinalized={isFinalized}
-                isToggling={togglingId === p.id}
-                onToggle={handleToggle}
-              />
-            ))}
-          </div>
-        )}
-        {unavailable.length > 0 && (
-          <div>
-            <div className="text-xs font-bold text-red-400 mb-1">Niet beschikbaar ({unavailable.length})</div>
-            {unavailable.map(p => (
-              <PlayerRow
-                key={p.id}
-                player={p}
-                isAbsent={matchAbsences.includes(p.id)}
-                isFinalized={isFinalized}
-                isToggling={togglingId === p.id}
-                onToggle={handleToggle}
-              />
-            ))}
-          </div>
-        )}
+        ))}
       </div>
     </div>
   );
