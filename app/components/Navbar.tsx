@@ -32,7 +32,8 @@ export default function Navbar({
   useEffect(() => {
     if (!currentPlayerId) {
       // Manager zonder speler koppeling: toon initialen van email
-      supabase.auth.getUser().then(({ data: { user } }) => {
+      supabase.auth.getUser().then((result) => {
+        const user = result.data.user;
         if (user?.email) {
           setProfileInitials(user.email.substring(0, 2).toUpperCase());
         }
