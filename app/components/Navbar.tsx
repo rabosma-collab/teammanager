@@ -30,28 +30,27 @@ export default function Navbar({
 
   // Laad avatar van de ingelogde speler
   useEffect(() => {
-    if (!currentPlayerId) {
-      // Manager zonder speler koppeling: toon initialen van email
-      supabase.auth.getUser().then((result) => {
-        const user = result.data.user;
+    (async () => {
+      if (!currentPlayerId) {
+        // Manager zonder speler koppeling: toon initialen van email
+        const { data: { user } } = await supabase.auth.getUser();
         if (user?.email) {
           setProfileInitials(user.email.substring(0, 2).toUpperCase());
         }
-      });
-      return;
-    }
+        return;
+      }
 
-    supabase
-      .from('players')
-      .select('name, avatar_url')
-      .eq('id', currentPlayerId)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          setProfileAvatar(data.avatar_url ?? null);
-          setProfileInitials(data.name ? data.name.substring(0, 2).toUpperCase() : '?');
-        }
-      });
+      const { data } = await supabase
+        .from('players')
+        .select('name, avatar_url')
+        .eq('id', currentPlayerId)
+        .single();
+
+      if (data) {
+        setProfileAvatar(data.avatar_url ?? null);
+        setProfileInitials(data.name ? data.name.substring(0, 2).toUpperCase() : '?');
+      }
+    })();
   }, [currentPlayerId]);
 
   const handleProfileSaved = () => {
