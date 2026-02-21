@@ -16,7 +16,7 @@ interface DashboardViewProps {
   fieldOccupants: (Player | null)[];
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
   onToggleInjury: (playerId: number) => Promise<boolean>;
-  onNavigateToWedstrijd: () => void;
+  onNavigateToWedstrijd: (match: Match) => void;
   onNavigateToMatches: () => void;
   // Voting (page-level currentPlayerId for manual "Wie ben jij?" override)
   votingMatches: VotingMatch[];

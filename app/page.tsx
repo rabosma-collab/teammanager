@@ -846,7 +846,7 @@ export default function FootballApp() {
           fieldOccupants={fieldOccupants}
           onToggleAbsence={toggleAbsence}
           onToggleInjury={toggleInjury}
-          onNavigateToWedstrijd={() => setView('pitch')}
+          onNavigateToWedstrijd={(match) => { setSelectedMatch(match); setView('pitch'); }}
           onNavigateToMatches={() => setView('matches-manage')}
           votingMatches={votingMatches}
           isLoadingVotes={isLoadingVotes}
