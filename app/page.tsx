@@ -552,6 +552,7 @@ export default function FootballApp() {
         isAdmin={isManager}
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        onPlayerUpdated={fetchPlayers}
       />
 
       {/* === MODALS === */}

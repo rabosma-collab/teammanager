@@ -12,6 +12,7 @@ export interface Player {
     pas: number;
     dri: number;
     def: number;
+    avatar_url?: string | null;
     is_guest?: boolean;
     guest_match_id?: number;
     lineup_position?: number | null;
@@ -98,6 +99,7 @@ export interface Player {
     id: string;
     team_id: string;
     user_id: string;
+    player_id?: number | null;
     role: 'manager' | 'player';
     status: 'active' | 'pending' | 'inactive';
     joined_at: string;
@@ -110,6 +112,7 @@ export interface Player {
     isManager: boolean;
     isLoading: boolean;
     teams: Team[];
+    currentPlayerId: number | null;
     switchTeam: (teamId: string) => Promise<void>;
     refreshTeam: () => Promise<void>;
   }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
+import ProfileModal from './modals/ProfileModal';
 
 interface NavbarProps {
   view: string;
@@ -10,6 +11,7 @@ interface NavbarProps {
   isAdmin: boolean;
   onLogout: () => void;
   onToggleSidebar: () => void;
+  onPlayerUpdated?: () => void;
 }
 
 export default function Navbar({
@@ -17,10 +19,57 @@ export default function Navbar({
   setView,
   isAdmin,
   onLogout,
-  onToggleSidebar
+  onToggleSidebar,
+  onPlayerUpdated
 }: NavbarProps) {
-  const { currentTeam } = useTeamContext();
+  const { currentTeam, currentPlayerId } = useTeamContext();
   const [pendingCount, setPendingCount] = useState(0);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const [profileInitials, setProfileInitials] = useState('?');
+
+  // Laad avatar van de ingelogde speler
+  useEffect(() => {
+    if (!currentPlayerId) {
+      // Manager zonder speler koppeling: toon initialen van email
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user?.email) {
+          setProfileInitials(user.email.substring(0, 2).toUpperCase());
+        }
+      });
+      return;
+    }
+
+    supabase
+      .from('players')
+      .select('name, avatar_url')
+      .eq('id', currentPlayerId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setProfileAvatar(data.avatar_url ?? null);
+          setProfileInitials(data.name ? data.name.substring(0, 2).toUpperCase() : '?');
+        }
+      });
+  }, [currentPlayerId]);
+
+  const handleProfileSaved = () => {
+    // Herlaad de avatar na opslaan
+    if (currentPlayerId) {
+      supabase
+        .from('players')
+        .select('name, avatar_url')
+        .eq('id', currentPlayerId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setProfileAvatar(data.avatar_url ?? null);
+            setProfileInitials(data.name ? data.name.substring(0, 2).toUpperCase() : '?');
+          }
+        });
+    }
+    onPlayerUpdated?.();
+  };
 
   // Fetch pending invites count
   useEffect(() => {
@@ -49,6 +98,7 @@ export default function Navbar({
   }, [isAdmin, currentTeam, view]);
 
   return (
+    <>
     <nav className="flex items-center gap-1.5 sm:gap-3 p-2 sm:p-4 bg-gray-800 border-b border-gray-700 select-none overflow-x-auto">
       {view === 'pitch' && (
         <button
@@ -89,11 +139,21 @@ export default function Navbar({
       )}
 
       <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-        {!isAdmin && (
-          <span className="px-3 py-1.5 bg-gray-700 rounded text-xs sm:text-sm text-gray-300 font-medium">
-            Speler
-          </span>
-        )}
+        {/* Profielknop */}
+        <button
+          onClick={() => setShowProfile(true)}
+          className="w-8 h-8 sm:w-9 sm:h-9 rounded-full overflow-hidden border-2 border-gray-600 hover:border-yellow-500 transition-colors flex-shrink-0 focus:outline-none"
+          title="Mijn profiel"
+        >
+          {profileAvatar ? (
+            <img src={profileAvatar} alt="Profiel" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-yellow-500 flex items-center justify-center">
+              <span className="text-black font-black text-xs">{profileInitials}</span>
+            </div>
+          )}
+        </button>
+
         <button
           onClick={onLogout}
           className="px-3 sm:px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-medium text-sm flex-shrink-0"
@@ -107,6 +167,14 @@ export default function Navbar({
         </button>
       </div>
     </nav>
+
+    {showProfile && (
+      <ProfileModal
+        onClose={() => setShowProfile(false)}
+        onPlayerUpdated={handleProfileSaved}
+      />
+    )}
+  </>
   );
 }
 

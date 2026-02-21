@@ -90,7 +90,17 @@ const PitchView = React.memo(function PitchView({
                     : 'bg-white/20 text-white border-white'
                 }`}
               >
-                {player ? player.name.substring(0, 2).toUpperCase() : '+'}
+                {player ? (
+                  player.avatar_url ? (
+                    <img
+                      src={player.avatar_url}
+                      alt={player.name}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    player.name.substring(0, 2).toUpperCase()
+                  )
+                ) : '+'}
                 {showWarning && (
                   <span className="absolute -top-1 -right-1 text-red-500 text-base sm:text-lg">⚠️</span>
                 )}
