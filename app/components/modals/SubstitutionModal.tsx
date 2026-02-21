@@ -65,21 +65,23 @@ export default function SubstitutionModal({
     ];
 
     // Remove players already used in other rows of THIS substitution
-    const usedOutIds = tempSubs
+    // Use composite key (is_guest + id) to avoid ID collision between regular and guest players
+    const playerKey = (p: Player) => `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+    const usedOutKeys = tempSubs
       .filter((_, i) => i !== index)
-      .map(s => s.out?.id)
-      .filter((id): id is number => id !== undefined);
-    const usedInIds = tempSubs
+      .map(s => s.out ? playerKey(s.out) : null)
+      .filter((k): k is string => k !== null);
+    const usedInKeys = tempSubs
       .filter((_, i) => i !== index)
-      .map(s => s.in?.id)
-      .filter((id): id is number => id !== undefined);
+      .map(s => s.in ? playerKey(s.in) : null)
+      .filter((k): k is string => k !== null);
 
-    availableOut = availableOut.filter(p => !usedOutIds.includes(p.id));
-    availableIn = availableIn.filter(p => !usedInIds.includes(p.id));
+    availableOut = availableOut.filter(p => !usedOutKeys.includes(playerKey(p)));
+    availableIn = availableIn.filter(p => !usedInKeys.includes(playerKey(p)));
 
-    // Deduplicate
-    availableOut = Array.from(new Map(availableOut.map(p => [p.id, p])).values());
-    availableIn = Array.from(new Map(availableIn.map(p => [p.id, p])).values());
+    // Deduplicate using composite key to avoid collisions between regular and guest player IDs
+    availableOut = Array.from(new Map(availableOut.map(p => [playerKey(p), p])).values());
+    availableIn = Array.from(new Map(availableIn.map(p => [playerKey(p), p])).values());
 
     return { availableOut, availableIn };
   };

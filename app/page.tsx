@@ -271,7 +271,8 @@ export default function FootballApp() {
     });
     if (success) {
       alert('✅ Opstelling en formatie opgeslagen!');
-      await loadLineup(selectedMatch.id, players);
+      // Do NOT reload lineup from DB here — guest players are not stored in the lineups table
+      // and would be removed from fieldOccupants if we reload. The current state is correct.
     } else {
       alert('❌ Kon opstelling niet opslaan');
     }
