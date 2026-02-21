@@ -789,7 +789,7 @@ export default function FootballApp() {
             )}
 
             {/* Wedstrijd & formatie selectors */}
-            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6 justify-center">
               <select
                 value={selectedMatch?.id || ''}
                 onChange={(e) => {
