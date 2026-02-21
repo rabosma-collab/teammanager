@@ -46,7 +46,17 @@ export function useVoting() {
           continue;
         }
 
-        const playerIds = (lineupData || []).map((l: { player_id: number }) => l.player_id);
+        const lineupPlayerIds = (lineupData || []).map((l: { player_id: number }) => l.player_id);
+
+        // Also fetch substitutes who came in (made minutes)
+        const { data: subData } = await supabase
+          .from('substitutions')
+          .select('player_in_id')
+          .eq('match_id', match.id);
+
+        const subPlayerIds = (subData || []).map((s: { player_in_id: number }) => s.player_in_id);
+        const playerIds = [...new Set([...lineupPlayerIds, ...subPlayerIds])];
+
         if (playerIds.length === 0) continue;
 
         // Fetch player names
@@ -136,7 +146,7 @@ export function useVoting() {
     }
 
     try {
-      // Check if player is in lineup
+      // Check if player is in lineup or came in as substitute
       const { data: lineupCheck } = await supabase
         .from('lineups')
         .select('player_id')
@@ -144,8 +154,15 @@ export function useVoting() {
         .eq('player_id', votedForPlayerId)
         .single();
 
-      if (!lineupCheck) {
-        alert('Deze speler zat niet in de opstelling');
+      const { data: subCheck } = await supabase
+        .from('substitutions')
+        .select('player_in_id')
+        .eq('match_id', matchId)
+        .eq('player_in_id', votedForPlayerId)
+        .single();
+
+      if (!lineupCheck && !subCheck) {
+        alert('Deze speler speelde niet mee in deze wedstrijd');
         return false;
       }
 

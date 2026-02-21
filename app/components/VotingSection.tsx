@@ -59,15 +59,16 @@ export default function VotingSection({
         {currentPlayerId && votingMatches.map(vm => (
           <div key={vm.match.id} className="bg-gray-800/50 rounded-lg p-3 sm:p-4 mb-3 last:mb-0 border border-gray-700">
             {/* Match info */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="font-bold text-sm sm:text-base">{vm.match.opponent}</span>
-              <span className="text-gray-400 text-sm">
-                ({vm.match.home_away === 'Thuis' ? 'Thuis' : 'Uit'})
-              </span>
-              <span className="text-xs text-gray-500">
-                {new Date(vm.match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
-              </span>
-              <span className="ml-auto text-xs px-2 py-1 rounded bg-yellow-900/50 border border-yellow-700/50 text-yellow-400">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-700">
+              <div>
+                <div className="font-bold text-base sm:text-lg text-white">
+                  {vm.match.home_away === 'Thuis' ? 'Thuis' : 'Uit'} vs {vm.match.opponent}
+                </div>
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {new Date(vm.match.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </div>
+              </div>
+              <span className="text-xs px-2 py-1 rounded bg-yellow-900/50 border border-yellow-700/50 text-yellow-400 whitespace-nowrap">
                 Nog {vm.daysRemaining} {vm.daysRemaining === 1 ? 'dag' : 'dagen'}
               </span>
             </div>
