@@ -59,7 +59,7 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
       onClick={onClick}
       className={`relative select-none ${onClick ? 'cursor-pointer hover:scale-105 active:scale-95' : ''} transition-transform touch-manipulation`}
     >
-      <div className={`bg-gradient-to-b ${colors.from} ${colors.to} ${isSm ? 'rounded-xl p-2.5 w-[130px]' : 'rounded-2xl p-3 sm:p-4 w-[160px] sm:w-[180px]'} border-2 ${colors.border} shadow-lg relative overflow-hidden`}>
+      <div className={`bg-gradient-to-b ${colors.from} ${colors.to} ${isSm ? 'rounded-xl p-3 w-[155px]' : 'rounded-2xl p-3 sm:p-4 w-[180px] sm:w-[210px]'} border-2 ${colors.border} shadow-lg relative overflow-hidden`}>
         {/* Gold shimmer */}
         <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-transparent to-yellow-400/5 pointer-events-none" />
 
@@ -73,21 +73,21 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
         {/* Rating + Position + Avatar */}
         <div className="flex justify-between items-start mb-1 relative z-0">
           <div className="text-center">
-            <div className={`${isSm ? 'text-2xl' : 'text-3xl sm:text-4xl'} font-black text-yellow-400 leading-none`}>
+            <div className={`${isSm ? 'text-3xl' : 'text-3xl sm:text-4xl'} font-black text-yellow-400 leading-none`}>
               {rating}
             </div>
-            <div className={`${isSm ? 'text-[10px]' : 'text-xs'} font-bold ${colors.accent} mt-0.5`}>
+            <div className={`${isSm ? 'text-xs' : 'text-xs'} font-bold ${colors.accent} mt-0.5`}>
               {abbr}
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
             {player.avatar_url ? (
-              <div className={`${isSm ? 'w-10 h-10' : 'w-12 h-12 sm:w-14 sm:h-14'} rounded-full overflow-hidden border-2 border-yellow-400/50 flex-shrink-0`}>
+              <div className={`${isSm ? 'w-12 h-12' : 'w-12 h-12 sm:w-14 sm:h-14'} rounded-full overflow-hidden border-2 border-yellow-400/50 flex-shrink-0`}>
                 <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
               </div>
             ) : null}
             {player.is_guest && (
-              <span className={`${isSm ? 'text-[10px]' : 'text-xs'} bg-purple-600 px-1.5 py-0.5 rounded font-bold`}>GAST</span>
+              <span className="text-xs bg-purple-600 px-1.5 py-0.5 rounded font-bold">GAST</span>
             )}
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
         <div className="border-t border-yellow-400/30 my-1.5" />
 
         {/* Name */}
-        <div className={`${isSm ? 'text-sm' : 'text-base sm:text-lg'} font-black text-center text-white truncate leading-tight`}>
+        <div className={`${isSm ? 'text-base' : 'text-base sm:text-lg'} font-black text-center text-white truncate leading-tight`}>
           {player.name}
         </div>
 
@@ -104,11 +104,11 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
         <div className="border-t border-yellow-400/30 my-1.5" />
 
         {/* FIFA stats with mini bars */}
-        <div className={`${isSm ? 'space-y-0' : 'space-y-0.5'}`}>
+        <div className={`${isSm ? 'space-y-0.5' : 'space-y-0.5'}`}>
           {stats.map(({ label, value }) => (
-            <div key={label} className={`flex items-center justify-between ${isSm ? 'text-[10px]' : 'text-xs'}`}>
+            <div key={label} className="flex items-center justify-between text-xs">
               <span className="font-bold opacity-70 w-8">{label}</span>
-              <div className="flex-1 mx-1.5 h-1 bg-black/30 rounded-full overflow-hidden">
+              <div className="flex-1 mx-1.5 h-1.5 bg-black/30 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${
                     value >= 80 ? 'bg-green-400' : value >= 60 ? 'bg-yellow-400' : value >= 40 ? 'bg-orange-400' : 'bg-red-400'
