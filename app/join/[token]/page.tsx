@@ -167,6 +167,9 @@ export default function JoinPage() {
 
       setState({ kind: 'success', teamName: invite.team.name });
 
+      // Set onboarding flag so the app opens ProfileModal on first load
+      localStorage.setItem('onboarding', 'true');
+
       // Redirect after brief delay
       setTimeout(() => router.push('/'), 2000);
     } catch (err) {

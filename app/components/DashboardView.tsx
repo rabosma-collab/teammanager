@@ -8,6 +8,7 @@ import PersonalCard from './dashboard/PersonalCard';
 import NextMatchCard from './dashboard/NextMatchCard';
 import SquadAvailabilityPanel from './dashboard/SquadAvailabilityPanel';
 import VotingSection from './VotingSection';
+import AnnouncementBanner from './dashboard/AnnouncementBanner';
 
 interface DashboardViewProps {
   players: Player[];
@@ -139,13 +140,34 @@ export default function DashboardView({
     }
   }, [currentPlayerId, votingCurrentPlayerId, onSelectVotingPlayer]);
 
+  // Team-overzicht stats voor manager-zonder-speler
+  const regularPlayers = useMemo(() => players.filter((p: Player) => !p.is_guest), [players]);
+  const injuredCount = useMemo(() => regularPlayers.filter((p: Player) => p.injured).length, [regularPlayers]);
+  const absentCount = useMemo(() => dashboardAbsences.filter((id: number) => {
+    const p = regularPlayers.find((pl: Player) => pl.id === id);
+    return p && !p.injured;
+  }).length, [dashboardAbsences, regularPlayers]);
+  const availableCount = regularPlayers.length - injuredCount - absentCount;
+  const lineupSet = useMemo(() => fieldOccupants.some(p => p !== null), [fieldOccupants]);
+
   return (
     <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
       <div className="max-w-4xl mx-auto">
 
+        <AnnouncementBanner />
+
         {/* Top row: PersonalCard + NextMatchCard */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <PersonalCard player={currentPlayer} potwWins={potwWins} />
+          <PersonalCard
+            player={currentPlayer}
+            potwWins={potwWins}
+            isManager={isManager}
+            totalPlayers={regularPlayers.length}
+            availablePlayers={availableCount}
+            absentPlayers={absentCount}
+            injuredPlayers={injuredCount}
+            lineupSet={lineupSet}
+          />
           <NextMatchCard
             match={dashboardMatch}
             matchAbsences={dashboardAbsences}

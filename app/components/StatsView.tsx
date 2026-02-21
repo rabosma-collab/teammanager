@@ -10,6 +10,7 @@ interface StatsViewProps {
 
 type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'was' | 'min';
 type SortDir = 'asc' | 'desc';
+type PositionFilter = 'all' | 'Keeper' | 'Verdediger' | 'Middenvelder' | 'Aanvaller';
 
 const positionOrder: Record<string, number> = {
   Keeper: 0,
@@ -18,11 +19,23 @@ const positionOrder: Record<string, number> = {
   Aanvaller: 3,
 };
 
+const POSITION_FILTERS: { value: PositionFilter; label: string }[] = [
+  { value: 'all', label: 'Alle' },
+  { value: 'Keeper', label: '🧤 Keepers' },
+  { value: 'Verdediger', label: '🛡️ Verdedigers' },
+  { value: 'Middenvelder', label: '⚙️ Middenvelders' },
+  { value: 'Aanvaller', label: '⚡ Aanvallers' },
+];
+
 export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewProps) {
   const [sortKey, setSortKey] = useState<SortKey>('goals');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [filterPosition, setFilterPosition] = useState<PositionFilter>('all');
 
-  const regularPlayers = useMemo(() => players.filter(p => !p.is_guest), [players]);
+  const regularPlayers = useMemo(
+    () => players.filter(p => !p.is_guest && (filterPosition === 'all' || p.position === filterPosition)),
+    [players, filterPosition]
+  );
 
   const sortedPlayers = useMemo(() => {
     const sorted = [...regularPlayers];
@@ -68,6 +81,23 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
   return (
     <div className="p-4 sm:p-8 overflow-x-auto">
       <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">📊 Ranglijst</h2>
+
+      {/* Positie-filter */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {POSITION_FILTERS.map(f => (
+          <button
+            key={f.value}
+            onClick={() => setFilterPosition(f.value)}
+            className={`px-3 py-1.5 rounded-full text-sm font-bold transition ${
+              filterPosition === f.value
+                ? 'bg-yellow-500 text-black'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       <div className="bg-gray-800 rounded-lg overflow-hidden min-w-[600px]">
         <table className="w-full">
