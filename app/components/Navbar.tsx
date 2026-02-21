@@ -14,7 +14,7 @@ interface NavbarProps {
   onPlayerUpdated?: () => void;
 }
 
-const ADMIN_VIEWS = ['instructions', 'players-manage', 'matches-manage', 'invites'] as const;
+const ADMIN_VIEWS = ['mededelingen', 'instructions', 'players-manage', 'matches-manage', 'invites'] as const;
 
 export default function Navbar({
   view,
@@ -27,6 +27,7 @@ export default function Navbar({
   const { currentTeam, currentPlayerId } = useTeamContext();
   const [pendingCount, setPendingCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
+  const [isOnboarding, setIsOnboarding] = useState(false);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileInitials, setProfileInitials] = useState('?');
   const [showBeheer, setShowBeheer] = useState(false);
@@ -71,6 +72,17 @@ export default function Navbar({
     }
     onPlayerUpdated?.();
   };
+
+  // Check onboarding flag — auto-open ProfileModal for new players after invite accept
+  useEffect(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('onboarding') === 'true') {
+      localStorage.removeItem('onboarding');
+      setTimeout(() => {
+        setIsOnboarding(true);
+        setShowProfile(true);
+      }, 500);
+    }
+  }, []);
 
   // Fetch pending invites count
   useEffect(() => {
@@ -170,6 +182,12 @@ export default function Navbar({
             {showBeheer && (
               <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 w-48 py-1">
                 <BeheerItem
+                  icon="📣"
+                  label="Mededelingen"
+                  active={view === 'mededelingen'}
+                  onClick={() => navigateTo('mededelingen')}
+                />
+                <BeheerItem
                   icon="📋"
                   label="Instructies"
                   active={view === 'instructions'}
@@ -236,8 +254,9 @@ export default function Navbar({
 
     {showProfile && (
       <ProfileModal
-        onClose={() => setShowProfile(false)}
+        onClose={() => { setShowProfile(false); setIsOnboarding(false); }}
         onPlayerUpdated={handleProfileSaved}
+        welcomeMode={isOnboarding}
       />
     )}
   </>

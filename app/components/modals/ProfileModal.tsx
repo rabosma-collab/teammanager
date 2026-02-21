@@ -7,9 +7,10 @@ import { useTeamContext } from '../../contexts/TeamContext';
 interface ProfileModalProps {
   onClose: () => void;
   onPlayerUpdated: () => void;
+  welcomeMode?: boolean;
 }
 
-export default function ProfileModal({ onClose, onPlayerUpdated }: ProfileModalProps) {
+export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = false }: ProfileModalProps) {
   const { currentPlayerId } = useTeamContext();
 
   const [name, setName] = useState('');
@@ -161,7 +162,14 @@ export default function ProfileModal({ onClose, onPlayerUpdated }: ProfileModalP
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-md my-8">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg sm:text-xl font-bold">Mijn profiel</h2>
+          <div>
+            {welcomeMode && (
+              <p className="text-xs text-yellow-400 font-semibold mb-0.5">Welkom bij het team!</p>
+            )}
+            <h2 className="text-lg sm:text-xl font-bold">
+              {welcomeMode ? 'Stel je profiel in' : 'Mijn profiel'}
+            </h2>
+          </div>
           <button onClick={onClose} className="text-2xl hover:text-red-500 p-2">✕</button>
         </div>
 

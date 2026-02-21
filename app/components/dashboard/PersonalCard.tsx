@@ -7,9 +7,76 @@ import PlayerCard from '../PlayerCard';
 interface PersonalCardProps {
   player: Player | null;
   potwWins: number;
+  isManager: boolean;
+  // Team overview stats voor manager-zonder-speler
+  totalPlayers: number;
+  availablePlayers: number;
+  absentPlayers: number;
+  injuredPlayers: number;
+  lineupSet: boolean;
 }
 
-export default function PersonalCard({ player, potwWins }: PersonalCardProps) {
+function TeamOverviewCard({ totalPlayers, availablePlayers, absentPlayers, injuredPlayers, lineupSet }: {
+  totalPlayers: number;
+  availablePlayers: number;
+  absentPlayers: number;
+  injuredPlayers: number;
+  lineupSet: boolean;
+}) {
+  return (
+    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col">
+      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Team overzicht</h3>
+
+      <div className="space-y-2 flex-1">
+        <div className="flex items-center justify-between p-2.5 bg-green-900/30 rounded-lg border border-green-700/30">
+          <span className="text-sm font-bold text-green-300">✅ Beschikbaar</span>
+          <span className="text-xl font-black text-green-300">{availablePlayers}</span>
+        </div>
+        <div className="flex items-center justify-between p-2.5 bg-orange-900/30 rounded-lg border border-orange-700/30">
+          <span className="text-sm font-bold text-orange-300">❌ Afwezig</span>
+          <span className="text-xl font-black text-orange-300">{absentPlayers}</span>
+        </div>
+        <div className="flex items-center justify-between p-2.5 bg-red-900/30 rounded-lg border border-red-700/30">
+          <span className="text-sm font-bold text-red-300">🏥 Geblesseerd</span>
+          <span className="text-xl font-black text-red-300">{injuredPlayers}</span>
+        </div>
+      </div>
+
+      <div className={`mt-3 px-3 py-2 rounded-lg text-xs font-bold text-center ${
+        lineupSet
+          ? 'bg-green-900/30 text-green-400 border border-green-700/30'
+          : 'bg-gray-700/50 text-gray-400 border border-gray-600/50'
+      }`}>
+        {lineupSet ? '✅ Opstelling ingesteld' : '📋 Opstelling nog niet ingesteld'}
+      </div>
+    </div>
+  );
+}
+
+export default function PersonalCard({
+  player,
+  potwWins,
+  isManager,
+  totalPlayers,
+  availablePlayers,
+  absentPlayers,
+  injuredPlayers,
+  lineupSet,
+}: PersonalCardProps) {
+  // Manager zonder spelerrecord → team overzicht
+  if (isManager && !player) {
+    return (
+      <TeamOverviewCard
+        totalPlayers={totalPlayers}
+        availablePlayers={availablePlayers}
+        absentPlayers={absentPlayers}
+        injuredPlayers={injuredPlayers}
+        lineupSet={lineupSet}
+      />
+    );
+  }
+
+  // Geen speler (en geen manager) → lege state
   if (!player) {
     return (
       <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col items-center justify-center min-h-[200px]">
