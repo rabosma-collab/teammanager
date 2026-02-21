@@ -1,10 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { formationLabels } from '../../lib/constants';
 import LineupStatusBadge from './LineupStatusBadge';
-import AbsenceToggleButton from './AbsenceToggleButton';
 
 interface NextMatchCardProps {
   match: Match | null;
@@ -14,6 +13,7 @@ interface NextMatchCardProps {
   isManager: boolean;
   players: Player[];
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
+  onToggleInjury: (playerId: number) => Promise<boolean>;
   onNavigateToWedstrijd: () => void;
   onNavigateToMatches?: () => void;
 }
@@ -46,9 +46,13 @@ export default function NextMatchCard({
   isManager,
   players,
   onToggleAbsence,
+  onToggleInjury,
   onNavigateToWedstrijd,
   onNavigateToMatches,
 }: NextMatchCardProps) {
+  const [loadingAbsence, setLoadingAbsence] = useState(false);
+  const [loadingInjury, setLoadingInjury] = useState(false);
+
   if (!match) {
     return (
       <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col items-center justify-center min-h-[200px] gap-3">
@@ -75,8 +79,30 @@ export default function NextMatchCard({
     : null;
 
   const isInjured = currentPlayer?.injured ?? false;
-  // Toon toggle alleen voor spelers (niet-manager of manager met spelerrecord) bij niet-afgeronde wedstrijden
-  const showAbsenceToggle = !!(currentPlayerId && !isInjured && !isFinalized && currentPlayer);
+  const isAbsent = currentPlayerId ? matchAbsences.includes(currentPlayerId) : false;
+
+  // Toon knoppen alleen voor spelers (niet-manager of manager met spelerrecord) bij niet-afgeronde wedstrijden
+  const showPlayerButtons = !!(currentPlayerId && !isFinalized && currentPlayer);
+
+  const handleToggleAbsence = async () => {
+    if (!currentPlayerId) return;
+    setLoadingAbsence(true);
+    try {
+      await onToggleAbsence(currentPlayerId, match.id);
+    } finally {
+      setLoadingAbsence(false);
+    }
+  };
+
+  const handleToggleInjury = async () => {
+    if (!currentPlayerId) return;
+    setLoadingInjury(true);
+    try {
+      await onToggleInjury(currentPlayerId);
+    } finally {
+      setLoadingInjury(false);
+    }
+  };
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col gap-4">
@@ -99,10 +125,10 @@ export default function NextMatchCard({
         <div className="text-xs text-gray-500 mt-1">{formationLabel}</div>
       </div>
 
-      {/* Eigen status */}
+      {/* Eigen positie / status */}
       {currentPlayerId && (
         <div>
-          <div className="text-xs text-gray-400 mb-1.5">Jouw status</div>
+          <div className="text-xs text-gray-400 mb-1.5">Jouw positie</div>
           <LineupStatusBadge
             currentPlayerId={currentPlayerId}
             fieldOccupants={fieldOccupants}
@@ -112,14 +138,37 @@ export default function NextMatchCard({
         </div>
       )}
 
-      {/* Afwezigheid toggle voor spelers */}
-      {showAbsenceToggle && (
-        <AbsenceToggleButton
-          currentPlayerId={currentPlayerId!}
-          matchId={match.id}
-          matchAbsences={matchAbsences}
-          onToggleAbsence={onToggleAbsence}
-        />
+      {/* Afwezig + Geblesseerd knoppen voor spelers */}
+      {showPlayerButtons && (
+        <div className="flex gap-2">
+          {/* Afwezigheidsknop — verborgen als geblesseerd */}
+          {!isInjured && (
+            <button
+              onClick={handleToggleAbsence}
+              disabled={loadingAbsence}
+              className={`flex-1 px-3 py-2.5 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isAbsent
+                  ? 'bg-green-700 hover:bg-green-600 text-white'
+                  : 'bg-orange-700 hover:bg-orange-600 text-white'
+              }`}
+            >
+              {loadingAbsence ? '...' : isAbsent ? '✅ Aanwezig melden' : '❌ Afwezig melden'}
+            </button>
+          )}
+
+          {/* Blessureknop */}
+          <button
+            onClick={handleToggleInjury}
+            disabled={loadingInjury}
+            className={`flex-1 px-3 py-2.5 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+              isInjured
+                ? 'bg-green-700 hover:bg-green-600 text-white'
+                : 'bg-red-800 hover:bg-red-700 text-white'
+            }`}
+          >
+            {loadingInjury ? '...' : isInjured ? '✅ Hersteld melden' : '🏥 Geblesseerd melden'}
+          </button>
+        </div>
       )}
 
       {/* Bekijk opstelling knop */}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { Player } from '../../lib/types';
+import type { Match, Player } from '../../lib/types';
 import { positionEmojis } from '../../lib/constants';
 import { getLineupStatus } from './LineupStatusBadge';
 
@@ -44,7 +44,7 @@ function PlayerRow({ player, isAbsent, isFinalized, isToggling, onToggle }: Play
 interface SquadAvailabilityPanelProps {
   players: Player[];
   matchAbsences: number[];
-  matchId: number;
+  match: Match;
   fieldOccupants: (Player | null)[];
   isFinalized: boolean;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
@@ -53,11 +53,12 @@ interface SquadAvailabilityPanelProps {
 export default function SquadAvailabilityPanel({
   players,
   matchAbsences,
-  matchId,
+  match,
   fieldOccupants,
   isFinalized,
   onToggleAbsence,
 }: SquadAvailabilityPanelProps) {
+  const matchId = match.id;
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const regularPlayers = players.filter(p => !p.is_guest);
@@ -89,7 +90,12 @@ export default function SquadAvailabilityPanel({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Selectie aanwezigheid</h3>
+      <div className="flex items-baseline justify-between mb-3">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Selectie aanwezigheid</h3>
+        <span className="text-xs text-gray-500">
+          {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+        </span>
+      </div>
       <div className="space-y-3">
         {basisspelers.length > 0 && (
           <div>

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { Player } from '../../lib/types';
+import { positionEmojis } from '../../lib/constants';
 
 type LineupStatus = 'basisspeler' | 'wisselspeler' | 'afwezig' | 'geblesseerd' | 'opstelling-onbekend';
 
@@ -51,9 +52,18 @@ export default function LineupStatusBadge({ currentPlayerId, fieldOccupants, mat
 
   const config = statusConfig[status];
 
+  let label = config.label;
+  if (status === 'basisspeler' && currentPlayerId) {
+    const player = players.find(p => p.id === currentPlayerId && !p.is_guest);
+    if (player) {
+      const emoji = positionEmojis[player.position] || '⚽';
+      label = `${emoji} ${player.position}`;
+    }
+  }
+
   return (
     <div className={`inline-flex items-center px-3 py-2 rounded-lg border ${config.bg} ${config.border} ${config.text} font-bold text-sm`}>
-      {config.label}
+      {label}
     </div>
   );
 }

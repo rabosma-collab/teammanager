@@ -6,9 +6,10 @@ import PlayerCard from '../PlayerCard';
 
 interface PersonalCardProps {
   player: Player | null;
+  potwWins: number;
 }
 
-export default function PersonalCard({ player }: PersonalCardProps) {
+export default function PersonalCard({ player, potwWins }: PersonalCardProps) {
   if (!player) {
     return (
       <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col items-center justify-center min-h-[200px]">
@@ -24,7 +25,7 @@ export default function PersonalCard({ player }: PersonalCardProps) {
       <div className="flex justify-center mb-4">
         <PlayerCard player={player} size="md" />
       </div>
-      <div className="grid grid-cols-4 gap-2 text-center">
+      <div className="grid grid-cols-5 gap-1.5 text-center">
         <div className="bg-gray-700/50 rounded-lg p-2">
           <div className="text-xl font-black text-white">{player.goals}</div>
           <div className="text-xs text-gray-400 mt-0.5">⚽ Goals</div>
@@ -40,6 +41,10 @@ export default function PersonalCard({ player }: PersonalCardProps) {
         <div className="bg-gray-700/50 rounded-lg p-2">
           <div className="text-xl font-black text-white">{player.min}</div>
           <div className="text-xs text-gray-400 mt-0.5">⏱ Wissel</div>
+        </div>
+        <div className="bg-yellow-900/40 rounded-lg p-2 border border-yellow-700/40">
+          <div className="text-xl font-black text-yellow-400">{potwWins}</div>
+          <div className="text-xs text-yellow-600 mt-0.5">🏆 POTW</div>
         </div>
       </div>
     </div>

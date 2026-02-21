@@ -29,20 +29,22 @@ export default function VotingSection({
       <div className="bg-gradient-to-br from-yellow-900/40 to-amber-950/40 rounded-xl p-4 sm:p-6 border-2 border-yellow-700/50">
         <h2 className="text-lg sm:text-2xl font-bold mb-4">🏆 Speler van de Week</h2>
 
-        {/* Wie ben jij? selector */}
-        <div className="mb-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-          <label className="block text-sm font-bold mb-2 text-gray-300">Wie ben jij?</label>
-          <select
-            value={currentPlayerId || ''}
-            onChange={(e) => onSelectCurrentPlayer(parseInt(e.target.value))}
-            className="w-full sm:w-auto px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm sm:text-base"
-          >
-            <option value="">Selecteer je naam...</option>
-            {nonGuestPlayers.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
+        {/* Wie ben jij? selector — alleen tonen als speler niet bekend is */}
+        {!currentPlayerId && (
+          <div className="mb-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+            <label className="block text-sm font-bold mb-2 text-gray-300">Wie ben jij?</label>
+            <select
+              value={''}
+              onChange={(e) => onSelectCurrentPlayer(parseInt(e.target.value))}
+              className="w-full sm:w-auto px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm sm:text-base"
+            >
+              <option value="">Selecteer je naam...</option>
+              {nonGuestPlayers.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {isLoading && (
           <div className="text-center py-4 text-gray-400">Laden...</div>

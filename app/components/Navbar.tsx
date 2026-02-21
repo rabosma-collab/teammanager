@@ -147,7 +147,7 @@ export default function Navbar({
           </span>
         )}
 
-        <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Dashboard" />
+        <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
         <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
         <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
         <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon="🃏" label="Kaarten" />

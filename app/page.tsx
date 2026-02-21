@@ -839,10 +839,10 @@ export default function FootballApp() {
       ) : view === 'dashboard' ? (
         <DashboardView
           players={players}
-          selectedMatch={selectedMatch}
-          matchAbsences={matchAbsences}
+          matches={matches}
           fieldOccupants={fieldOccupants}
           onToggleAbsence={toggleAbsence}
+          onToggleInjury={toggleInjury}
           onNavigateToWedstrijd={() => setView('pitch')}
           onNavigateToMatches={() => setView('matches-manage')}
           votingMatches={votingMatches}
