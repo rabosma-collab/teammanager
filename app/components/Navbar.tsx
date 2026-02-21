@@ -53,20 +53,18 @@ export default function Navbar({
     })();
   }, [currentPlayerId]);
 
-  const handleProfileSaved = () => {
-    // Herlaad de avatar na opslaan
+  const handleProfileSaved = async () => {
     if (currentPlayerId) {
-      supabase
+      const { data } = await supabase
         .from('players')
         .select('name, avatar_url')
         .eq('id', currentPlayerId)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setProfileAvatar(data.avatar_url ?? null);
-            setProfileInitials(data.name ? data.name.substring(0, 2).toUpperCase() : '?');
-          }
-        });
+        .single();
+
+      if (data) {
+        setProfileAvatar(data.avatar_url ?? null);
+        setProfileInitials(data.name ? data.name.substring(0, 2).toUpperCase() : '?');
+      }
     }
     onPlayerUpdated?.();
   };
