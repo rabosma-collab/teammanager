@@ -55,7 +55,7 @@ export function useVoting() {
           .eq('match_id', match.id);
 
         const subPlayerIds = (subData || []).map((s: { player_in_id: number }) => s.player_in_id);
-        const playerIds = [...new Set([...lineupPlayerIds, ...subPlayerIds])];
+        const playerIds = Array.from(new Set([...lineupPlayerIds, ...subPlayerIds]));
 
         if (playerIds.length === 0) continue;
 
