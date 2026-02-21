@@ -34,7 +34,6 @@ export function usePlayers() {
         }
       }
       let allPlayers: Player[] = Array.from(byId.values());
-      const regularNames = new Set(allPlayers.map(p => p.name.toLowerCase().trim()));
 
       if (matchId) {
         const { data: guestPlayers, error: guestError } = await supabase
@@ -50,7 +49,9 @@ export function usePlayers() {
           const guestSeen = new Set<string>();
           const uniqueGuests = guestPlayers.filter((g: { name: string }) => {
             const nameLower = g.name.toLowerCase().trim();
-            if (regularNames.has(nameLower) || guestSeen.has(nameLower)) {
+            // Only deduplicate guest players among themselves; allow guests to share a name
+            // with a regular squad member (by design — guests may join even when everyone is present)
+            if (guestSeen.has(nameLower)) {
               return false;
             }
             guestSeen.add(nameLower);
@@ -147,8 +148,9 @@ export function usePlayers() {
     if (!trimmedName) return false;
 
     const nameLower = trimmedName.toLowerCase();
-    if (players.some(p => p.name.toLowerCase().trim() === nameLower)) {
-      alert(`⚠️ Er bestaat al een speler met de naam "${trimmedName}"`);
+    // Only block duplicate guest player names (not regular players — guests may share a name with a squad member)
+    if (players.some(p => p.is_guest && p.name.toLowerCase().trim() === nameLower)) {
+      alert(`⚠️ Er is al een gastspeler met de naam "${trimmedName}"`);
       return false;
     }
 
