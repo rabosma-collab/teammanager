@@ -895,7 +895,7 @@ export default function FootballApp() {
               <div className="mt-4 sm:mt-6 text-yellow-500 text-center text-sm sm:text-base px-4 select-none">
                 {selectedPosition !== null && !selectedPlayer ? (
                   <>👆 Positie {selectedPosition + 1} geselecteerd — kies een speler uit de selectie of bank</>
-                ) : selectedPlayer && isPlayerAvailable(selectedPlayer, matchAbsences) && !isPlayerOnField(selectedPlayer.id) ? (
+                ) : selectedPlayer && isPlayerAvailable(selectedPlayer, matchAbsences) && !isPlayerOnField(selectedPlayer) ? (
                   <>👆 Klik op het veld om <strong>{selectedPlayer.name}</strong> te plaatsen</>
                 ) : selectedPlayer && isPlayerOnField(selectedPlayer) ? (
                   <>⚠️ <strong>{selectedPlayer.name}</strong> staat al op het veld</>

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c \"cd \"\"c:\\\\Users\\\\rbs\\\\OneDrive - AFAS Software B.V\\\\Privé\\\\Team Manager\\\\teammanager\"\" && npx tsc --noEmit 2>&1\")"
+    ]
+  }
+}
