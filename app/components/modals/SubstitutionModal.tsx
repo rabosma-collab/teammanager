@@ -44,23 +44,31 @@ export default function SubstitutionModal({
     // Start from field occupants
     const currentField = fieldOccupants.filter((p): p is Player => p !== null);
 
-    // Apply earlier subs to determine who's currently on field
-    const outFromEarlier = new Set(earlierSubs.map(s => s.player_out_id));
+    // IDs of players who went OUT / came IN during earlier substitution moments
+    // These are regular player IDs from the substitutions table
+    const outFromEarlierIds = new Set(earlierSubs.map(s => s.player_out_id));
+    const inFromEarlierIds = new Set(earlierSubs.map(s => s.player_in_id));
+
     const inFromEarlier = earlierSubs
-      .map(s => players.find(p => p.id === s.player_in_id))
+      .map(s => players.find(p => p.id === s.player_in_id && !p.is_guest))
       .filter((p): p is Player => p !== undefined);
 
+    // availableOut = starters still on field + players who came in earlier
+    // Guard guest players against ID collision: a guest with the same ID as a subbed-out
+    // regular player must NOT be removed from the field list
     availableOut = [
-      ...currentField.filter(p => !outFromEarlier.has(p.id)),
+      ...currentField.filter(p => p.is_guest || !outFromEarlierIds.has(p.id)),
       ...inFromEarlier
     ];
 
     const outFromEarlierPlayers = earlierSubs
-      .map(s => players.find(p => p.id === s.player_out_id))
+      .map(s => players.find(p => p.id === s.player_out_id && !p.is_guest))
       .filter((p): p is Player => p !== undefined);
 
+    // availableIn = bench players who haven't come in yet + players who went out earlier
+    // Remove players already brought in at earlier moments (they're now on the field)
     availableIn = [
-      ...benchPlayers,
+      ...benchPlayers.filter(p => p.is_guest || !inFromEarlierIds.has(p.id)),
       ...outFromEarlierPlayers
     ];
 

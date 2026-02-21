@@ -26,12 +26,24 @@ export function useLineup() {
       if (data && data.length > 0) {
         data.forEach((entry: { position: number; player_id: number }) => {
           if (entry.position >= 0 && entry.position < 11 && entry.player_id) {
-            const player = players.find(p => p.id === entry.player_id);
+            // Only match non-guest players to avoid ID collision with guest_players table
+            const player = players.find(p => p.id === entry.player_id && !p.is_guest);
             if (player) {
               lineup[entry.position] = player;
             }
           }
         });
+      }
+
+      // Also restore guest player positions from their lineup_position field
+      // (stored in guest_players table, fetched via SELECT * in usePlayers)
+      for (const player of players) {
+        if (player.is_guest && player.lineup_position != null) {
+          const pos = player.lineup_position;
+          if (pos >= 0 && pos < 11) {
+            lineup[pos] = player;
+          }
+        }
       }
 
       setFieldOccupants(lineup);
@@ -66,12 +78,11 @@ export function useLineup() {
 
       if (deleteError) throw deleteError;
 
+      // Save regular players to lineups table (guest players excluded — FK constraint)
       const lineupData = fieldOccupants
         .map((player, position) => ({
           match_id: match.id,
           position,
-          // Filter out guest players — their IDs are from a different table (guest_players)
-          // and cannot be stored in lineups due to the FK constraint on player_id → players(id)
           player_id: player && !player.is_guest ? player.id : null
         }))
         .filter(item => item.player_id !== null);
@@ -82,6 +93,30 @@ export function useLineup() {
           .insert(lineupData);
 
         if (insertError) throw insertError;
+      }
+
+      // Save guest player positions to guest_players.lineup_position
+      // First reset all guests for this match to null
+      await supabase
+        .from('guest_players')
+        .update({ lineup_position: null })
+        .eq('match_id', match.id)
+        .eq('team_id', currentTeam.id);
+
+      // Then set the position for each guest currently on the field
+      const guestOnField = fieldOccupants
+        .map((player: Player | null, position: number) => ({ player, position }))
+        .filter((item: { player: Player | null; position: number }): item is { player: Player; position: number } =>
+          item.player !== null && Boolean(item.player.is_guest)
+        );
+
+      for (const { player, position } of guestOnField) {
+        await supabase
+          .from('guest_players')
+          .update({ lineup_position: position })
+          .eq('id', player.id)
+          .eq('match_id', match.id)
+          .eq('team_id', currentTeam.id);
       }
 
       const updatedMatch = { ...match, formation };
