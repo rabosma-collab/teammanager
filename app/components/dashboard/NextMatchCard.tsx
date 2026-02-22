@@ -171,7 +171,7 @@ export default function NextMatchCard({
                 : 'bg-red-800 hover:bg-red-700 text-white'
             }`}
           >
-            {loadingInjury ? '...' : isInjured ? '✅ Hersteld melden' : '🏥 Geblesseerd melden'}
+            {loadingInjury ? '...' : isInjured ? '✅ Ik ben hersteld' : '🏥 Geblesseerd melden'}
           </button>
         </div>
       )}

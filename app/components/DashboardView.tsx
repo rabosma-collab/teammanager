@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Match, Player, VotingMatch } from '../lib/types';
+import type { Match, Player, PositionInstruction, VotingMatch } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import PersonalCard from './dashboard/PersonalCard';
@@ -63,6 +63,30 @@ export default function DashboardView({
 
   // Lokale afwezigheidslijst voor de dashboardMatch (onafhankelijk van pitch-view)
   const [dashboardAbsences, setDashboardAbsences] = useState<number[]>([]);
+
+  // Match-instructie voor de ingelogde speler
+  const [matchInstructions, setMatchInstructions] = useState<PositionInstruction[]>([]);
+
+  useEffect(() => {
+    if (!dashboardMatch) { setMatchInstructions([]); return; }
+    supabase
+      .from('match_position_instructions')
+      .select('*')
+      .eq('match_id', dashboardMatch.id)
+      .then(({ data }: { data: PositionInstruction[] | null }) => {
+        setMatchInstructions(data || []);
+      });
+  }, [dashboardMatch?.id]);
+
+  const playerPositionIndex = useMemo(() => {
+    if (!currentPlayerId) return -1;
+    return fieldOccupants.findIndex(p => p?.id === currentPlayerId);
+  }, [currentPlayerId, fieldOccupants]);
+
+  const playerMatchInstruction = useMemo(() => {
+    if (playerPositionIndex === -1) return null;
+    return matchInstructions.find((i: PositionInstruction) => i.position_index === playerPositionIndex) ?? null;
+  }, [playerPositionIndex, matchInstructions]);
 
   useEffect(() => {
     if (!dashboardMatch) {
@@ -166,6 +190,7 @@ export default function DashboardView({
             isManager={isManager}
             isStaff={isStaff}
             creditBalance={creditBalance}
+            matchInstruction={playerMatchInstruction}
             totalPlayers={regularPlayers.length}
             availablePlayers={availableCount}
             absentPlayers={absentCount}

@@ -1,58 +1,34 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { formations } from '../lib/constants';
 import type { Player, PositionInstruction } from '../lib/types';
-import PlayerCard from './PlayerCard';
 
 interface PitchViewProps {
   formation: string;
   fieldOccupants: (Player | null)[];
-  selectedPlayer: Player | null;
   selectedPosition: number | null;
   isEditable: boolean;
+  isManagerEdit: boolean;
   matchAbsences: number[];
   isPlayerAvailable: (player: Player | null, absences: number[]) => boolean;
-  isPlayerOnField: (player: Player) => boolean;
   getInstructionForPosition: (index: number) => PositionInstruction | null;
   onPositionClick: (index: number) => void;
   onShowTooltip: (index: number) => void;
-  onShowPlayerCard: (player: Player) => void;
+  onShowPositionInfo: (player: Player, positionIndex: number) => void;
 }
 
 const PitchView = React.memo(function PitchView({
   formation,
   fieldOccupants,
-  selectedPlayer,
   selectedPosition,
   isEditable,
+  isManagerEdit,
   matchAbsences,
   isPlayerAvailable,
-  isPlayerOnField,
   getInstructionForPosition,
   onPositionClick,
   onShowTooltip,
-  onShowPlayerCard
+  onShowPositionInfo,
 }: PitchViewProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [popupPos, setPopupPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const handleMouseEnter = useCallback((e: React.MouseEvent<HTMLDivElement>, index: number, player: Player | null) => {
-    if (isEditable || !player) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const popupWidth = 148;
-    const x = rect.right + 8 + popupWidth > window.innerWidth
-      ? rect.left - popupWidth - 8
-      : rect.right + 8;
-    const y = Math.max(8, Math.min(rect.top - 40, window.innerHeight - 300));
-    setHoveredIndex(index);
-    setPopupPos({ x, y });
-  }, [isEditable]);
-
-  const handleMouseLeave = useCallback(() => {
-    setHoveredIndex(null);
-  }, []);
-
-  const hoveredPlayer = hoveredIndex !== null ? fieldOccupants[hoveredIndex] : null;
-
   return (
     <>
       <div
@@ -60,7 +36,6 @@ const PitchView = React.memo(function PitchView({
         style={{
           backgroundImage: 'repeating-linear-gradient(0deg, #2d5f2e, #2d5f2e 40px, #246824 40px, #246824 80px)'
         }}
-        onMouseLeave={handleMouseLeave}
       >
         {formations[formation]?.map((pos, i) => {
           const player = fieldOccupants[i];
@@ -68,19 +43,32 @@ const PitchView = React.memo(function PitchView({
           const instruction = getInstructionForPosition(i);
           const isSelected = selectedPosition === i;
 
+          // "i" knop alleen tonen voor lege posities in manager-edit modus
+          const showInstructionButton = !player && isManagerEdit;
+
+          const handleClick = () => {
+            if (isEditable) {
+              onPositionClick(i);
+            } else if (player) {
+              onShowPositionInfo(player, i);
+            }
+          };
+
           return (
             <div
               key={i}
               className={`absolute transform -translate-x-1/2 -translate-y-1/2 touch-manipulation select-none ${
-                isEditable ? 'cursor-pointer active:scale-95' : 'cursor-default'
+                isEditable
+                  ? 'cursor-pointer active:scale-95'
+                  : player
+                  ? 'cursor-pointer'
+                  : 'cursor-default'
               }`}
               style={{ top: `${pos.t}%`, left: `${pos.l}%` }}
-              onMouseEnter={(e) => handleMouseEnter(e, i, player)}
-              onMouseLeave={handleMouseLeave}
             >
               <div
-                onClick={() => onPositionClick(i)}
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base relative transition-all ${instruction ? 'mb-6' : ''} ${
+                onClick={handleClick}
+                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base relative transition-all ${showInstructionButton ? 'mb-6' : ''} ${
                   player
                     ? showWarning
                       ? 'bg-yellow-500 text-black border-red-500'
@@ -104,14 +92,22 @@ const PitchView = React.memo(function PitchView({
                 {showWarning && (
                   <span className="absolute -top-1 -right-1 text-red-500 text-base sm:text-lg">⚠️</span>
                 )}
-                {instruction && (
+                {/* Blauwe stip als er een instructie is (alleen in view mode) */}
+                {instruction && !isEditable && (
+                  <span className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 rounded-full border border-gray-900" />
+                )}
+                {/* "i" knop alleen voor lege posities in manager-edit */}
+                {showInstructionButton && (
                   <button
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       onShowTooltip(i);
                     }}
-                    className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-blue-600 shadow-lg"
+                    className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${
+                      instruction ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-500 hover:bg-gray-400'
+                    }`}
                     style={{ zIndex: 10 }}
+                    title={instruction ? 'Wedstrijdinstructie bewerken' : 'Wedstrijdinstructie toevoegen'}
                   >
                     i
                   </button>
@@ -120,11 +116,8 @@ const PitchView = React.memo(function PitchView({
 
               {player && (
                 <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onShowPlayerCard(player);
-                  }}
-                  className="text-xs font-bold text-center mt-1 text-white block cursor-pointer hover:text-yellow-300"
+                  onClick={!isEditable ? handleClick : undefined}
+                  className={`text-xs font-bold text-center mt-1 text-white block ${!isEditable ? 'cursor-pointer hover:text-yellow-300' : ''}`}
                   style={{ textShadow: '1px 1px 2px black' }}
                 >
                   {player.name}
@@ -135,14 +128,11 @@ const PitchView = React.memo(function PitchView({
         })}
       </div>
 
-      {/* Hover popup — fixed position om overflow-hidden te omzeilen */}
-      {hoveredPlayer && !isEditable && (
-        <div
-          className="fixed z-50 pointer-events-none"
-          style={{ left: popupPos.x, top: popupPos.y }}
-        >
-          <PlayerCard player={hoveredPlayer} size="sm" />
-        </div>
+      {/* Hint voor view mode */}
+      {!isEditable && (
+        <p className="text-center text-gray-500 text-xs mt-2">
+          Tik op een speler voor info & instructies
+        </p>
       )}
     </>
   );
