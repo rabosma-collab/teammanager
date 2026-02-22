@@ -87,10 +87,10 @@ export function useVoting() {
           vote_count: voteCounts[p.id] || 0
         })).sort((a: VoteResults, b: VoteResults) => b.vote_count - a.vote_count);
 
-        // Check if current user has voted — prefer voter_user_id (works for staff too)
+        // Check if current user has voted — check both voter_user_id and voter_player_id
         const currentVote = votes.find((v: any) =>
           (currentUserId && v.voter_user_id === currentUserId) ||
-          (!currentUserId && currentPlayerId && v.voter_player_id === currentPlayerId)
+          (currentPlayerId && v.voter_player_id === currentPlayerId)
         ) ?? null;
 
         const matchDate = new Date(match.date);
