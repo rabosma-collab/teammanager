@@ -141,6 +141,9 @@ export default function Navbar({
 
       {/* Scrollable left side */}
       <div className="flex items-center gap-1.5 sm:gap-3 p-2 sm:p-4 overflow-x-auto flex-1 min-w-0">
+        {/* Logo */}
+        <img src="/logo.png" alt="Team Manager" className="h-8 w-8 object-contain flex-shrink-0" />
+
         {view === 'pitch' && (
           <button
             onClick={onToggleSidebar}
