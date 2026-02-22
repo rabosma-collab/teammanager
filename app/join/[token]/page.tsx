@@ -11,14 +11,16 @@ import { positionEmojis } from '../../lib/constants';
 interface InviteData {
   token: string;
   team_id: string;
-  player_id: number;
+  player_id: number | null;
   created_by: string;
   expires_at: string;
   used_at: string | null;
   max_uses: number | null;
   use_count: number | null;
+  invite_type: 'player' | 'staff';
+  display_name: string | null;
   team: { id: string; name: string };
-  player: { id: number; name: string; position: string };
+  player: { id: number; name: string; position: string } | null;
 }
 
 type PageState =
@@ -47,10 +49,10 @@ export default function JoinPage() {
   const validateToken = useCallback(async () => {
     setState({ kind: 'loading' });
 
-    // 1. Fetch invite token with team and player details
+    // 1. Fetch invite token with team and optional player details
     const { data: invite, error } = await supabase
       .from('invite_tokens')
-      .select('token, team_id, player_id, created_by, expires_at, used_at, max_uses, use_count, team:teams!team_id(id, name), player:players!player_id(id, name, position)')
+      .select('token, team_id, player_id, created_by, expires_at, used_at, max_uses, use_count, invite_type, display_name, team:teams!team_id(id, name), player:players(id, name, position)')
       .eq('token', token)
       .single();
 
@@ -59,15 +61,26 @@ export default function JoinPage() {
       return;
     }
 
-    // Normalize joined relations (Supabase returns single object for !inner joins)
+    const inviteType = (invite as any).invite_type ?? 'player';
+
     const inviteData: InviteData = {
       ...invite,
+      invite_type: inviteType,
+      display_name: (invite as any).display_name ?? null,
       team: Array.isArray(invite.team) ? invite.team[0] : invite.team,
-      player: Array.isArray(invite.player) ? invite.player[0] : invite.player,
+      player: inviteType === 'player'
+        ? (Array.isArray(invite.player) ? invite.player[0] ?? null : invite.player ?? null)
+        : null,
     } as InviteData;
 
-    // Check that referenced team and player still exist
-    if (!inviteData.team || !inviteData.player) {
+    // Check that team exists
+    if (!inviteData.team) {
+      setState({ kind: 'invalid' });
+      return;
+    }
+
+    // For player invites: require player record
+    if (inviteType === 'player' && !inviteData.player) {
       setState({ kind: 'invalid' });
       return;
     }
@@ -124,7 +137,7 @@ export default function JoinPage() {
 
   const handleAccept = async () => {
     if (state.kind !== 'confirm') return;
-    if (acceptingRef.current) return; // Prevent double-click
+    if (acceptingRef.current) return;
     acceptingRef.current = true;
     const { invite } = state;
 
@@ -137,21 +150,23 @@ export default function JoinPage() {
         return;
       }
 
+      const role = invite.invite_type === 'staff' ? 'staff' : 'player';
+
       // Insert team member
       const { error: memberError } = await supabase
         .from('team_members')
         .insert({
           team_id: invite.team_id,
           user_id: user.id,
-          role: 'player' as const,
-          player_id: invite.player_id,
+          role,
+          player_id: invite.player_id ?? null,
           status: 'active',
           invited_by: invite.created_by,
+          member_type: invite.invite_type,
+          display_name: invite.display_name ?? null,
         });
 
-      if (memberError) {
-        throw memberError;
-      }
+      if (memberError) throw memberError;
 
       // Mark token as used
       await supabase
@@ -159,18 +174,11 @@ export default function JoinPage() {
         .update({ used_at: new Date().toISOString(), used_by: user.id })
         .eq('token', token);
 
-      // Clean up localStorage
       localStorage.removeItem(STORAGE_KEY);
-
-      // Refresh team context so the new team appears
       await refreshTeam();
 
       setState({ kind: 'success', teamName: invite.team.name });
-
-      // Set onboarding flag so the app opens ProfileModal on first load
       localStorage.setItem('onboarding', 'true');
-
-      // Redirect after brief delay
       setTimeout(() => router.push('/'), 2000);
     } catch (err) {
       console.error('Fout bij accepteren uitnodiging:', err);
@@ -198,7 +206,6 @@ export default function JoinPage() {
           <h1 className="text-3xl font-bold text-white">Team Manager</h1>
         </div>
 
-        {/* Loading */}
         {state.kind === 'loading' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="inline-block w-10 h-10 border-4 border-gray-600 border-t-blue-500 rounded-full animate-spin mb-4" />
@@ -206,58 +213,39 @@ export default function JoinPage() {
           </div>
         )}
 
-        {/* Invalid token */}
         {state.kind === 'invalid' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="text-5xl mb-4">❌</div>
             <h2 className="text-2xl font-bold text-white mb-3">Ongeldige uitnodiging</h2>
-            <p className="text-gray-400 mb-6">
-              Deze uitnodigingslink is ongeldig of bestaat niet meer.
-            </p>
-            <Link
-              href="/login"
-              className="inline-block w-full py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-bold transition active:scale-[0.98]"
-            >
+            <p className="text-gray-400 mb-6">Deze uitnodigingslink is ongeldig of bestaat niet meer.</p>
+            <Link href="/login" className="inline-block w-full py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
               Naar inloggen
             </Link>
           </div>
         )}
 
-        {/* Expired token */}
         {state.kind === 'expired' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="text-5xl mb-4">⏰</div>
             <h2 className="text-2xl font-bold text-white mb-3">Uitnodiging verlopen</h2>
-            <p className="text-gray-400 mb-6">
-              Deze uitnodigingslink is verlopen. Vraag je teammanager om een nieuwe uitnodiging.
-            </p>
-            <Link
-              href="/login"
-              className="inline-block w-full py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-bold transition active:scale-[0.98]"
-            >
+            <p className="text-gray-400 mb-6">Deze uitnodigingslink is verlopen. Vraag je teammanager om een nieuwe uitnodiging.</p>
+            <Link href="/login" className="inline-block w-full py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
               Naar inloggen
             </Link>
           </div>
         )}
 
-        {/* Already used */}
         {state.kind === 'used' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="text-5xl mb-4">🔒</div>
             <h2 className="text-2xl font-bold text-white mb-3">Uitnodiging al gebruikt</h2>
-            <p className="text-gray-400 mb-6">
-              Deze uitnodigingslink is al gebruikt. Vraag je teammanager om een nieuwe uitnodiging als dit niet klopt.
-            </p>
-            <Link
-              href="/login"
-              className="inline-block w-full py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-bold transition active:scale-[0.98]"
-            >
+            <p className="text-gray-400 mb-6">Deze uitnodigingslink is al gebruikt. Vraag je teammanager om een nieuwe uitnodiging als dit niet klopt.</p>
+            <Link href="/login" className="inline-block w-full py-3 bg-gray-600 hover:bg-gray-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
               Naar inloggen
             </Link>
           </div>
         )}
 
-        {/* Not authenticated - show login/register options */}
         {state.kind === 'not_authenticated' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700">
             <div className="text-center mb-6">
@@ -265,66 +253,48 @@ export default function JoinPage() {
               <h2 className="text-2xl font-bold text-white mb-2">Je bent uitgenodigd!</h2>
               <p className="text-gray-400">Log in of maak een account aan om lid te worden.</p>
             </div>
-
-            {/* Invite details */}
             <InviteDetails invite={state.invite} />
-
-            {/* Auth buttons */}
             <div className="space-y-3 mt-6">
-              <button
-                onClick={handleLoginRedirect}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold text-base transition active:scale-[0.98]"
-              >
+              <button onClick={handleLoginRedirect} className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold text-base transition active:scale-[0.98]">
                 Inloggen
               </button>
-              <button
-                onClick={handleRegisterRedirect}
-                className="w-full py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-white font-bold text-base transition active:scale-[0.98]"
-              >
+              <button onClick={handleRegisterRedirect} className="w-full py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-white font-bold text-base transition active:scale-[0.98]">
                 Registreren
               </button>
             </div>
           </div>
         )}
 
-        {/* Authenticated - confirmation */}
         {state.kind === 'confirm' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700">
             <div className="text-center mb-6">
               <div className="text-5xl mb-4">📨</div>
               <h2 className="text-2xl font-bold text-white mb-2">Je bent uitgenodigd!</h2>
-              <p className="text-gray-400">Bevestig dat jij deze speler bent.</p>
-            </div>
-
-            {/* Invite details */}
-            <InviteDetails invite={state.invite} />
-
-            {/* Confirmation prompt */}
-            <div className="mt-6 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
-              <p className="text-white text-center font-medium">
-                Koppel je account aan <strong>{state.invite.player.name}</strong>?
+              <p className="text-gray-400">
+                {state.invite.invite_type === 'staff'
+                  ? 'Je wordt toegevoegd als staflid.'
+                  : 'Bevestig dat jij deze speler bent.'}
               </p>
             </div>
-
-            {/* Action buttons */}
+            <InviteDetails invite={state.invite} />
+            <div className="mt-6 p-4 bg-gray-700/50 rounded-lg border border-gray-600">
+              <p className="text-white text-center font-medium">
+                {state.invite.invite_type === 'staff'
+                  ? <>Word staflid van <strong>{state.invite.team.name}</strong>?</>
+                  : <>Koppel je account aan <strong>{state.invite.player?.name}</strong>?</>}
+              </p>
+            </div>
             <div className="space-y-3 mt-6">
-              <button
-                onClick={handleAccept}
-                className="w-full py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-bold text-base transition active:scale-[0.98]"
-              >
-                Ja, dat ben ik
+              <button onClick={handleAccept} className="w-full py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-bold text-base transition active:scale-[0.98]">
+                {state.invite.invite_type === 'staff' ? 'Ja, ik word staflid' : 'Ja, dat ben ik'}
               </button>
-              <button
-                onClick={() => router.push('/')}
-                className="w-full py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-white font-bold text-base transition active:scale-[0.98]"
-              >
+              <button onClick={() => router.push('/')} className="w-full py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-white font-bold text-base transition active:scale-[0.98]">
                 Nee, verkeerde persoon
               </button>
             </div>
           </div>
         )}
 
-        {/* Already a member */}
         {state.kind === 'already_member' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="text-5xl mb-4">✅</div>
@@ -332,16 +302,12 @@ export default function JoinPage() {
             <p className="text-gray-400 mb-6">
               Je bent al lid van <strong className="text-white">{state.invite.team.name}</strong>. Je kunt direct naar de app gaan.
             </p>
-            <Link
-              href="/"
-              className="inline-block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]"
-            >
+            <Link href="/" className="inline-block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
               Naar Team Manager
             </Link>
           </div>
         )}
 
-        {/* Accepting */}
         {state.kind === 'accepting' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="inline-block w-10 h-10 border-4 border-gray-600 border-t-green-500 rounded-full animate-spin mb-4" />
@@ -349,7 +315,6 @@ export default function JoinPage() {
           </div>
         )}
 
-        {/* Success */}
         {state.kind === 'success' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="text-5xl mb-4">🎉</div>
@@ -357,25 +322,18 @@ export default function JoinPage() {
             <p className="text-gray-400 mb-6">
               Je bent nu lid van <strong className="text-white">{state.teamName}</strong>. Je wordt doorgestuurd...
             </p>
-            <Link
-              href="/"
-              className="inline-block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]"
-            >
+            <Link href="/" className="inline-block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
               Naar Team Manager
             </Link>
           </div>
         )}
 
-        {/* Error */}
         {state.kind === 'error' && (
           <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
             <div className="text-5xl mb-4">⚠️</div>
             <h2 className="text-2xl font-bold text-white mb-3">Er ging iets mis</h2>
             <p className="text-gray-400 mb-6">{state.message}</p>
-            <button
-              onClick={validateToken}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]"
-            >
+            <button onClick={validateToken} className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
               Opnieuw proberen
             </button>
           </div>
@@ -385,9 +343,8 @@ export default function JoinPage() {
   );
 }
 
-/** Shared component showing team and player info on the invite card. */
 function InviteDetails({ invite }: { invite: InviteData }) {
-  const emoji = positionEmojis[invite.player.position] ?? '⚽';
+  const isStaff = invite.invite_type === 'staff';
 
   return (
     <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600 space-y-3">
@@ -402,15 +359,26 @@ function InviteDetails({ invite }: { invite: InviteData }) {
 
       <div className="border-t border-gray-600" />
 
-      {/* Player */}
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">{emoji}</span>
-        <div>
-          <p className="text-xs text-gray-400 uppercase tracking-wide">Speler</p>
-          <p className="text-white font-bold">{invite.player.name}</p>
-          <p className="text-sm text-gray-400">{invite.player.position}</p>
+      {/* Player or Staff */}
+      {isStaff ? (
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🧑‍💼</span>
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Rol</p>
+            <p className="text-white font-bold">{invite.display_name ?? 'Staflid'}</p>
+            <p className="text-sm text-gray-400">Staflid</p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{positionEmojis[invite.player?.position ?? ''] ?? '⚽'}</span>
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Speler</p>
+            <p className="text-white font-bold">{invite.player?.name}</p>
+            <p className="text-sm text-gray-400">{invite.player?.position}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

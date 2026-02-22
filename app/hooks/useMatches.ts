@@ -150,6 +150,35 @@ export function useMatches() {
     }
   }, [selectedMatch?.id, currentTeam]);
 
+  const updateMatchScore = useCallback(async (
+    id: number,
+    goalsFor: number | null,
+    goalsAgainst: number | null
+  ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .update({ goals_for: goalsFor, goals_against: goalsAgainst })
+        .eq('id', id)
+        .eq('team_id', currentTeam.id);
+
+      if (error) throw error;
+
+      setMatches(prev =>
+        prev.map(m => m.id === id ? { ...m, goals_for: goalsFor, goals_against: goalsAgainst } : m)
+      );
+      if (selectedMatch?.id === id) {
+        setSelectedMatch(prev => prev ? { ...prev, goals_for: goalsFor, goals_against: goalsAgainst } : prev);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error updating match score:', error);
+      return false;
+    }
+  }, [selectedMatch?.id, currentTeam]);
+
   const deleteMatch = useCallback(async (matchId: number): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -192,6 +221,7 @@ export function useMatches() {
     isMatchEditable,
     addMatch,
     updateMatch,
+    updateMatchScore,
     deleteMatch
   };
 }

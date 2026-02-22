@@ -8,6 +8,7 @@ interface MatchesManageViewProps {
   schemes: SubstitutionScheme[];
   onAddMatch: (data: MatchFormData) => Promise<boolean>;
   onUpdateMatch: (id: number, data: MatchFormData) => Promise<boolean>;
+  onUpdateScore: (id: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
   onDeleteMatch: (id: number) => Promise<boolean>;
   onRefresh: () => void;
 }
@@ -17,10 +18,14 @@ export default function MatchesManageView({
   schemes,
   onAddMatch,
   onUpdateMatch,
+  onUpdateScore,
   onDeleteMatch,
   onRefresh
 }: MatchesManageViewProps) {
   const [editingMatch, setEditingMatch] = useState<Match | null | 'new'>(null);
+  const [editingScoreId, setEditingScoreId] = useState<number | null>(null);
+  const [scoreGoalsFor, setScoreGoalsFor] = useState('');
+  const [scoreGoalsAgainst, setScoreGoalsAgainst] = useState('');
 
   const sortedMatches = [...matches].sort((a, b) =>
     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -45,6 +50,23 @@ export default function MatchesManageView({
       }
     }
     setEditingMatch(null);
+  };
+
+  const openScoreEdit = (match: Match) => {
+    setEditingScoreId(match.id);
+    setScoreGoalsFor(match.goals_for != null ? String(match.goals_for) : '');
+    setScoreGoalsAgainst(match.goals_against != null ? String(match.goals_against) : '');
+  };
+
+  const handleSaveScore = async (matchId: number) => {
+    const goalsFor = scoreGoalsFor !== '' ? parseInt(scoreGoalsFor) : null;
+    const goalsAgainst = scoreGoalsAgainst !== '' ? parseInt(scoreGoalsAgainst) : null;
+    const success = await onUpdateScore(matchId, goalsFor, goalsAgainst);
+    if (success) {
+      setEditingScoreId(null);
+    } else {
+      alert('❌ Kon uitslag niet opslaan');
+    }
   };
 
   const handleDelete = async (match: Match) => {
@@ -117,14 +139,60 @@ export default function MatchesManageView({
                         ✅ Afgerond
                       </span>
                     )}
+                    {isFinalized && match.goals_for != null && match.goals_against != null && (
+                      <span className="ml-2 text-sm font-black text-yellow-400">
+                        {match.goals_for} – {match.goals_against}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
                     <span>📅 {matchDate.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     <span>📋 {formationLabels[match.formation] || match.formation}</span>
                   </div>
+                  {/* Inline score editor */}
+                  {isFinalized && editingScoreId === match.id && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="number" min="0" max="99"
+                        value={scoreGoalsFor}
+                        onChange={(e) => setScoreGoalsFor(e.target.value)}
+                        className="w-14 px-2 py-1 bg-gray-700 border border-gray-500 rounded text-white text-center font-black text-sm"
+                        placeholder="–"
+                      />
+                      <span className="text-gray-400 font-bold">–</span>
+                      <input
+                        type="number" min="0" max="99"
+                        value={scoreGoalsAgainst}
+                        onChange={(e) => setScoreGoalsAgainst(e.target.value)}
+                        className="w-14 px-2 py-1 bg-gray-700 border border-gray-500 rounded text-white text-center font-black text-sm"
+                        placeholder="–"
+                      />
+                      <button
+                        onClick={() => handleSaveScore(match.id)}
+                        className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs font-bold"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={() => setEditingScoreId(null)}
+                        className="px-2 py-1 bg-gray-600 hover:bg-gray-700 rounded text-xs font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                  {isFinalized && (
+                    <button
+                      onClick={() => openScoreEdit(match)}
+                      className="px-2 sm:px-3 py-1.5 bg-yellow-700 hover:bg-yellow-600 rounded text-xs sm:text-sm font-bold"
+                      title="Uitslag bewerken"
+                    >
+                      ⚽
+                    </button>
+                  )}
                   {!isFinalized && (
                     <>
                       <button

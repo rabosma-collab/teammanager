@@ -122,6 +122,11 @@ export default function NextMatchCard({
             <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded border border-gray-600">✅ Afgerond</span>
           )}
         </div>
+        {isFinalized && match.goals_for != null && match.goals_against != null && (
+          <div className="text-3xl font-black text-yellow-400 mt-1">
+            {match.goals_for} – {match.goals_against}
+          </div>
+        )}
         <div className="text-xs text-gray-500 mt-1">{formationLabel}</div>
       </div>
 

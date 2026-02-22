@@ -20,12 +20,13 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [userRole, setUserRole] = useState<TeamMember['role'] | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const fetchIdRef = useRef(0);
 
   const loadTeams = useCallback(async (userId: string) => {
     const fetchId = ++fetchIdRef.current;
-
+    setCurrentUserId(userId);
     setIsLoading(true);
 
     const { data, error } = await supabase
@@ -115,6 +116,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
           setCurrentTeam(null);
           setTeams([]);
           setUserRole(null);
+          setCurrentUserId(null);
           setIsLoading(false);
         }
       }
@@ -126,10 +128,11 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, loadTeams]);
 
   const isManager = userRole === 'manager';
+  const isStaff = userRole === 'staff';
 
   return (
     <TeamContext.Provider
-      value={{ currentTeam, userRole, isManager, isLoading, teams, currentPlayerId, switchTeam, refreshTeam }}
+      value={{ currentTeam, userRole, isManager, isStaff, isLoading, teams, currentPlayerId, currentUserId, switchTeam, refreshTeam }}
     >
       {children}
     </TeamContext.Provider>

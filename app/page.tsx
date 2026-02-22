@@ -16,6 +16,7 @@ import { useSubstitutions } from './hooks/useSubstitutions';
 import { useInstructions } from './hooks/useInstructions';
 import { useSubstitutionSchemes } from './hooks/useSubstitutionSchemes';
 import { useVoting } from './hooks/useVoting';
+import { useStatCredits } from './hooks/useStatCredits';
 
 // Components
 import Navbar from './components/Navbar';
@@ -43,7 +44,7 @@ import PlayerCardModal from './components/modals/PlayerCardModal';
 export default function FootballApp() {
   const router = useRouter();
   const [authChecking, setAuthChecking] = useState(true);
-  const { currentTeam, isManager, isLoading: teamLoading } = useTeamContext();
+  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId } = useTeamContext();
 
   // ---- AUTH CHECK ----
   useEffect(() => {
@@ -69,6 +70,8 @@ export default function FootballApp() {
   const [showPlayerCard, setShowPlayerCard] = useState<Player | null>(null);
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [finalizeCalcMinutes, setFinalizeCalcMinutes] = useState(true);
+  const [finalizeGoalsFor, setFinalizeGoalsFor] = useState<string>('');
+  const [finalizeGoalsAgainst, setFinalizeGoalsAgainst] = useState<string>('');
   const [showExtraSubModal, setShowExtraSubModal] = useState(false);
   const [extraSubMinute, setExtraSubMinute] = useState(45);
   const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
@@ -86,7 +89,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, deleteMatch
+    addMatch, updateMatch, updateMatchScore, deleteMatch
   } = useMatches();
 
   const {
@@ -112,6 +115,7 @@ export default function FootballApp() {
 
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
   const { votingMatches, isLoadingVotes, fetchVotingMatches, submitVote } = useVoting();
+  const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCredit } = useStatCredits();
 
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isManager);
@@ -225,7 +229,36 @@ export default function FootballApp() {
     }
   }, [matches, currentPlayerId, fetchVotingMatches]);
 
+  // Load credit balance when player identity is known
+  useEffect(() => {
+    if (teamPlayerId) {
+      fetchBalance(teamPlayerId);
+    }
+  }, [teamPlayerId, fetchBalance]);
+
+  // Award SPDW credits lazily when team data is loaded
+  useEffect(() => {
+    if (currentTeam) {
+      awardSpdwCredits();
+    }
+  }, [currentTeam, awardSpdwCredits]);
+
   // ---- HANDLERS ----
+  const handleSpendCredit = useCallback(async (
+    targetPlayerId: number,
+    stat: string,
+    change: 1 | -1
+  ): Promise<boolean> => {
+    if (!teamPlayerId) return false;
+    const success = await spendCredit(teamPlayerId, targetPlayerId, stat, change);
+    if (success) {
+      // Refresh players so the updated stat reflects everywhere
+      if (selectedMatch) fetchPlayers(selectedMatch.id);
+      else fetchPlayers();
+    }
+    return success;
+  }, [teamPlayerId, spendCredit, fetchPlayers, selectedMatch]);
+
   const handleLogout = async () => {
     await signOut();
     router.push('/login');
@@ -410,19 +443,30 @@ export default function FootballApp() {
         }
       }
 
-      // 4. Update match status
+      // 4. Update match status + score
+      const matchUpdate: Record<string, unknown> = { match_status: 'afgerond' };
+      if (finalizeGoalsFor !== '') matchUpdate.goals_for = parseInt(finalizeGoalsFor);
+      if (finalizeGoalsAgainst !== '') matchUpdate.goals_against = parseInt(finalizeGoalsAgainst);
+
       const { error: matchError } = await supabase
         .from('matches')
-        .update({ match_status: 'afgerond' })
+        .update(matchUpdate)
         .eq('id', selectedMatch.id);
 
       if (matchError) throw matchError;
 
       // 5. Update local state
+      const updatedMatchFields = {
+        match_status: 'afgerond' as const,
+        ...(finalizeGoalsFor !== '' ? { goals_for: parseInt(finalizeGoalsFor) } : {}),
+        ...(finalizeGoalsAgainst !== '' ? { goals_against: parseInt(finalizeGoalsAgainst) } : {}),
+      };
       setIsEditingLineup(false);
-      setSelectedMatch({ ...selectedMatch, match_status: 'afgerond' });
+      setFinalizeGoalsFor('');
+      setFinalizeGoalsAgainst('');
+      setSelectedMatch({ ...selectedMatch, ...updatedMatchFields });
       setMatches(matches.map(m =>
-        m.id === selectedMatch.id ? { ...m, match_status: 'afgerond' } : m
+        m.id === selectedMatch.id ? { ...m, ...updatedMatchFields } : m
       ));
 
       // 6. Reload players
@@ -450,7 +494,7 @@ export default function FootballApp() {
   }, [openSubModal, players]);
 
   const handleVote = useCallback(async (matchId: number, votedForPlayerId: number) => {
-    if (!currentPlayerId) return;
+    // Staff members have no player_id — submitVote handles auth via voter_user_id
     await submitVote(matchId, currentPlayerId, votedForPlayerId, matches);
   }, [currentPlayerId, submitVote, matches]);
 
@@ -676,6 +720,38 @@ export default function FootballApp() {
               </div>
             </label>
 
+            {/* Score invoer */}
+            <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
+              <div className="text-sm font-bold mb-2">Uitslag (optioneel)</div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 text-center">
+                  <div className="text-xs text-gray-400 mb-1">Eigen goals</div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={finalizeGoalsFor}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFinalizeGoalsFor(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-xl font-black text-center"
+                    placeholder="–"
+                  />
+                </div>
+                <div className="text-gray-400 font-bold text-lg">–</div>
+                <div className="flex-1 text-center">
+                  <div className="text-xs text-gray-400 mb-1">Tegenstander</div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={finalizeGoalsAgainst}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFinalizeGoalsAgainst(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-xl font-black text-center"
+                    placeholder="–"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="mb-4 p-2 bg-red-900/30 border border-red-700 rounded text-xs text-center text-red-300">
               ⚠️ Dit kan NIET ongedaan gemaakt worden!
             </div>
@@ -826,6 +902,7 @@ export default function FootballApp() {
           schemes={schemes}
           onAddMatch={addMatch}
           onUpdateMatch={updateMatch}
+          onUpdateScore={updateMatchScore}
           onDeleteMatch={deleteMatch}
           onRefresh={fetchMatches}
         />
@@ -838,6 +915,9 @@ export default function FootballApp() {
           players={players}
           isAdmin={isManager}
           onUpdateStat={updateStat}
+          currentPlayerId={teamPlayerId}
+          creditBalance={creditBalance}
+          onSpendCredit={handleSpendCredit}
         />
       ) : view === 'dashboard' ? (
         <DashboardView
@@ -853,6 +933,7 @@ export default function FootballApp() {
           votingCurrentPlayerId={currentPlayerId}
           onSelectVotingPlayer={setCurrentPlayerId}
           onVote={handleVote}
+          creditBalance={creditBalance}
         />
       ) : view === 'pitch' ? (
         <div className="flex flex-1 overflow-hidden relative">
