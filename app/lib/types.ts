@@ -26,6 +26,8 @@ export interface Player {
     formation: string;
     substitution_scheme_id: number;
     match_status: 'concept' | 'afgerond';
+    goals_for?: number | null;
+    goals_against?: number | null;
   }
 
   export interface SubstitutionScheme {
@@ -100,7 +102,7 @@ export interface Player {
     team_id: string;
     user_id: string;
     player_id?: number | null;
-    role: 'manager' | 'player';
+    role: 'manager' | 'player' | 'staff';
     status: 'active' | 'pending' | 'inactive';
     joined_at: string;
     invited_by: string | null;
@@ -110,9 +112,11 @@ export interface Player {
     currentTeam: Team | null;
     userRole: TeamMember['role'] | null;
     isManager: boolean;
+    isStaff: boolean;
     isLoading: boolean;
     teams: Team[];
     currentPlayerId: number | null;
+    currentUserId: string | null;
     switchTeam: (teamId: string) => Promise<void>;
     refreshTeam: () => Promise<void>;
   }

@@ -6,6 +6,7 @@ interface VotingSectionProps {
   isLoading: boolean;
   players: Player[];
   currentPlayerId: number | null;
+  isStaff?: boolean;
   onSelectCurrentPlayer: (playerId: number) => void;
   onVote: (matchId: number, votedForPlayerId: number) => void;
 }
@@ -15,6 +16,7 @@ export default function VotingSection({
   isLoading,
   players,
   currentPlayerId,
+  isStaff = false,
   onSelectCurrentPlayer,
   onVote
 }: VotingSectionProps) {
@@ -29,8 +31,8 @@ export default function VotingSection({
       <div className="bg-gradient-to-br from-yellow-900/40 to-amber-950/40 rounded-xl p-4 sm:p-6 border-2 border-yellow-700/50">
         <h2 className="text-lg sm:text-2xl font-bold mb-4">🏆 Speler van de Week</h2>
 
-        {/* Wie ben jij? selector — alleen tonen als speler niet bekend is */}
-        {!currentPlayerId && (
+        {/* Wie ben jij? selector — alleen voor spelers zonder bekend player_id; stafleden slaan dit over */}
+        {!currentPlayerId && !isStaff && (
           <div className="mb-4 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
             <label className="block text-sm font-bold mb-2 text-gray-300">Wie ben jij?</label>
             <select
@@ -50,19 +52,24 @@ export default function VotingSection({
           <div className="text-center py-4 text-gray-400">Laden...</div>
         )}
 
-        {!currentPlayerId && !isLoading && (
+        {!currentPlayerId && !isStaff && !isLoading && (
           <div className="text-center py-4 text-gray-400 text-sm">
             Selecteer je naam om te stemmen
           </div>
         )}
 
-        {currentPlayerId && votingMatches.map(vm => (
+        {(currentPlayerId || isStaff) && votingMatches.map(vm => (
           <div key={vm.match.id} className="bg-gray-800/50 rounded-lg p-3 sm:p-4 mb-3 last:mb-0 border border-gray-700">
             {/* Match info */}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-700">
               <div>
-                <div className="font-bold text-base sm:text-lg text-white">
+                <div className="font-bold text-base sm:text-lg text-white flex items-center gap-2">
                   {vm.match.home_away === 'Thuis' ? 'Thuis' : 'Uit'} vs {vm.match.opponent}
+                  {vm.match.goals_for != null && vm.match.goals_against != null && (
+                    <span className="text-yellow-400 font-black text-base">
+                      {vm.match.goals_for} – {vm.match.goals_against}
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-gray-400 mt-0.5">
                   {new Date(vm.match.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}

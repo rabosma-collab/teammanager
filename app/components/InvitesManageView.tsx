@@ -7,10 +7,12 @@ import { positionEmojis } from '../lib/constants';
 interface InviteRow {
   id: string;
   token: string;
-  player_id: number;
+  player_id: number | null;
   created_at: string;
   expires_at: string;
-  player: { name: string; position: string };
+  invite_type: 'player' | 'staff';
+  display_name: string | null;
+  player: { name: string; position: string } | null;
 }
 
 interface Toast {
@@ -35,7 +37,6 @@ export default function InvitesManageView() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
   }, []);
 
-  // Tick every minute for countdown updates
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(interval);
@@ -47,7 +48,7 @@ export default function InvitesManageView() {
 
     const { data, error } = await supabase
       .from('invite_tokens')
-      .select('id, token, player_id, created_at, expires_at, player:players!player_id(name, position)')
+      .select('id, token, player_id, created_at, expires_at, invite_type, display_name, player:players(name, position)')
       .eq('team_id', currentTeam.id)
       .is('used_at', null)
       .gt('expires_at', new Date().toISOString())
@@ -57,7 +58,8 @@ export default function InvitesManageView() {
       setInvites(
         data.map((d: any) => ({
           ...d,
-          player: Array.isArray(d.player) ? d.player[0] : d.player,
+          invite_type: d.invite_type ?? 'player',
+          player: d.invite_type === 'staff' ? null : (Array.isArray(d.player) ? d.player[0] ?? null : d.player ?? null),
         })) as InviteRow[]
       );
     }
@@ -67,6 +69,16 @@ export default function InvitesManageView() {
   useEffect(() => {
     fetchInvites();
   }, [fetchInvites]);
+
+  const getDisplayLabel = (invite: InviteRow) => {
+    if (invite.invite_type === 'staff') return invite.display_name ?? 'Staflid';
+    return invite.player?.name ?? '—';
+  };
+
+  const getDisplaySub = (invite: InviteRow) => {
+    if (invite.invite_type === 'staff') return 'Staflid';
+    return invite.player?.position ?? '';
+  };
 
   const handleCopy = async (invite: InviteRow) => {
     const link = `${window.location.origin}/join/${invite.token}`;
@@ -80,7 +92,8 @@ export default function InvitesManageView() {
   };
 
   const handleRevoke = async (invite: InviteRow) => {
-    if (!confirm(`Uitnodiging voor ${invite.player.name} intrekken? De link werkt dan niet meer.`)) return;
+    const label = getDisplayLabel(invite);
+    if (!confirm(`Uitnodiging voor ${label} intrekken? De link werkt dan niet meer.`)) return;
 
     setActionId(invite.id);
     try {
@@ -90,9 +103,8 @@ export default function InvitesManageView() {
         .eq('id', invite.id);
 
       if (error) throw error;
-
       setInvites(prev => prev.filter(i => i.id !== invite.id));
-      showToast(`Uitnodiging voor ${invite.player.name} ingetrokken`, 'success');
+      showToast(`Uitnodiging voor ${label} ingetrokken`, 'success');
     } catch {
       showToast('Kon uitnodiging niet intrekken', 'error');
     } finally {
@@ -117,7 +129,6 @@ export default function InvitesManageView() {
         .update({ expires_at: new Date().toISOString() })
         .eq('id', invite.id);
 
-      // Create new token
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -128,32 +139,33 @@ export default function InvitesManageView() {
           player_id: invite.player_id,
           created_by: user.id,
           expires_at: expiresAt.toISOString(),
+          invite_type: invite.invite_type,
+          display_name: invite.display_name,
         })
         .select('id, token, player_id, created_at, expires_at')
         .single();
 
       if (error || !newInvite) throw error ?? new Error('Geen uitnodiging ontvangen');
 
-      // Replace old invite with new one in the list
-      setInvites(prev =>
-        [
-          {
-            ...newInvite,
-            player: invite.player,
-          } as InviteRow,
-          ...prev.filter(i => i.id !== invite.id),
-        ]
-      );
+      const label = getDisplayLabel(invite);
+      setInvites(prev => [
+        {
+          ...newInvite,
+          invite_type: invite.invite_type,
+          display_name: invite.display_name,
+          player: invite.player,
+        } as InviteRow,
+        ...prev.filter(i => i.id !== invite.id),
+      ]);
 
-      // Copy new link to clipboard
       const link = `${window.location.origin}/join/${newInvite.token}`;
       try {
         await navigator.clipboard.writeText(link);
         setCopiedId(newInvite.id);
         setTimeout(() => setCopiedId(null), 2000);
-        showToast(`Nieuwe uitnodiging voor ${invite.player.name} aangemaakt en gekopieerd`, 'success');
+        showToast(`Nieuwe uitnodiging voor ${label} aangemaakt en gekopieerd`, 'success');
       } catch {
-        showToast(`Nieuwe uitnodiging voor ${invite.player.name} aangemaakt`, 'success');
+        showToast(`Nieuwe uitnodiging voor ${label} aangemaakt`, 'success');
       }
     } catch {
       showToast('Kon uitnodiging niet vernieuwen', 'error');
@@ -162,23 +174,17 @@ export default function InvitesManageView() {
     }
   };
 
-  const formatDate = (iso: string) => {
-    return new Date(iso).toLocaleDateString('nl-NL', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('nl-NL', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
     });
-  };
 
   const getCountdown = (expiresAt: string) => {
     const diff = new Date(expiresAt).getTime() - now;
     if (diff <= 0) return 'Verlopen';
-
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
     if (days > 0) return `${days}d ${hours}u`;
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     if (hours > 0) return `${hours}u ${minutes}m`;
@@ -212,13 +218,14 @@ export default function InvitesManageView() {
           <div className="text-5xl mb-4">📭</div>
           <h3 className="text-xl font-bold text-gray-300 mb-2">Geen uitstaande uitnodigingen</h3>
           <p className="text-gray-500 text-sm">
-            Ga naar Spelers beheer om spelers uit te nodigen
+            Ga naar Spelers beheer om spelers of stafleden uit te nodigen
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {invites.map(invite => {
-            const emoji = positionEmojis[invite.player.position] ?? '⚽';
+            const isStaff = invite.invite_type === 'staff';
+            const emoji = isStaff ? '🧑‍💼' : (positionEmojis[invite.player?.position ?? ''] ?? '⚽');
             const isCopied = copiedId === invite.id;
             const isActing = actionId === invite.id;
 
@@ -227,12 +234,12 @@ export default function InvitesManageView() {
                 key={invite.id}
                 className="bg-gray-800 rounded-lg border border-gray-700 p-4 flex flex-col sm:flex-row sm:items-center gap-3"
               >
-                {/* Player info */}
+                {/* Info */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <span className="text-2xl flex-shrink-0">{emoji}</span>
                   <div className="min-w-0">
-                    <p className="font-bold text-sm sm:text-base truncate">{invite.player.name}</p>
-                    <p className="text-xs text-gray-400">{invite.player.position}</p>
+                    <p className="font-bold text-sm sm:text-base truncate">{getDisplayLabel(invite)}</p>
+                    <p className="text-xs text-gray-400">{getDisplaySub(invite)}</p>
                   </div>
                 </div>
 
@@ -252,11 +259,8 @@ export default function InvitesManageView() {
                   <button
                     onClick={() => handleCopy(invite)}
                     className={`px-3 py-1.5 rounded text-xs font-bold transition-colors ${
-                      isCopied
-                        ? 'bg-green-600 hover:bg-green-700'
-                        : 'bg-blue-600 hover:bg-blue-700'
+                      isCopied ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
                     }`}
-                    title="Kopieer link"
                   >
                     {isCopied ? '✅ Gekopieerd' : '📋 Link'}
                   </button>
@@ -264,7 +268,6 @@ export default function InvitesManageView() {
                     onClick={() => handleResend(invite)}
                     disabled={isActing}
                     className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 rounded text-xs font-bold transition-colors"
-                    title="Nieuwe uitnodiging aanmaken"
                   >
                     🔄 Vernieuw
                   </button>
@@ -272,7 +275,6 @@ export default function InvitesManageView() {
                     onClick={() => handleRevoke(invite)}
                     disabled={isActing}
                     className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-xs font-bold transition-colors"
-                    title="Uitnodiging intrekken"
                   >
                     ✕ Intrekken
                   </button>
@@ -290,9 +292,7 @@ export default function InvitesManageView() {
             <div
               key={toast.id}
               className={`px-4 py-3 rounded-lg shadow-lg text-sm font-medium flex items-center gap-2 ${
-                toast.type === 'success'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-red-600 text-white'
+                toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
               }`}
             >
               <span>{toast.type === 'success' ? '✅' : '❌'}</span>

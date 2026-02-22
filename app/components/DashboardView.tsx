@@ -24,6 +24,7 @@ interface DashboardViewProps {
   votingCurrentPlayerId: number | null;
   onSelectVotingPlayer: (playerId: number) => void;
   onVote: (matchId: number, votedForPlayerId: number) => void;
+  creditBalance?: number | null;
 }
 
 export default function DashboardView({
@@ -39,9 +40,10 @@ export default function DashboardView({
   votingCurrentPlayerId,
   onSelectVotingPlayer,
   onVote,
+  creditBalance,
 }: DashboardViewProps) {
   // Use TeamContext for authoritative identity (not the voting override)
-  const { currentTeam, currentPlayerId, isManager } = useTeamContext();
+  const { currentTeam, currentPlayerId, isManager, isStaff } = useTeamContext();
 
   const currentPlayer = currentPlayerId
     ? players.find(p => p.id === currentPlayerId && !p.is_guest) ?? null
@@ -162,6 +164,8 @@ export default function DashboardView({
             player={currentPlayer}
             potwWins={potwWins}
             isManager={isManager}
+            isStaff={isStaff}
+            creditBalance={creditBalance}
             totalPlayers={regularPlayers.length}
             availablePlayers={availableCount}
             absentPlayers={absentCount}
@@ -188,6 +192,7 @@ export default function DashboardView({
           isLoading={isLoadingVotes}
           players={players}
           currentPlayerId={votingCurrentPlayerId}
+          isStaff={isStaff}
           onSelectCurrentPlayer={onSelectVotingPlayer}
           onVote={onVote}
         />
