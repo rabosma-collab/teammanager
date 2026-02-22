@@ -89,10 +89,17 @@ export function useVoting() {
       }
 
       // Groepeer stemmen per wedstrijd
-      const votesByMatch = new Map<number, typeof votesResult.data>();
+      type VoteRow = {
+        match_id: number;
+        voter_player_id: number | null;
+        voter_user_id: string | null;
+        voted_for_player_id: number;
+      };
+
+      const votesByMatch = new Map<number, VoteRow[]>();
       for (const vote of (votesResult.data || [])) {
         if (!votesByMatch.has(vote.match_id)) votesByMatch.set(vote.match_id, []);
-        votesByMatch.get(vote.match_id)!.push(vote);
+        votesByMatch.get(vote.match_id)!.push(vote as VoteRow);
       }
 
       const results: VotingMatch[] = [];
@@ -105,7 +112,7 @@ export function useVoting() {
           .filter(id => playerMap.has(id))
           .map(id => ({ id, name: playerMap.get(id)! }));
 
-        const votes = votesByMatch.get(match.id) || [];
+        const votes: VoteRow[] = votesByMatch.get(match.id) || [];
 
         const voteCounts: Record<number, number> = {};
         for (const vote of votes) {
