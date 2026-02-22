@@ -40,6 +40,7 @@ import PlayerMenuModal from './components/modals/PlayerMenuModal';
 import GuestPlayerModal from './components/modals/GuestPlayerModal';
 import SubstitutionModal from './components/modals/SubstitutionModal';
 import PlayerCardModal from './components/modals/PlayerCardModal';
+import PositionInfoModal from './components/modals/PositionInfoModal';
 
 export default function FootballApp() {
   const router = useRouter();
@@ -68,6 +69,7 @@ export default function FootballApp() {
   const [showTooltip, setShowTooltip] = useState<number | null>(null);
   const [instructionFormation, setInstructionFormation] = useState('4-3-3-aanvallend');
   const [showPlayerCard, setShowPlayerCard] = useState<Player | null>(null);
+  const [showPositionInfo, setShowPositionInfo] = useState<{ player: Player; positionIndex: number } | null>(null);
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [finalizeCalcMinutes, setFinalizeCalcMinutes] = useState(true);
   const [finalizeGoalsFor, setFinalizeGoalsFor] = useState<string>('');
@@ -673,6 +675,32 @@ export default function FootballApp() {
         />
       )}
 
+      {showPositionInfo && (
+        <PositionInfoModal
+          player={showPositionInfo.player}
+          instruction={getInstructionForPosition(showPositionInfo.positionIndex)}
+          isManagerEdit={isManager && !!selectedMatch && !isFinalized}
+          onEditInstruction={() => {
+            const positionIndex = showPositionInfo.positionIndex;
+            const matchInstr = matchInstructions.find((m: PositionInstruction) => m.position_index === positionIndex);
+            const globalInstr = positionInstructions.find((p: PositionInstruction) => p.position_index === positionIndex);
+            setEditingInstruction(matchInstr || globalInstr || {
+              id: 0,
+              formation,
+              position_index: positionIndex,
+              position_name: `Positie ${positionIndex + 1}`,
+              title: `Positie ${positionIndex + 1}`,
+              general_tips: [],
+              with_ball: [],
+              without_ball: []
+            });
+            setIsEditingMatchInstruction(true);
+            setShowPositionInfo(null);
+          }}
+          onClose={() => setShowPositionInfo(null)}
+        />
+      )}
+
       {showSubModal && isManager && (
         <SubstitutionModal
           subNumber={showSubModal}
@@ -1046,13 +1074,11 @@ export default function FootballApp() {
               <PitchView
                 formation={formation}
                 fieldOccupants={fieldOccupants}
-                selectedPlayer={selectedPlayer}
                 selectedPosition={selectedPosition}
                 isEditable={activelyEditing}
                 isManagerEdit={isManager && !!selectedMatch && !isFinalized}
                 matchAbsences={matchAbsences}
                 isPlayerAvailable={isPlayerAvailable}
-                isPlayerOnField={isPlayerOnField}
                 getInstructionForPosition={getInstructionForPosition}
                 onPositionClick={handlePositionClick}
                 onShowTooltip={(positionIndex: number) => {
@@ -1074,7 +1100,9 @@ export default function FootballApp() {
                     setShowTooltip(positionIndex);
                   }
                 }}
-                onShowPlayerCard={setShowPlayerCard}
+                onShowPositionInfo={(player: Player, positionIndex: number) => {
+                  setShowPositionInfo({ player, positionIndex });
+                }}
               />
 
               <BenchPanel
