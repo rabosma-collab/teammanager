@@ -392,7 +392,6 @@ export default function PlayersManageView({
                         <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
                           <span>⚽{player.goals}</span>
                           <span>🎯{player.assists}</span>
-                          <span>✅{player.was}x</span>
                           <span>⏱️{player.min}min</span>
                         </div>
                       </div>

@@ -430,11 +430,6 @@ export default function FootballApp() {
           }
         }
 
-        // Was altijd bijwerken (speler heeft gespeeld, ongeacht minuten-keuze)
-        if (data.wasInStartingEleven) {
-          updates.was = player.was + 1;
-        }
-
         if (Object.keys(updates).length > 0) {
           const { error } = await supabase
             .from(table)
@@ -730,7 +725,6 @@ export default function FootballApp() {
             <div className="mb-4 p-3 bg-orange-900/30 border border-orange-700 rounded text-sm">
               <p className="font-bold mb-2">Dit doet het volgende:</p>
               <ul className="space-y-1 text-gray-300">
-                <li>• Telt &apos;gestart&apos; op voor spelers in basis</li>
                 <li>• Maakt wedstrijd read-only</li>
               </ul>
             </div>

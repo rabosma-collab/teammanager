@@ -1,24 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
 
-const FALLBACK_URL = 'https://hyjewtsmytpfojdvdsta.supabase.co';
-const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5amV3dHNteXRwZm9qZHZkc3RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzU5ODMsImV4cCI6MjA4NTk1MTk4M30.4CXjyPsTn6n--v_HwnvuCzXk7eP6X6yPlT8R4ll6V5s';
-
-/**
- * Resolve the Supabase URL with strict validation.
- * Ensures we always return a valid https:// URL regardless of
- * what webpack DefinePlugin injects for NEXT_PUBLIC_* env vars.
- */
 function resolveUrl(): string {
   const v = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (typeof v === 'string' && /^https?:\/\//i.test(v)) return v;
-  return FALLBACK_URL;
+  throw new Error('Missing env var: NEXT_PUBLIC_SUPABASE_URL must be set in .env.local');
 }
 
 function resolveKey(): string {
   const v = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (typeof v === 'string' && v.length > 0) return v;
-  return FALLBACK_KEY;
+  throw new Error('Missing env var: NEXT_PUBLIC_SUPABASE_ANON_KEY must be set in .env.local');
 }
 
 export const supabaseUrl: string = resolveUrl();

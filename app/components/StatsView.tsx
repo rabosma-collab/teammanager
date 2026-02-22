@@ -8,7 +8,7 @@ interface StatsViewProps {
   onUpdateStat: (id: number, field: string, value: string) => void;
 }
 
-type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'was' | 'min';
+type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'min';
 type SortDir = 'asc' | 'desc';
 type PositionFilter = 'all' | 'Keeper' | 'Verdediger' | 'Middenvelder' | 'Aanvaller';
 
@@ -74,7 +74,6 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
     { key: 'injured', label: 'Status' },
     { key: 'goals', label: 'Goals' },
     { key: 'assists', label: 'Assists' },
-    { key: 'was', label: 'Was' },
     { key: 'min', label: 'Wissel' },
   ];
 
@@ -132,7 +131,6 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
                 </td>
                 <StatCell isAdmin={isAdmin} value={player.goals} field="goals" id={player.id} onUpdate={onUpdateStat} />
                 <StatCell isAdmin={isAdmin} value={player.assists} field="assists" id={player.id} onUpdate={onUpdateStat} />
-                <StatCell isAdmin={isAdmin} value={player.was} field="was" id={player.id} onUpdate={onUpdateStat} />
                 <StatCell isAdmin={isAdmin} value={player.min} field="min" id={player.id} onUpdate={onUpdateStat} />
               </tr>
             ))}

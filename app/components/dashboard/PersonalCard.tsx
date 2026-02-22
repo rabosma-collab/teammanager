@@ -111,7 +111,7 @@ export default function PersonalCard({
       <div className="flex justify-center mb-4">
         <PlayerCard player={player} size="md" />
       </div>
-      <div className="grid grid-cols-5 gap-1.5 text-center">
+      <div className="grid grid-cols-4 gap-1.5 text-center">
         <div className="bg-gray-700/50 rounded-lg p-2">
           <div className="text-xl font-black text-white">{player.goals}</div>
           <div className="text-xs text-gray-400 mt-0.5">⚽ Goals</div>
@@ -119,10 +119,6 @@ export default function PersonalCard({
         <div className="bg-gray-700/50 rounded-lg p-2">
           <div className="text-xl font-black text-white">{player.assists}</div>
           <div className="text-xs text-gray-400 mt-0.5">🎯 Assists</div>
-        </div>
-        <div className="bg-gray-700/50 rounded-lg p-2">
-          <div className="text-xl font-black text-white">{player.was}</div>
-          <div className="text-xs text-gray-400 mt-0.5">🏅 Gestart</div>
         </div>
         <div className="bg-gray-700/50 rounded-lg p-2">
           <div className="text-xl font-black text-white">{player.min}</div>

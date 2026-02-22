@@ -8,8 +8,8 @@ export interface PlayerFormData {
   injured: boolean;
   goals: number;
   assists: number;
-  was: number;
   min: number;
+  wash_count: number;
   pac: number;
   sho: number;
   pas: number;
@@ -29,8 +29,8 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
   const [injured, setInjured] = useState(player?.injured || false);
   const [goals, setGoals] = useState(player?.goals || 0);
   const [assists, setAssists] = useState(player?.assists || 0);
-  const [was, setWas] = useState(player?.was || 0);
   const [min, setMin] = useState(player?.min || 0);
+  const [washCount, setWashCount] = useState(player?.wash_count || 0);
   const [pac, setPac] = useState(player?.pac ?? 50);
   const [sho, setSho] = useState(player?.sho ?? 50);
   const [pas, setPas] = useState(player?.pas ?? 50);
@@ -40,7 +40,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave({ name: name.trim(), position, injured, goals, assists, was, min, pac, sho, pas, dri, def });
+    onSave({ name: name.trim(), position, injured, goals, assists, min, wash_count: washCount, pac, sho, pas, dri, def });
   };
 
   return (
@@ -105,8 +105,8 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm" min="0" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Was (keren)</label>
-                <input type="number" value={was} onChange={(e) => setWas(parseInt(e.target.value) || 0)}
+                <label className="block text-xs font-bold text-gray-500 mb-1">🧺 Wasbeurt</label>
+                <input type="number" value={washCount} onChange={(e) => setWashCount(parseInt(e.target.value) || 0)}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm" min="0" />
               </div>
               <div>

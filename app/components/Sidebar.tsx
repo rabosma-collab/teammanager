@@ -181,7 +181,6 @@ export default function Sidebar({
                     <div className="text-xs flex gap-3 mt-1 opacity-70">
                       <span>⚽{player.goals}</span>
                       <span>🎯{player.assists}</span>
-                      <span>✅{player.was}x</span>
                     </div>
                   </div>
                 );
