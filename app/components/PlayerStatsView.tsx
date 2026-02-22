@@ -68,7 +68,6 @@ export default function PlayerStatsView({ players, isAdmin, onUpdateStat }: Play
               {[
                 { label: '⚽ Goals', field: 'goals', value: editingPlayer.goals },
                 { label: '🎯 Assists', field: 'assists', value: editingPlayer.assists },
-                { label: '✅ Was', field: 'was', value: editingPlayer.was },
                 { label: '⏱️ Minuten', field: 'min', value: editingPlayer.min },
               ].map(({ label, field, value }) => (
                 <div key={field}>

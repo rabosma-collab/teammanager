@@ -4,7 +4,7 @@ export interface Player {
     position: string;
     goals: number;
     assists: number;
-    was: number;
+    wash_count: number;
     min: number;
     injured: boolean;
     pac: number;

@@ -89,6 +89,31 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
   };
 
   const handleSave = async () => {
+    // Client-side validatie vóór DB-calls
+    const trimmedName = name.trim();
+    if (currentPlayerId) {
+      if (trimmedName.length < 2) {
+        setMessage({ text: 'Naam moet minimaal 2 tekens zijn.', error: true });
+        return;
+      }
+      if (trimmedName.length > 50) {
+        setMessage({ text: 'Naam mag maximaal 50 tekens zijn.', error: true });
+        return;
+      }
+    }
+    const trimmedEmail = email.trim();
+    if (trimmedEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        setMessage({ text: 'Vul een geldig emailadres in.', error: true });
+        return;
+      }
+    }
+    if (newPassword && newPassword.length < 6) {
+      setMessage({ text: 'Wachtwoord moet minimaal 6 tekens zijn.', error: true });
+      return;
+    }
+
     setSaving(true);
     setMessage(null);
 

@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { TeamProvider } from './contexts/TeamContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -33,7 +34,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <TeamProvider>{children}</TeamProvider>
+        <ToastProvider>
+          <TeamProvider>{children}</TeamProvider>
+        </ToastProvider>
       </body>
     </html>
   );

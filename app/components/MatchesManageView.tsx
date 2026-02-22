@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { formationLabels } from '../lib/constants';
 import type { Match, SubstitutionScheme } from '../lib/types';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
+import { useToast } from '../contexts/ToastContext';
 
 interface MatchesManageViewProps {
   matches: Match[];
@@ -22,6 +23,7 @@ export default function MatchesManageView({
   onDeleteMatch,
   onRefresh
 }: MatchesManageViewProps) {
+  const toast = useToast();
   const [editingMatch, setEditingMatch] = useState<Match | null | 'new'>(null);
   const [editingScoreId, setEditingScoreId] = useState<number | null>(null);
   const [scoreGoalsFor, setScoreGoalsFor] = useState('');
@@ -36,17 +38,17 @@ export default function MatchesManageView({
     if (editingMatch === 'new') {
       success = await onAddMatch(data);
       if (success) {
-        alert('✅ Wedstrijd toegevoegd!');
+        toast.success('✅ Wedstrijd toegevoegd!');
         onRefresh();
       } else {
-        alert('❌ Kon wedstrijd niet toevoegen');
+        toast.error('❌ Kon wedstrijd niet toevoegen');
       }
     } else if (editingMatch) {
       success = await onUpdateMatch(editingMatch.id, data);
       if (success) {
-        alert('✅ Wedstrijd bijgewerkt!');
+        toast.success('✅ Wedstrijd bijgewerkt!');
       } else {
-        alert('❌ Kon wedstrijd niet bijwerken');
+        toast.error('❌ Kon wedstrijd niet bijwerken');
       }
     }
     setEditingMatch(null);
@@ -59,13 +61,15 @@ export default function MatchesManageView({
   };
 
   const handleSaveScore = async (matchId: number) => {
-    const goalsFor = scoreGoalsFor !== '' ? parseInt(scoreGoalsFor) : null;
-    const goalsAgainst = scoreGoalsAgainst !== '' ? parseInt(scoreGoalsAgainst) : null;
+    const rawFor = parseInt(scoreGoalsFor, 10);
+    const rawAgainst = parseInt(scoreGoalsAgainst, 10);
+    const goalsFor = scoreGoalsFor !== '' ? Math.max(0, isNaN(rawFor) ? 0 : rawFor) : null;
+    const goalsAgainst = scoreGoalsAgainst !== '' ? Math.max(0, isNaN(rawAgainst) ? 0 : rawAgainst) : null;
     const success = await onUpdateScore(matchId, goalsFor, goalsAgainst);
     if (success) {
       setEditingScoreId(null);
     } else {
-      alert('❌ Kon uitslag niet opslaan');
+      toast.error('❌ Kon uitslag niet opslaan');
     }
   };
 
@@ -76,9 +80,9 @@ export default function MatchesManageView({
     }
     const success = await onDeleteMatch(match.id);
     if (success) {
-      alert('✅ Wedstrijd verwijderd!');
+      toast.success('✅ Wedstrijd verwijderd!');
     } else {
-      alert('❌ Kon wedstrijd niet verwijderen');
+      toast.error('❌ Kon wedstrijd niet verwijderen');
     }
   };
 

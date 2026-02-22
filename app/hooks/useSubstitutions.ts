@@ -2,9 +2,11 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Substitution, TempSubstitution } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useToast } from '../contexts/ToastContext';
 
 export function useSubstitutions() {
   const { currentTeam } = useTeamContext();
+  const toast = useToast();
   const [substitutions, setSubstitutions] = useState<Substitution[]>([]);
   const [tempSubs, setTempSubs] = useState<TempSubstitution[]>([]);
   const [showSubModal, setShowSubModal] = useState<number | null>(null);
@@ -76,18 +78,18 @@ export function useSubstitutions() {
 
     const allComplete = tempSubs.every(s => s.out && s.in);
     if (!allComplete) {
-      alert('⚠️ Vul alle wissels compleet in');
+      toast.warning('⚠️ Vul alle wissels compleet in');
       return false;
     }
 
     const outIds = tempSubs.map(s => s.out!.id);
     const inIds = tempSubs.map(s => s.in!.id);
     if (new Set(outIds).size !== outIds.length) {
-      alert('⚠️ Een speler kan maar 1x gewisseld worden');
+      toast.warning('⚠️ Een speler kan maar 1x gewisseld worden');
       return false;
     }
     if (new Set(inIds).size !== inIds.length) {
-      alert('⚠️ Een speler kan maar 1x ingebracht worden');
+      toast.warning('⚠️ Een speler kan maar 1x ingebracht worden');
       return false;
     }
 

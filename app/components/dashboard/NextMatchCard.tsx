@@ -81,6 +81,18 @@ export default function NextMatchCard({
   const isInjured = currentPlayer?.injured ?? false;
   const isAbsent = currentPlayerId ? matchAbsences.includes(currentPlayerId) : false;
 
+  // Wie moet wassen: laagste wash_count onder aanwezige niet-gastspelers, alfabetisch bij gelijkstand
+  const nextWasbeurt = (() => {
+    const eligible = players.filter(p =>
+      !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+    );
+    if (eligible.length === 0) return null;
+    eligible.sort((a, b) =>
+      (a.wash_count - b.wash_count) || a.name.localeCompare(b.name)
+    );
+    return eligible[0];
+  })();
+
   // Toon knoppen alleen voor spelers (niet-manager of manager met spelerrecord) bij niet-afgeronde wedstrijden
   const showPlayerButtons = !!(currentPlayerId && !isFinalized && currentPlayer);
 
@@ -128,6 +140,13 @@ export default function NextMatchCard({
           </div>
         )}
         <div className="text-xs text-gray-500 mt-1">{formationLabel}</div>
+        {!isFinalized && nextWasbeurt && (
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-blue-300">
+            <span>🧺</span>
+            <span>Wasbeurt: <span className="font-bold text-white">{nextWasbeurt.name}</span></span>
+            <span className="text-gray-500">({nextWasbeurt.wash_count}x gewassen)</span>
+          </div>
+        )}
       </div>
 
       {/* Eigen positie / status */}

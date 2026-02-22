@@ -1,17 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useToast } from '../contexts/ToastContext';
 import PlayerEditModal, { type PlayerFormData } from './modals/PlayerEditModal';
 import InvitePlayerModal from './modals/InvitePlayerModal';
 import InviteStaffModal from './modals/InviteStaffModal';
-
-interface Toast {
-  id: number;
-  message: string;
-  type: 'success' | 'error';
-}
 
 interface PlayerAccount {
   userId: string;
@@ -46,6 +41,7 @@ export default function PlayersManageView({
   onRefresh
 }: PlayersManageViewProps) {
   const { currentTeam } = useTeamContext();
+  const toast = useToast();
   const [editingPlayer, setEditingPlayer] = useState<Player | null | 'new'>(null);
   const [invitingPlayer, setInvitingPlayer] = useState<Player | null>(null);
   const [showStaffInviteModal, setShowStaffInviteModal] = useState(false);
@@ -56,16 +52,8 @@ export default function PlayersManageView({
   const [togglingPlayerId, setTogglingPlayerId] = useState<number | null>(null);
   const [togglingStaffId, setTogglingStaffId] = useState<string | null>(null);
   const [removingStaffId, setRemovingStaffId] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const toastIdRef = useRef(0);
 
   const regularPlayers = players.filter(p => !p.is_guest);
-
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    const id = ++toastIdRef.current;
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
-  }, []);
 
   const fetchLinkStatus = useCallback(async () => {
     if (!currentTeam) return;
@@ -136,17 +124,17 @@ export default function PlayersManageView({
     if (editingPlayer === 'new') {
       success = await onAddPlayer(data);
       if (success) {
-        alert('✅ Speler toegevoegd!');
+        toast.success('✅ Speler toegevoegd!');
         onRefresh();
       } else {
-        alert('❌ Kon speler niet toevoegen');
+        toast.error('❌ Kon speler niet toevoegen');
       }
     } else if (editingPlayer) {
       success = await onUpdatePlayer(editingPlayer.id, data);
       if (success) {
-        alert('✅ Speler bijgewerkt!');
+        toast.success('✅ Speler bijgewerkt!');
       } else {
-        alert('❌ Kon speler niet bijwerken');
+        toast.error('❌ Kon speler niet bijwerken');
       }
     }
     setEditingPlayer(null);
@@ -155,8 +143,8 @@ export default function PlayersManageView({
   const handleDelete = async (player: Player) => {
     if (!confirm(`Weet je het zeker dat je ${player.name} wilt verwijderen? Dit verwijdert ook alle gerelateerde opstellingen, wissels en afwezigheden.`)) return;
     const success = await onDeletePlayer(player.id);
-    if (success) alert('✅ Speler verwijderd!');
-    else alert('❌ Kon speler niet verwijderen');
+    if (success) toast.success('✅ Speler verwijderd!');
+    else toast.error('❌ Kon speler niet verwijderen');
   };
 
   const handleInviteCreated = useCallback((_token: string) => {
@@ -177,7 +165,7 @@ export default function PlayersManageView({
       setCopiedPlayerId(playerId);
       setTimeout(() => setCopiedPlayerId(null), 2000);
     } catch {
-      alert('Kopiëren mislukt. Probeer het opnieuw.');
+      toast.warning('Kopiëren mislukt. Probeer het opnieuw.');
     }
   };
 
@@ -191,7 +179,7 @@ export default function PlayersManageView({
       const managerCount = Array.from(playerAccounts.values()).filter((a: PlayerAccount) => a.role === 'manager').length
         + staffMembers.filter(s => s.role === 'manager').length;
       if (managerCount <= 1) {
-        showToast('Er moet minimaal 1 manager in het team blijven', 'error');
+        toast.error('Er moet minimaal 1 manager in het team blijven');
         return;
       }
     }
@@ -219,17 +207,14 @@ export default function PlayersManageView({
 
       if (error) throw error;
 
-      showToast(
-        newRole === 'manager' ? `${playerName} is nu manager` : `${playerName} is nu speler`,
-        'success'
-      );
+      toast.success(newRole === 'manager' ? `${playerName} is nu manager` : `${playerName} is nu speler`);
     } catch {
       setPlayerAccounts(prev => {
         const next = new Map(prev);
         next.set(playerId, { ...account, role: previousRole });
         return next;
       });
-      showToast('Kon rol niet wijzigen. Probeer het opnieuw.', 'error');
+      toast.error('Kon rol niet wijzigen. Probeer het opnieuw.');
     } finally {
       setTogglingPlayerId(null);
     }
@@ -244,7 +229,7 @@ export default function PlayersManageView({
       const managerCount = Array.from(playerAccounts.values()).filter(a => a.role === 'manager').length
         + staffMembers.filter(s => s.role === 'manager').length;
       if (managerCount <= 1) {
-        showToast('Er moet minimaal 1 manager in het team blijven', 'error');
+        toast.error('Er moet minimaal 1 manager in het team blijven');
         return;
       }
       if (!confirm(`${staff.displayName ?? 'Staflid'} kan dan alleen nog lezen, niet bewerken. Doorgaan?`)) return;
@@ -263,15 +248,12 @@ export default function PlayersManageView({
 
       if (error) throw error;
 
-      showToast(
-        newRole === 'manager'
-          ? `${staff.displayName ?? 'Staflid'} is nu manager`
-          : `${staff.displayName ?? 'Staflid'} is nu staflid`,
-        'success'
-      );
+      toast.success(newRole === 'manager'
+        ? `${staff.displayName ?? 'Staflid'} is nu manager`
+        : `${staff.displayName ?? 'Staflid'} is nu staflid`);
     } catch {
       setStaffMembers(prev => prev.map(s => s.memberId === staff.memberId ? { ...s, role: staff.role } : s));
-      showToast('Kon rol niet wijzigen. Probeer het opnieuw.', 'error');
+      toast.error('Kon rol niet wijzigen. Probeer het opnieuw.');
     } finally {
       setTogglingStaffId(null);
     }
@@ -291,9 +273,9 @@ export default function PlayersManageView({
       if (error) throw error;
 
       setStaffMembers(prev => prev.filter(s => s.memberId !== staff.memberId));
-      showToast(`${staff.displayName ?? 'Staflid'} verwijderd`, 'success');
+      toast.success(`${staff.displayName ?? 'Staflid'} verwijderd`);
     } catch {
-      showToast('Kon staflid niet verwijderen', 'error');
+      toast.error('Kon staflid niet verwijderen');
     } finally {
       setRemovingStaffId(null);
     }
@@ -392,7 +374,6 @@ export default function PlayersManageView({
                         <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
                           <span>⚽{player.goals}</span>
                           <span>🎯{player.assists}</span>
-                          <span>✅{player.was}x</span>
                           <span>⏱️{player.min}min</span>
                         </div>
                       </div>
@@ -514,22 +495,6 @@ export default function PlayersManageView({
         )}
       </div>
 
-      {/* Toast notifications */}
-      {toasts.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-          {toasts.map(toast => (
-            <div
-              key={toast.id}
-              className={`px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-fade-in flex items-center gap-2 ${
-                toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-              }`}
-            >
-              <span>{toast.type === 'success' ? '✅' : '❌'}</span>
-              <span>{toast.message}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

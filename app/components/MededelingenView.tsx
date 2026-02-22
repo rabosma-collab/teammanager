@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useToast } from '../contexts/ToastContext';
 
 const MAX_CHARS = 300;
 const EXPIRY_DAYS = 7;
@@ -16,6 +17,7 @@ interface Announcement {
 
 export default function MededelingenView() {
   const { currentTeam } = useTeamContext();
+  const toast = useToast();
   const [current, setCurrent] = useState<Announcement | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,7 +63,7 @@ export default function MededelingenView() {
       await fetchCurrent();
     } catch (err) {
       console.error('Fout bij plaatsen mededeling:', err);
-      alert('Er ging iets mis, probeer opnieuw.');
+      toast.error('Er ging iets mis, probeer opnieuw.');
     } finally {
       setLoading(false);
     }

@@ -3,9 +3,11 @@ import { supabase } from '../lib/supabase';
 import { positionOrder } from '../lib/constants';
 import type { Player } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useToast } from '../contexts/ToastContext';
 
 export function usePlayers() {
   const { currentTeam } = useTeamContext();
+  const toast = useToast();
   const [players, setPlayers] = useState<Player[]>([]);
   const fetchIdRef = useRef(0);
 
@@ -150,7 +152,7 @@ export function usePlayers() {
     const nameLower = trimmedName.toLowerCase();
     // Only block duplicate guest player names (not regular players — guests may share a name with a squad member)
     if (players.some(p => p.is_guest && p.name.toLowerCase().trim() === nameLower)) {
-      alert(`⚠️ Er is al een gastspeler met de naam "${trimmedName}"`);
+      toast.warning(`⚠️ Er is al een gastspeler met de naam "${trimmedName}"`);
       return false;
     }
 
@@ -164,7 +166,7 @@ export function usePlayers() {
           team_id: currentTeam.id,
           goals: 0,
           assists: 0,
-          was: 0,
+          wash_count: 0,
           min: 0,
           injured: false
         })
@@ -227,7 +229,7 @@ export function usePlayers() {
   }, [players, currentTeam]);
 
   const addPlayer = useCallback(async (
-    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number }
+    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number; wash_count: number }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -249,7 +251,7 @@ export function usePlayers() {
 
   const updatePlayer = useCallback(async (
     id: number,
-    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; was: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number }
+    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number; wash_count: number }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -299,7 +301,6 @@ export function usePlayers() {
 
   return {
     players,
-    setPlayers,
     fetchPlayers,
     getGroupedPlayers,
     toggleInjury,
