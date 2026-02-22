@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match, VotingMatch, VoteResults } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -11,12 +11,15 @@ export function useVoting() {
   const toast = useToast();
   const [votingMatches, setVotingMatches] = useState<VotingMatch[]>([]);
   const [isLoadingVotes, setIsLoadingVotes] = useState(false);
+  const fetchIdRef = useRef(0);
 
   const fetchVotingMatches = useCallback(async (
     allMatches: Match[],
     currentPlayerId: number | null
   ) => {
     if (!currentTeam) return;
+
+    const fetchId = ++fetchIdRef.current;
 
     const { data: { user } } = await supabase.auth.getUser();
     const currentUserId = user?.id ?? null;
@@ -37,7 +40,7 @@ export function useVoting() {
       });
 
       if (eligibleMatches.length === 0) {
-        setVotingMatches([]);
+        if (fetchId === fetchIdRef.current) setVotingMatches([]);
         return;
       }
 
@@ -66,7 +69,7 @@ export function useVoting() {
       for (const row of (subResult.data || [])) allPlayerIds.add(row.player_in_id);
 
       if (allPlayerIds.size === 0) {
-        setVotingMatches([]);
+        if (fetchId === fetchIdRef.current) setVotingMatches([]);
         return;
       }
 
@@ -150,11 +153,11 @@ export function useVoting() {
       }
 
       results.sort((a, b) => new Date(b.match.date).getTime() - new Date(a.match.date).getTime());
-      setVotingMatches(results);
+      if (fetchId === fetchIdRef.current) setVotingMatches(results);
     } catch (error) {
       console.error('Error fetching voting matches:', error);
     } finally {
-      setIsLoadingVotes(false);
+      if (fetchId === fetchIdRef.current) setIsLoadingVotes(false);
     }
   }, [currentTeam]);
 
