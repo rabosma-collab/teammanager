@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
 import { useTeamContext } from '../../contexts/TeamContext';
+import { useToast } from '../../contexts/ToastContext';
 
 interface InviteStaffModalProps {
   onClose: () => void;
@@ -12,6 +13,7 @@ interface InviteStaffModalProps {
 
 export default function InviteStaffModal({ onClose, onInviteCreated }: InviteStaffModalProps) {
   const { currentTeam } = useTeamContext();
+  const toast = useToast();
   const [displayName, setDisplayName] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -74,7 +76,7 @@ export default function InviteStaffModal({ onClose, onInviteCreated }: InviteSta
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      alert('Kopiëren mislukt. Selecteer de link handmatig.');
+      toast.warning('Kopiëren mislukt. Selecteer de link handmatig.');
     }
   };
 

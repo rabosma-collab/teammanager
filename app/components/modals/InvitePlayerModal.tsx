@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { positionEmojis } from '../../lib/constants';
+import { useToast } from '../../contexts/ToastContext';
 
 interface InvitePlayerModalProps {
   player: Player;
@@ -15,6 +16,7 @@ interface InvitePlayerModalProps {
 
 export default function InvitePlayerModal({ player, onClose, onInviteCreated }: InvitePlayerModalProps) {
   const { currentTeam } = useTeamContext();
+  const toast = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function InvitePlayerModal({ player, onClose, onInviteCreated }: 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      alert('Kopiëren mislukt. Selecteer de link handmatig.');
+      toast.warning('Kopiëren mislukt. Selecteer de link handmatig.');
     }
   };
 

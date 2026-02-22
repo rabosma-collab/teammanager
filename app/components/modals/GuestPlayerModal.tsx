@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { positionOrder, positionEmojis } from '../../lib/constants';
+import { useToast } from '../../contexts/ToastContext';
 
 interface GuestPlayerModalProps {
   onAdd: (name: string, position: string) => void;
@@ -7,12 +8,13 @@ interface GuestPlayerModalProps {
 }
 
 export default function GuestPlayerModal({ onAdd, onClose }: GuestPlayerModalProps) {
+  const toast = useToast();
   const [name, setName] = useState('');
   const [position, setPosition] = useState('Verdediger');
 
   const handleAdd = () => {
     if (!name.trim()) {
-      alert('⚠️ Vul een naam in voor de gastspeler');
+      toast.warning('⚠️ Vul een naam in voor de gastspeler');
       return;
     }
     onAdd(name, position);

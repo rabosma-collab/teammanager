@@ -6,6 +6,7 @@ import { formations, formationLabels, normalizeFormation } from './lib/constants
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
+import { useToast } from './contexts/ToastContext';
 import type { Player, PositionInstruction } from './lib/types';
 
 // Hooks
@@ -44,6 +45,7 @@ import PositionInfoModal from './components/modals/PositionInfoModal';
 
 export default function FootballApp() {
   const router = useRouter();
+  const toast = useToast();
   const [authChecking, setAuthChecking] = useState(true);
   const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId } = useTeamContext();
 
@@ -326,11 +328,11 @@ export default function FootballApp() {
       setMatches(prev => prev.map(m => m.id === updatedMatch.id ? updatedMatch : m));
     });
     if (success) {
-      alert('✅ Opstelling en formatie opgeslagen!');
+      toast.success('✅ Opstelling en formatie opgeslagen!');
       // Do NOT reload lineup from DB here — guest players are not stored in the lineups table
       // and would be removed from fieldOccupants if we reload. The current state is correct.
     } else {
-      alert('❌ Kon opstelling niet opslaan');
+      toast.error('❌ Kon opstelling niet opslaan');
     }
   };
 
@@ -340,9 +342,9 @@ export default function FootballApp() {
     if (success) {
       setShowGuestModal(false);
       await fetchPlayers(selectedMatch.id);
-      alert(`✅ Gastspeler ${name} toegevoegd!`);
+      toast.success(`✅ Gastspeler ${name} toegevoegd!`);
     } else {
-      alert('❌ Kon gastspeler niet toevoegen');
+      toast.error('❌ Kon gastspeler niet toevoegen');
     }
   };
 
@@ -350,7 +352,7 @@ export default function FootballApp() {
     if (!selectedMatch) return;
     const success = await saveSubstitutions(selectedMatch.id, customMinute);
     if (success) {
-      alert('✅ Wissels opgeslagen!');
+      toast.success('✅ Wissels opgeslagen!');
     }
   };
 
@@ -394,14 +396,14 @@ export default function FootballApp() {
         currentPlayerId
       );
 
-      alert(calculateMinutes
+      toast.success(calculateMinutes
         ? '✅ Wedstrijd afgesloten! Wisselminuten zijn bijgewerkt.'
         : '✅ Wedstrijd afgesloten! Speelminuten zijn niet berekend.'
       );
 
     } catch (error) {
       console.error('Error finalizing match:', error);
-      alert('❌ Fout bij afsluiten: ' + (error as Error).message);
+      toast.error('❌ Fout bij afsluiten: ' + (error as Error).message);
     }
   };
 
@@ -436,10 +438,10 @@ export default function FootballApp() {
       setExtraSubMinute(45);
       setExtraSubOut(null);
       setExtraSubIn(null);
-      alert('✅ Extra wissel toegevoegd!');
+      toast.success('✅ Extra wissel toegevoegd!');
     } catch (error) {
       console.error('Error adding extra sub:', error);
-      alert('❌ Kon wissel niet toevoegen');
+      toast.error('❌ Kon wissel niet toevoegen');
     }
   }, [selectedMatch, fetchSubstitutions]);
 
@@ -456,10 +458,10 @@ export default function FootballApp() {
       if (selectedMatch) {
         await fetchSubstitutions(selectedMatch.id);
       }
-      alert('✅ Extra wissel verwijderd');
+      toast.success('✅ Extra wissel verwijderd');
     } catch (error) {
       console.error('Error deleting extra sub:', error);
-      alert('❌ Kon wissel niet verwijderen');
+      toast.error('❌ Kon wissel niet verwijderen');
     }
   }, [selectedMatch, fetchSubstitutions]);
 
@@ -531,10 +533,12 @@ export default function FootballApp() {
           onSave={async () => {
             if (isEditingMatchInstruction && selectedMatch) {
               const success = await saveMatchInstruction(editingInstruction, selectedMatch.id, formation);
-              alert(success ? '✅ Wedstrijdinstructie opgeslagen!' : '❌ Kon instructie niet opslaan');
+              if (success) toast.success('✅ Wedstrijdinstructie opgeslagen!');
+              else toast.error('❌ Kon instructie niet opslaan');
             } else {
               const success = await saveInstruction(editingInstruction, instructionFormation);
-              alert(success ? '✅ Instructie opgeslagen!' : '❌ Kon instructie niet opslaan');
+              if (success) toast.success('✅ Instructie opgeslagen!');
+              else toast.error('❌ Kon instructie niet opslaan');
             }
             setIsEditingMatchInstruction(false);
           }}
@@ -553,7 +557,7 @@ export default function FootballApp() {
               const success = await toggleInjury(showPlayerMenu);
               if (success) {
                 const p = players.find(p => p.id === showPlayerMenu);
-                alert(p?.injured ? '✅ Speler hersteld' : '🏥 Speler geblesseerd');
+                toast.info(p?.injured ? '✅ Speler hersteld' : '🏥 Speler geblesseerd');
               }
               setShowPlayerMenu(null);
             }}
@@ -568,9 +572,9 @@ export default function FootballApp() {
               if (success) {
                 setShowPlayerMenu(null);
                 if (selectedMatch) await fetchPlayers(selectedMatch.id);
-                alert('✅ Gastspeler verwijderd');
+                toast.success('✅ Gastspeler verwijderd');
               } else {
-                alert('❌ Kon gastspeler niet verwijderen');
+                toast.error('❌ Kon gastspeler niet verwijderen');
               }
             }}
             onClose={() => setShowPlayerMenu(null)}
@@ -783,7 +787,7 @@ export default function FootballApp() {
                   if (extraSubMinute && extraSubOut && extraSubIn) {
                     addExtraSubstitution(extraSubMinute, extraSubOut.id, extraSubIn.id);
                   } else {
-                    alert('⚠️ Vul alle velden in');
+                    toast.warning('⚠️ Vul alle velden in');
                   }
                 }}
                 className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold touch-manipulation active:scale-95"

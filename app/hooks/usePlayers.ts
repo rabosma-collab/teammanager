@@ -3,9 +3,11 @@ import { supabase } from '../lib/supabase';
 import { positionOrder } from '../lib/constants';
 import type { Player } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useToast } from '../contexts/ToastContext';
 
 export function usePlayers() {
   const { currentTeam } = useTeamContext();
+  const toast = useToast();
   const [players, setPlayers] = useState<Player[]>([]);
   const fetchIdRef = useRef(0);
 
@@ -150,7 +152,7 @@ export function usePlayers() {
     const nameLower = trimmedName.toLowerCase();
     // Only block duplicate guest player names (not regular players — guests may share a name with a squad member)
     if (players.some(p => p.is_guest && p.name.toLowerCase().trim() === nameLower)) {
-      alert(`⚠️ Er is al een gastspeler met de naam "${trimmedName}"`);
+      toast.warning(`⚠️ Er is al een gastspeler met de naam "${trimmedName}"`);
       return false;
     }
 

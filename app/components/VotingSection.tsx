@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Player, VotingMatch } from '../lib/types';
+import { useToast } from '../contexts/ToastContext';
 
 interface VotingSectionProps {
   votingMatches: VotingMatch[];
@@ -20,6 +21,7 @@ export default function VotingSection({
   onSelectCurrentPlayer,
   onVote
 }: VotingSectionProps) {
+  const toast = useToast();
   const [selectedVotes, setSelectedVotes] = useState<Record<number, number>>({});
 
   if (votingMatches.length === 0 && !isLoading) return null;
@@ -117,7 +119,7 @@ export default function VotingSection({
                   onClick={() => {
                     const votedFor = selectedVotes[vm.match.id];
                     if (!votedFor) {
-                      alert('Selecteer een speler om op te stemmen');
+                      toast.warning('Selecteer een speler om op te stemmen');
                       return;
                     }
                     onVote(vm.match.id, votedFor);

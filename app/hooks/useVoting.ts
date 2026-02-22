@@ -2,11 +2,13 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match, VotingMatch, VoteResults } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useToast } from '../contexts/ToastContext';
 
 const VOTING_PERIOD_DAYS = 4;
 
 export function useVoting() {
   const { currentTeam } = useTeamContext();
+  const toast = useToast();
   const [votingMatches, setVotingMatches] = useState<VotingMatch[]>([]);
   const [isLoadingVotes, setIsLoadingVotes] = useState(false);
 
@@ -168,12 +170,12 @@ export function useVoting() {
     const currentUserId = user?.id ?? null;
 
     if (!currentPlayerId && !currentUserId) {
-      alert('Je moet ingelogd zijn om te stemmen');
+      toast.warning('Je moet ingelogd zijn om te stemmen');
       return false;
     }
 
     if (currentPlayerId && votedForPlayerId === currentPlayerId) {
-      alert('Je kunt niet op jezelf stemmen');
+      toast.warning('Je kunt niet op jezelf stemmen');
       return false;
     }
 
@@ -188,7 +190,7 @@ export function useVoting() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (today > deadline) {
-          alert('Stemperiode is verlopen');
+          toast.warning('Stemperiode is verlopen');
           return false;
         }
       }
@@ -225,12 +227,12 @@ export function useVoting() {
       ]);
 
       if (!lineupCheck.data && !subCheck.data) {
-        alert('Deze speler speelde niet mee in deze wedstrijd');
+        toast.warning('Deze speler speelde niet mee in deze wedstrijd');
         return false;
       }
 
       if (existingVoteCheck.data) {
-        alert('Je hebt al gestemd op deze wedstrijd');
+        toast.warning('Je hebt al gestemd op deze wedstrijd');
         return false;
       }
 
@@ -246,12 +248,12 @@ export function useVoting() {
 
       if (error) throw error;
 
-      alert('✅ Succesvol gestemd!');
+      toast.success('✅ Succesvol gestemd!');
       await fetchVotingMatches(allMatches, currentPlayerId);
       return true;
     } catch (error) {
       console.error('Error submitting vote:', error);
-      alert('Er ging iets mis, probeer opnieuw');
+      toast.error('Er ging iets mis, probeer opnieuw');
       return false;
     }
   }, [fetchVotingMatches, currentTeam]);
