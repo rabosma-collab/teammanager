@@ -359,104 +359,23 @@ export default function FootballApp() {
     setShowFinalizeModal(false);
 
     try {
-      // Haal alle substitutions op
-      const { data: subs, error: subsError } = await supabase
-        .from('substitutions')
-        .select('*')
-        .eq('match_id', selectedMatch.id);
-
-      if (subsError) throw subsError;
-
-      // Track speeltijd per speler
-      const playerPlayTime: Record<number, {
-        periodsPlayed: Array<{start: number, end: number}>,
-        wasInStartingEleven: boolean
-      }> = {};
-
-      // 1. Spelers in basis starten met 0-90
-      fieldOccupants.forEach(player => {
-        if (player) {
-          playerPlayTime[player.id] = {
-            periodsPlayed: [{start: 0, end: 90}],
-            wasInStartingEleven: true
-          };
-        }
+      // Één atomische database-call: alle stappen vallen of staan samen.
+      // De stored procedure (supabase/finalize_match.sql) bevat de logica.
+      const { data, error } = await supabase.rpc('finalize_match', {
+        p_match_id:  selectedMatch.id,
+        p_calc_min:  calculateMinutes,
+        p_goals_for: finalizeGoalsFor !== '' ? parseInt(finalizeGoalsFor, 10) : null,
+        p_goals_ag:  finalizeGoalsAgainst !== '' ? parseInt(finalizeGoalsAgainst, 10) : null,
       });
 
-      // 2. Verwerk alle substitutions
-      subs?.forEach((sub: any) => {
-        const minute = sub.custom_minute || sub.minute;
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error ?? 'Onbekende fout');
 
-        // Speler ERUIT: speelde van 0 tot minute
-        if (sub.player_out_id && playerPlayTime[sub.player_out_id]) {
-          playerPlayTime[sub.player_out_id].periodsPlayed = [{
-            start: 0,
-            end: minute
-          }];
-        }
-
-        // Speler ERIN: speelde van minute tot 90
-        if (sub.player_in_id) {
-          if (!playerPlayTime[sub.player_in_id]) {
-            playerPlayTime[sub.player_in_id] = {
-              periodsPlayed: [{start: minute, end: 90}],
-              wasInStartingEleven: false
-            };
-          } else {
-            playerPlayTime[sub.player_in_id].periodsPlayed.push({
-              start: minute,
-              end: 90
-            });
-          }
-        }
-      });
-
-      // 3. Bereken statistieken per speler
-      for (const [playerId, data] of Object.entries(playerPlayTime)) {
-        const player = players.find(p => p.id === parseInt(playerId));
-        if (!player) continue;
-
-        const table = player.is_guest ? 'guest_players' : 'players';
-        const updates: Record<string, number> = {};
-
-        // Wisselminuten optioneel berekenen
-        if (calculateMinutes) {
-          const totalPlayedMinutes = data.periodsPlayed.reduce((sum, period) => {
-            return sum + (period.end - period.start);
-          }, 0);
-          const benchMinutes = 90 - totalPlayedMinutes;
-          if (benchMinutes > 0) {
-            updates.min = player.min + benchMinutes;
-          }
-        }
-
-        if (Object.keys(updates).length > 0) {
-          const { error } = await supabase
-            .from(table)
-            .update(updates)
-            .eq('id', parseInt(playerId));
-
-          if (error) throw error;
-        }
-      }
-
-      // 4. Update match status + score
-      const matchUpdate: Record<string, unknown> = { match_status: 'afgerond' };
-      if (finalizeGoalsFor !== '') matchUpdate.goals_for = parseInt(finalizeGoalsFor);
-      if (finalizeGoalsAgainst !== '') matchUpdate.goals_against = parseInt(finalizeGoalsAgainst);
-
-      const { error: matchError } = await supabase
-        .from('matches')
-        .update(matchUpdate)
-        .eq('id', selectedMatch.id);
-
-      if (matchError) throw matchError;
-
-      // 5. Update local state
+      // Update lokale state
       const updatedMatchFields = {
         match_status: 'afgerond' as const,
-        ...(finalizeGoalsFor !== '' ? { goals_for: parseInt(finalizeGoalsFor) } : {}),
-        ...(finalizeGoalsAgainst !== '' ? { goals_against: parseInt(finalizeGoalsAgainst) } : {}),
+        ...(finalizeGoalsFor !== '' ? { goals_for: parseInt(finalizeGoalsFor, 10) } : {}),
+        ...(finalizeGoalsAgainst !== '' ? { goals_against: parseInt(finalizeGoalsAgainst, 10) } : {}),
       };
       setIsEditingLineup(false);
       setFinalizeGoalsFor('');
@@ -466,10 +385,10 @@ export default function FootballApp() {
         m.id === selectedMatch.id ? { ...m, ...updatedMatchFields } : m
       ));
 
-      // 6. Reload players
+      // Herlaad spelers (wisselminuten zijn bijgewerkt in de DB)
       await fetchPlayers();
 
-      // 7. Refresh voting (new finalized match may be eligible)
+      // Refresh voting (nieuwe afgeronde wedstrijd kan stembaar zijn)
       await fetchVotingMatches(
         matches.map(m => m.id === selectedMatch.id ? { ...m, match_status: 'afgerond' as const } : m),
         currentPlayerId

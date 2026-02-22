@@ -161,7 +161,7 @@ export function useStatCredits() {
 
       if (!playerData) return false;
 
-      const current = (playerData[stat] as number) ?? 50;
+      const current = (playerData[stat] as number) ?? 0;
       const next = Math.max(1, Math.min(99, current + change));
       if (next === current) return false; // already at boundary
 

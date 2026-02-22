@@ -299,7 +299,6 @@ export function usePlayers() {
 
   return {
     players,
-    setPlayers,
     fetchPlayers,
     getGroupedPlayers,
     toggleInjury,

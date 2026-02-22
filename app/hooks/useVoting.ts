@@ -16,7 +16,6 @@ export function useVoting() {
   ) => {
     if (!currentTeam) return;
 
-    // Get current user for staff vote tracking
     const { data: { user } } = await supabase.auth.getUser();
     const currentUserId = user?.id ?? null;
 
@@ -35,60 +34,91 @@ export function useVoting() {
         return matchDate >= cutoffDate;
       });
 
+      if (eligibleMatches.length === 0) {
+        setVotingMatches([]);
+        return;
+      }
+
+      const matchIds = eligibleMatches.map(m => m.id);
+
+      // 3 batch-queries parallel in plaats van 4 queries per wedstrijd
+      const [lineupResult, subResult, votesResult] = await Promise.all([
+        supabase
+          .from('lineups')
+          .select('match_id, player_id')
+          .in('match_id', matchIds),
+        supabase
+          .from('substitutions')
+          .select('match_id, player_in_id')
+          .in('match_id', matchIds),
+        supabase
+          .from('player_of_week_votes')
+          .select('match_id, voter_player_id, voter_user_id, voted_for_player_id')
+          .in('match_id', matchIds)
+          .eq('team_id', currentTeam.id),
+      ]);
+
+      // Verzamel alle unieke speler-IDs over alle wedstrijden heen
+      const allPlayerIds = new Set<number>();
+      for (const row of (lineupResult.data || [])) allPlayerIds.add(row.player_id);
+      for (const row of (subResult.data || [])) allPlayerIds.add(row.player_in_id);
+
+      if (allPlayerIds.size === 0) {
+        setVotingMatches([]);
+        return;
+      }
+
+      // Één spelers-query voor alle wedstrijden
+      const { data: playerData } = await supabase
+        .from('players')
+        .select('id, name')
+        .in('id', Array.from(allPlayerIds));
+
+      const playerMap = new Map<number, string>();
+      for (const p of (playerData || [])) playerMap.set(p.id, p.name);
+
+      // Groepeer lineup + subs per wedstrijd
+      const participantsByMatch = new Map<number, Set<number>>();
+      for (const row of (lineupResult.data || [])) {
+        if (!participantsByMatch.has(row.match_id)) participantsByMatch.set(row.match_id, new Set());
+        participantsByMatch.get(row.match_id)!.add(row.player_id);
+      }
+      for (const row of (subResult.data || [])) {
+        if (!participantsByMatch.has(row.match_id)) participantsByMatch.set(row.match_id, new Set());
+        participantsByMatch.get(row.match_id)!.add(row.player_in_id);
+      }
+
+      // Groepeer stemmen per wedstrijd
+      const votesByMatch = new Map<number, typeof votesResult.data>();
+      for (const vote of (votesResult.data || [])) {
+        if (!votesByMatch.has(vote.match_id)) votesByMatch.set(vote.match_id, []);
+        votesByMatch.get(vote.match_id)!.push(vote);
+      }
+
       const results: VotingMatch[] = [];
 
       for (const match of eligibleMatches) {
-        const { data: lineupData, error: lineupError } = await supabase
-          .from('lineups')
-          .select('player_id')
-          .eq('match_id', match.id);
+        const participantIds = Array.from(participantsByMatch.get(match.id) || new Set<number>());
+        if (participantIds.length === 0) continue;
 
-        if (lineupError) continue;
+        const matchPlayers = participantIds
+          .filter(id => playerMap.has(id))
+          .map(id => ({ id, name: playerMap.get(id)! }));
 
-        const lineupPlayerIds = (lineupData || []).map((l: { player_id: number }) => l.player_id);
-
-        const { data: subData } = await supabase
-          .from('substitutions')
-          .select('player_in_id')
-          .eq('match_id', match.id);
-
-        const subPlayerIds = (subData || []).map((s: { player_in_id: number }) => s.player_in_id);
-        const playerIds = Array.from(new Set([...lineupPlayerIds, ...subPlayerIds]));
-
-        if (playerIds.length === 0) continue;
-
-        const { data: playerData, error: playerError } = await supabase
-          .from('players')
-          .select('id, name')
-          .in('id', playerIds);
-
-        if (playerError) continue;
-
-        const matchPlayers = (playerData || []).map((p: { id: number; name: string }) => ({ id: p.id, name: p.name }));
-
-        const { data: voteData, error: voteError } = await supabase
-          .from('player_of_week_votes')
-          .select('*')
-          .eq('match_id', match.id)
-          .eq('team_id', currentTeam.id);
-
-        if (voteError) continue;
-
-        const votes = voteData || [];
+        const votes = votesByMatch.get(match.id) || [];
 
         const voteCounts: Record<number, number> = {};
         for (const vote of votes) {
           voteCounts[vote.voted_for_player_id] = (voteCounts[vote.voted_for_player_id] || 0) + 1;
         }
 
-        const voteResults: VoteResults[] = matchPlayers.map((p: { id: number; name: string }) => ({
+        const voteResults: VoteResults[] = matchPlayers.map(p => ({
           player_id: p.id,
           player_name: p.name,
           vote_count: voteCounts[p.id] || 0
-        })).sort((a: VoteResults, b: VoteResults) => b.vote_count - a.vote_count);
+        })).sort((a, b) => b.vote_count - a.vote_count);
 
-        // Check if current user has voted — check both voter_user_id and voter_player_id
-        const currentVote = votes.find((v: any) =>
+        const currentVote = votes.find(v =>
           (currentUserId && v.voter_user_id === currentUserId) ||
           (currentPlayerId && v.voter_player_id === currentPlayerId)
         ) ?? null;
@@ -127,7 +157,6 @@ export function useVoting() {
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
-    // Get current user for staff vote tracking
     const { data: { user } } = await supabase.auth.getUser();
     const currentUserId = user?.id ?? null;
 
@@ -136,54 +165,13 @@ export function useVoting() {
       return false;
     }
 
-    // Can't vote for yourself (players only)
     if (currentPlayerId && votedForPlayerId === currentPlayerId) {
       alert('Je kunt niet op jezelf stemmen');
       return false;
     }
 
     try {
-      // Voted-for player must be in lineup or came in as substitute
-      const { data: lineupCheck } = await supabase
-        .from('lineups')
-        .select('player_id')
-        .eq('match_id', matchId)
-        .eq('player_id', votedForPlayerId)
-        .single();
-
-      const { data: subCheck } = await supabase
-        .from('substitutions')
-        .select('player_in_id')
-        .eq('match_id', matchId)
-        .eq('player_in_id', votedForPlayerId)
-        .single();
-
-      if (!lineupCheck && !subCheck) {
-        alert('Deze speler speelde niet mee in deze wedstrijd');
-        return false;
-      }
-
-      // Check if already voted — by user_id if available, else player_id
-      let existingVoteQuery = supabase
-        .from('player_of_week_votes')
-        .select('id')
-        .eq('match_id', matchId)
-        .eq('team_id', currentTeam.id);
-
-      if (currentUserId) {
-        existingVoteQuery = existingVoteQuery.eq('voter_user_id', currentUserId);
-      } else if (currentPlayerId) {
-        existingVoteQuery = existingVoteQuery.eq('voter_player_id', currentPlayerId);
-      }
-
-      const { data: existingVote } = await existingVoteQuery.single();
-
-      if (existingVote) {
-        alert('Je hebt al gestemd op deze wedstrijd');
-        return false;
-      }
-
-      // Check deadline
+      // Check deadline voor de insert
       const match = allMatches.find(m => m.id === matchId);
       if (match) {
         const matchDate = new Date(match.date);
@@ -198,7 +186,47 @@ export function useVoting() {
         }
       }
 
-      // Insert vote — voter_user_id for all, voter_player_id only for players
+      // Lineup- en dubbelcheck parallel uitvoeren
+      const [lineupCheck, subCheck, existingVoteCheck] = await Promise.all([
+        supabase
+          .from('lineups')
+          .select('player_id')
+          .eq('match_id', matchId)
+          .eq('player_id', votedForPlayerId)
+          .maybeSingle(),
+        supabase
+          .from('substitutions')
+          .select('player_in_id')
+          .eq('match_id', matchId)
+          .eq('player_in_id', votedForPlayerId)
+          .maybeSingle(),
+        currentUserId
+          ? supabase
+              .from('player_of_week_votes')
+              .select('id')
+              .eq('match_id', matchId)
+              .eq('team_id', currentTeam.id)
+              .eq('voter_user_id', currentUserId)
+              .maybeSingle()
+          : supabase
+              .from('player_of_week_votes')
+              .select('id')
+              .eq('match_id', matchId)
+              .eq('team_id', currentTeam.id)
+              .eq('voter_player_id', currentPlayerId!)
+              .maybeSingle(),
+      ]);
+
+      if (!lineupCheck.data && !subCheck.data) {
+        alert('Deze speler speelde niet mee in deze wedstrijd');
+        return false;
+      }
+
+      if (existingVoteCheck.data) {
+        alert('Je hebt al gestemd op deze wedstrijd');
+        return false;
+      }
+
       const { error } = await supabase
         .from('player_of_week_votes')
         .insert({
