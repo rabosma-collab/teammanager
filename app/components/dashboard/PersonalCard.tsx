@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { Player } from '../../lib/types';
+import type { Player, PositionInstruction } from '../../lib/types';
 import PlayerCard from '../PlayerCard';
 
 interface PersonalCardProps {
@@ -10,6 +10,7 @@ interface PersonalCardProps {
   isManager: boolean;
   isStaff: boolean;
   creditBalance?: number | null;
+  matchInstruction?: PositionInstruction | null;
   // Team overview stats voor manager-zonder-speler
   totalPlayers: number;
   availablePlayers: number;
@@ -61,6 +62,7 @@ export default function PersonalCard({
   isManager,
   isStaff,
   creditBalance,
+  matchInstruction,
   totalPlayers,
   availablePlayers,
   absentPlayers,
@@ -128,7 +130,7 @@ export default function PersonalCard({
         </div>
         <div className="bg-yellow-900/40 rounded-lg p-2 border border-yellow-700/40">
           <div className="text-xl font-black text-yellow-400">{potwWins}</div>
-          <div className="text-xs text-yellow-600 mt-0.5">🏆 SPDW</div>
+          <div className="text-xs text-yellow-600 mt-0.5">🏆 SVDW</div>
         </div>
       </div>
       {creditBalance != null && (
@@ -136,6 +138,41 @@ export default function PersonalCard({
           <span className="text-sm">💰</span>
           <span className="text-sm font-black text-yellow-400">{creditBalance}</span>
           <span className="text-xs text-yellow-700">{creditBalance === 1 ? 'statcredit' : 'statcredits'}</span>
+        </div>
+      )}
+      {matchInstruction && (
+        <div className="mt-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+          <div className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">📋 Instructie volgende wedstrijd</div>
+          {matchInstruction.general_tips.length > 0 && (
+            <div className="mb-1.5">
+              <div className="text-xs font-bold text-yellow-500 mb-1">💡 Tips</div>
+              <ul className="space-y-0.5">
+                {matchInstruction.general_tips.map((tip, i) => (
+                  <li key={i} className="text-xs text-gray-300 flex gap-1"><span>•</span><span>{tip}</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {matchInstruction.with_ball.length > 0 && (
+            <div className="mb-1.5">
+              <div className="text-xs font-bold text-green-500 mb-1">⚽ Met bal</div>
+              <ul className="space-y-0.5">
+                {matchInstruction.with_ball.map((tip, i) => (
+                  <li key={i} className="text-xs text-gray-300 flex gap-1"><span>•</span><span>{tip}</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {matchInstruction.without_ball.length > 0 && (
+            <div>
+              <div className="text-xs font-bold text-red-500 mb-1">🛡️ Zonder bal</div>
+              <ul className="space-y-0.5">
+                {matchInstruction.without_ball.map((tip, i) => (
+                  <li key={i} className="text-xs text-gray-300 flex gap-1"><span>•</span><span>{tip}</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@ interface PitchViewProps {
   selectedPlayer: Player | null;
   selectedPosition: number | null;
   isEditable: boolean;
+  isManagerEdit: boolean;
   matchAbsences: number[];
   isPlayerAvailable: (player: Player | null, absences: number[]) => boolean;
   isPlayerOnField: (player: Player) => boolean;
@@ -24,6 +25,7 @@ const PitchView = React.memo(function PitchView({
   selectedPlayer,
   selectedPosition,
   isEditable,
+  isManagerEdit,
   matchAbsences,
   isPlayerAvailable,
   isPlayerOnField,
@@ -80,7 +82,7 @@ const PitchView = React.memo(function PitchView({
             >
               <div
                 onClick={() => onPositionClick(i)}
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base relative transition-all ${instruction ? 'mb-6' : ''} ${
+                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base relative transition-all ${(instruction || isManagerEdit) ? 'mb-6' : ''} ${
                   player
                     ? showWarning
                       ? 'bg-yellow-500 text-black border-red-500'
@@ -104,14 +106,17 @@ const PitchView = React.memo(function PitchView({
                 {showWarning && (
                   <span className="absolute -top-1 -right-1 text-red-500 text-base sm:text-lg">⚠️</span>
                 )}
-                {instruction && (
+                {(instruction || isManagerEdit) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onShowTooltip(i);
                     }}
-                    className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold hover:bg-blue-600 shadow-lg"
+                    className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${
+                      instruction ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-500 hover:bg-gray-400'
+                    }`}
                     style={{ zIndex: 10 }}
+                    title={isManagerEdit ? (instruction ? 'Wedstrijdinstructie bewerken' : 'Wedstrijdinstructie toevoegen') : undefined}
                   >
                     i
                   </button>

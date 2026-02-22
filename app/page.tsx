@@ -6,7 +6,7 @@ import { formations, formationLabels, normalizeFormation } from './lib/constants
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
-import type { Player } from './lib/types';
+import type { Player, PositionInstruction } from './lib/types';
 
 // Hooks
 import { usePlayers } from './hooks/usePlayers';
@@ -110,7 +110,7 @@ export default function FootballApp() {
   const {
     positionInstructions, matchInstructions, editingInstruction, setEditingInstruction,
     fetchInstructions, fetchMatchInstructions, clearMatchInstructions,
-    getInstructionForPosition, saveInstruction, saveMatchInstruction, deleteMatchInstruction
+    getInstructionForPosition, saveInstruction, saveMatchInstruction
   } = useInstructions();
 
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
@@ -614,8 +614,8 @@ export default function FootballApp() {
           onChange={setEditingInstruction}
           onSave={async () => {
             if (isEditingMatchInstruction && selectedMatch) {
-              const success = await saveMatchInstruction(editingInstruction, selectedMatch.id, instructionFormation);
-              alert(success ? '✅ Wedstrijd-afwijking opgeslagen!' : '❌ Kon afwijking niet opslaan');
+              const success = await saveMatchInstruction(editingInstruction, selectedMatch.id, formation);
+              alert(success ? '✅ Wedstrijdinstructie opgeslagen!' : '❌ Kon instructie niet opslaan');
             } else {
               const success = await saveInstruction(editingInstruction, instructionFormation);
               alert(success ? '✅ Instructie opgeslagen!' : '❌ Kon instructie niet opslaan');
@@ -871,21 +871,9 @@ export default function FootballApp() {
           instructionFormation={instructionFormation}
           setInstructionFormation={setInstructionFormation}
           positionInstructions={positionInstructions}
-          matchInstructions={matchInstructions}
-          selectedMatchId={selectedMatch && instructionFormation === formation ? selectedMatch.id : undefined}
           onEditInstruction={(instruction) => {
             setIsEditingMatchInstruction(false);
             setEditingInstruction(instruction);
-          }}
-          onEditMatchInstruction={(instruction) => {
-            setIsEditingMatchInstruction(true);
-            setEditingInstruction(instruction);
-          }}
-          onDeleteMatchInstruction={async (positionIndex) => {
-            if (!selectedMatch) return;
-            if (!confirm('Wedstrijd-afwijking verwijderen? De globale instructie geldt dan weer.')) return;
-            const success = await deleteMatchInstruction(selectedMatch.id, positionIndex, instructionFormation);
-            alert(success ? '✅ Afwijking verwijderd' : '❌ Kon afwijking niet verwijderen');
           }}
         />
       ) : view === 'players-manage' && isManager ? (
@@ -1061,12 +1049,31 @@ export default function FootballApp() {
                 selectedPlayer={selectedPlayer}
                 selectedPosition={selectedPosition}
                 isEditable={activelyEditing}
+                isManagerEdit={isManager && !!selectedMatch && !isFinalized}
                 matchAbsences={matchAbsences}
                 isPlayerAvailable={isPlayerAvailable}
                 isPlayerOnField={isPlayerOnField}
                 getInstructionForPosition={getInstructionForPosition}
                 onPositionClick={handlePositionClick}
-                onShowTooltip={setShowTooltip}
+                onShowTooltip={(positionIndex: number) => {
+                  if (isManager && selectedMatch && !isFinalized) {
+                    const matchInstr = matchInstructions.find((m: PositionInstruction) => m.position_index === positionIndex);
+                    const globalInstr = positionInstructions.find((p: PositionInstruction) => p.position_index === positionIndex);
+                    setEditingInstruction(matchInstr || globalInstr || {
+                      id: 0,
+                      formation,
+                      position_index: positionIndex,
+                      position_name: `Positie ${positionIndex + 1}`,
+                      title: `Positie ${positionIndex + 1}`,
+                      general_tips: [],
+                      with_ball: [],
+                      without_ball: []
+                    });
+                    setIsEditingMatchInstruction(true);
+                  } else {
+                    setShowTooltip(positionIndex);
+                  }
+                }}
                 onShowPlayerCard={setShowPlayerCard}
               />
 
