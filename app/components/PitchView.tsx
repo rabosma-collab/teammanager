@@ -66,6 +66,15 @@ const PitchView = React.memo(function PitchView({
               }`}
               style={{ top: `${pos.t}%`, left: `${pos.l}%` }}
             >
+              {player && (
+                <div
+                  onClick={!isEditable ? handleClick : undefined}
+                  className={`text-xs font-bold text-center mb-1 text-white block ${!isEditable ? 'cursor-pointer hover:text-yellow-300' : ''}`}
+                  style={{ textShadow: '1px 1px 2px black' }}
+                >
+                  {player.name}
+                </div>
+              )}
               <div
                 onClick={handleClick}
                 className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base relative transition-all ${showInstructionButton ? 'mb-6' : ''} ${
@@ -94,7 +103,7 @@ const PitchView = React.memo(function PitchView({
                 )}
                 {/* Blauwe stip als er een instructie is (alleen in view mode) */}
                 {instruction && !isEditable && (
-                  <span className="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 rounded-full border border-gray-900" />
+                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-500 rounded-full border border-gray-900" />
                 )}
                 {/* "i" knop alleen voor lege posities in manager-edit */}
                 {showInstructionButton && (
@@ -114,15 +123,6 @@ const PitchView = React.memo(function PitchView({
                 )}
               </div>
 
-              {player && (
-                <div
-                  onClick={!isEditable ? handleClick : undefined}
-                  className={`text-xs font-bold text-center mt-1 text-white block ${!isEditable ? 'cursor-pointer hover:text-yellow-300' : ''}`}
-                  style={{ textShadow: '1px 1px 2px black' }}
-                >
-                  {player.name}
-                </div>
-              )}
             </div>
           );
         })}
