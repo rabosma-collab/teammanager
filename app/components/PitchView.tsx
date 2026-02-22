@@ -31,6 +31,12 @@ const PitchView = React.memo(function PitchView({
 }: PitchViewProps) {
   return (
     <>
+      {/* Hint voor view mode */}
+      {!isEditable && (
+        <p className="text-center text-gray-500 text-xs mb-2">
+          Tik op een speler voor info &amp; instructies
+        </p>
+      )}
       <div
         className="relative w-full max-w-[420px] sm:max-w-[500px] lg:w-[580px] aspect-[3/4] bg-green-700 border-4 border-white rounded-2xl overflow-hidden flex-shrink-0"
         style={{
@@ -101,10 +107,6 @@ const PitchView = React.memo(function PitchView({
                 {showWarning && (
                   <span className="absolute -top-1 -right-1 text-red-500 text-base sm:text-lg">⚠️</span>
                 )}
-                {/* Blauwe stip als er een instructie is (alleen in view mode) */}
-                {instruction && !isEditable && (
-                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-500 rounded-full border border-gray-900" />
-                )}
                 {/* "i" knop alleen voor lege posities in manager-edit */}
                 {showInstructionButton && (
                   <button
@@ -128,12 +130,6 @@ const PitchView = React.memo(function PitchView({
         })}
       </div>
 
-      {/* Hint voor view mode */}
-      {!isEditable && (
-        <p className="text-center text-gray-500 text-xs mt-2">
-          Tik op een speler voor info & instructies
-        </p>
-      )}
     </>
   );
 });
