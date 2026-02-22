@@ -459,7 +459,7 @@ export default function PlayersManageView({
 
         {staffMembers.length === 0 ? (
           <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-500 text-sm border border-gray-700">
-            Nog geen stafleden. Klik op "Staflid uitnodigen" om iemand toe te voegen.
+            Nog geen stafleden. Klik op &ldquo;Staflid uitnodigen&rdquo; om iemand toe te voegen.
           </div>
         ) : (
           <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
