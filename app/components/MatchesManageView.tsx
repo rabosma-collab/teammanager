@@ -59,8 +59,10 @@ export default function MatchesManageView({
   };
 
   const handleSaveScore = async (matchId: number) => {
-    const goalsFor = scoreGoalsFor !== '' ? parseInt(scoreGoalsFor) : null;
-    const goalsAgainst = scoreGoalsAgainst !== '' ? parseInt(scoreGoalsAgainst) : null;
+    const rawFor = parseInt(scoreGoalsFor, 10);
+    const rawAgainst = parseInt(scoreGoalsAgainst, 10);
+    const goalsFor = scoreGoalsFor !== '' ? Math.max(0, isNaN(rawFor) ? 0 : rawFor) : null;
+    const goalsAgainst = scoreGoalsAgainst !== '' ? Math.max(0, isNaN(rawAgainst) ? 0 : rawAgainst) : null;
     const success = await onUpdateScore(matchId, goalsFor, goalsAgainst);
     if (success) {
       setEditingScoreId(null);

@@ -65,6 +65,7 @@ export default function MatchEditModal({ match, schemes, onSave, onClose }: Matc
               value={opponent}
               onChange={(e) => setOpponent(e.target.value)}
               required
+              maxLength={60}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
               placeholder="Naam van de tegenstander"
             />
