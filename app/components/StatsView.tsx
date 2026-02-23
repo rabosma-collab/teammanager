@@ -8,7 +8,7 @@ interface StatsViewProps {
   onUpdateStat: (id: number, field: string, value: string) => void;
 }
 
-type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'min';
+type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'yellow_cards' | 'red_cards' | 'min';
 type SortDir = 'asc' | 'desc';
 type PositionFilter = 'all' | 'Keeper' | 'Verdediger' | 'Middenvelder' | 'Aanvaller';
 
@@ -74,6 +74,9 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
     { key: 'injured', label: 'Status' },
     { key: 'goals', label: 'Goals' },
     { key: 'assists', label: 'Assists' },
+    { key: 'wash_count', label: '🧼 Was' },
+    { key: 'yellow_cards', label: '🟨 Geel' },
+    { key: 'red_cards', label: '🟥 Rood' },
     { key: 'min', label: 'Wissel' },
   ];
 
@@ -131,6 +134,9 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
                 </td>
                 <StatCell isAdmin={isAdmin} value={player.goals} field="goals" id={player.id} onUpdate={onUpdateStat} />
                 <StatCell isAdmin={isAdmin} value={player.assists} field="assists" id={player.id} onUpdate={onUpdateStat} />
+                <StatCell isAdmin={isAdmin} value={player.wash_count ?? 0} field="wash_count" id={player.id} onUpdate={onUpdateStat} />
+                <StatCell isAdmin={isAdmin} value={player.yellow_cards ?? 0} field="yellow_cards" id={player.id} onUpdate={onUpdateStat} />
+                <StatCell isAdmin={isAdmin} value={player.red_cards ?? 0} field="red_cards" id={player.id} onUpdate={onUpdateStat} />
                 <StatCell isAdmin={isAdmin} value={player.min} field="min" id={player.id} onUpdate={onUpdateStat} />
               </tr>
             ))}

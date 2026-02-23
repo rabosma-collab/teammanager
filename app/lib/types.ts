@@ -5,6 +5,8 @@ export interface Player {
     goals: number;
     assists: number;
     wash_count: number;
+    yellow_cards: number;
+    red_cards: number;
     min: number;
     injured: boolean;
     pac: number;
