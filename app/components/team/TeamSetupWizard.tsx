@@ -95,7 +95,6 @@ export default function TeamSetupWizard() {
         slug: generateSlug(name.trim()),
         color,
         setup_done: false,
-        team_size: 20,
       })
       .select('id')
       .single();

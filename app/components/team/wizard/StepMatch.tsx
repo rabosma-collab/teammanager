@@ -34,6 +34,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onSkip, on
       home_away: homeAway,
       formation: defaultFormation,
       match_status: 'concept',
+      substitution_scheme_id: null,
     });
 
     setSaving(false);

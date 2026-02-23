@@ -162,8 +162,6 @@ export default function JoinPage() {
           player_id: invite.player_id ?? null,
           status: 'active',
           invited_by: invite.created_by,
-          member_type: invite.invite_type,
-          display_name: invite.display_name ?? null,
         });
 
       if (memberError) throw memberError;
