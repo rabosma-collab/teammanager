@@ -22,10 +22,12 @@ const positionColors: Record<string, { from: string; to: string; accent: string;
 };
 
 function calcRating(player: Player): number {
+  if (player.position === 'Keeper') {
+    const { div = 50, han = 50, kic = 50, ref = 50, spe = 50, pos = 50 } = player;
+    return Math.round((div * 0.25) + (ref * 0.25) + (pos * 0.20) + (han * 0.15) + (spe * 0.10) + (kic * 0.05));
+  }
   const { pac = 50, sho = 50, pas = 50, dri = 50, def: d = 50 } = player;
   switch (player.position) {
-    case 'Keeper':
-      return Math.round((pac * 0.05) + (sho * 0.05) + (pas * 0.15) + (dri * 0.10) + (d * 0.65));
     case 'Verdediger':
       return Math.round((pac * 0.15) + (sho * 0.05) + (pas * 0.15) + (dri * 0.10) + (d * 0.55));
     case 'Middenvelder':
@@ -46,13 +48,22 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
 
   const isSm = size === 'sm';
 
-  const stats = [
-    { label: 'PAC', value: player.pac || 0 },
-    { label: 'SHO', value: player.sho || 0 },
-    { label: 'PAS', value: player.pas || 0 },
-    { label: 'DRI', value: player.dri || 0 },
-    { label: 'DEF', value: player.def || 0 },
-  ];
+  const stats = player.position === 'Keeper'
+    ? [
+        { label: 'DIV', value: player.div || 0 },
+        { label: 'HAN', value: player.han || 0 },
+        { label: 'KIC', value: player.kic || 0 },
+        { label: 'REF', value: player.ref || 0 },
+        { label: 'SPE', value: player.spe || 0 },
+        { label: 'POS', value: player.pos || 0 },
+      ]
+    : [
+        { label: 'PAC', value: player.pac || 0 },
+        { label: 'SHO', value: player.sho || 0 },
+        { label: 'PAS', value: player.pas || 0 },
+        { label: 'DRI', value: player.dri || 0 },
+        { label: 'DEF', value: player.def || 0 },
+      ];
 
   return (
     <div

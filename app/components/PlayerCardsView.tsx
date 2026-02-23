@@ -4,13 +4,26 @@ import type { Player } from '../lib/types';
 import PlayerCard, { calcRating } from './PlayerCard';
 import PlayerStatsEditModal from './modals/PlayerStatsEditModal';
 
-const STAT_LABELS: { key: keyof Player; label: string }[] = [
+const OUTFIELD_STAT_LABELS: { key: keyof Player; label: string }[] = [
   { key: 'pac', label: 'PAC' },
   { key: 'sho', label: 'SHO' },
   { key: 'pas', label: 'PAS' },
   { key: 'dri', label: 'DRI' },
   { key: 'def', label: 'DEF' },
 ];
+
+const KEEPER_STAT_LABELS: { key: keyof Player; label: string }[] = [
+  { key: 'div', label: 'DIV' },
+  { key: 'han', label: 'HAN' },
+  { key: 'kic', label: 'KIC' },
+  { key: 'ref', label: 'REF' },
+  { key: 'spe', label: 'SPE' },
+  { key: 'pos', label: 'POS' },
+];
+
+function getStatLabels(position: string) {
+  return position === 'Keeper' ? KEEPER_STAT_LABELS : OUTFIELD_STAT_LABELS;
+}
 
 interface PlayerCardsViewProps {
   players: Player[];
@@ -62,7 +75,7 @@ export default function PlayerCardsView({
   const renderCreditPanel = (player: Player) => (
     <div className="mt-2 p-2 bg-gray-800 border border-yellow-700/50 rounded-lg w-[155px]">
       <div className="text-xs text-yellow-400 font-bold mb-1.5 text-center">💰 Stats aanpassen</div>
-      {STAT_LABELS.map(({ key, label }) => {
+      {getStatLabels(player.position).map(({ key, label }) => {
         const value = (player[key] as number) ?? 0;
         const keyStr = String(key);
         const isPending = pendingSpend === `${player.id}-${keyStr}`;

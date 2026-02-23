@@ -12,6 +12,12 @@ export interface Player {
     pas: number;
     dri: number;
     def: number;
+    div?: number;
+    han?: number;
+    kic?: number;
+    ref?: number;
+    spe?: number;
+    pos?: number;
     avatar_url?: string | null;
     is_guest?: boolean;
     guest_match_id?: number;
