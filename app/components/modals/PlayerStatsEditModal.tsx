@@ -18,13 +18,22 @@ export default function PlayerStatsEditModal({ player, onUpdateStat, onClose }: 
     setLocalPlayer(prev => ({ ...prev, [field]: clamped }));
   };
 
-  const statFields = [
-    { label: 'PAC', field: 'pac', desc: 'Snelheid' },
-    { label: 'SHO', field: 'sho', desc: 'Schieten' },
-    { label: 'PAS', field: 'pas', desc: 'Passen' },
-    { label: 'DRI', field: 'dri', desc: 'Dribbelen' },
-    { label: 'DEF', field: 'def', desc: 'Verdedigen' },
-  ];
+  const statFields = player.position === 'Keeper'
+    ? [
+        { label: 'DIV', field: 'div', desc: 'Duiken' },
+        { label: 'HAN', field: 'han', desc: 'Vangen' },
+        { label: 'KIC', field: 'kic', desc: 'Uittrappen' },
+        { label: 'REF', field: 'ref', desc: 'Reflexen' },
+        { label: 'SPE', field: 'spe', desc: 'Snelheid' },
+        { label: 'POS', field: 'pos', desc: 'Positionering' },
+      ]
+    : [
+        { label: 'PAC', field: 'pac', desc: 'Snelheid' },
+        { label: 'SHO', field: 'sho', desc: 'Schieten' },
+        { label: 'PAS', field: 'pas', desc: 'Passen' },
+        { label: 'DRI', field: 'dri', desc: 'Dribbelen' },
+        { label: 'DEF', field: 'def', desc: 'Verdedigen' },
+      ];
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>

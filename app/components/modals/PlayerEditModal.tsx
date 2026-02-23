@@ -15,6 +15,12 @@ export interface PlayerFormData {
   pas: number;
   dri: number;
   def: number;
+  div?: number;
+  han?: number;
+  kic?: number;
+  ref?: number;
+  spe?: number;
+  pos?: number;
 }
 
 interface PlayerEditModalProps {
@@ -37,6 +43,12 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
   const [pas, setPas] = useState(player?.pas ?? 50);
   const [dri, setDri] = useState(player?.dri ?? 50);
   const [def, setDef] = useState(player?.def ?? 50);
+  const [div, setDiv] = useState(player?.div ?? 50);
+  const [han, setHan] = useState(player?.han ?? 50);
+  const [kic, setKic] = useState(player?.kic ?? 50);
+  const [ref, setRef] = useState(player?.ref ?? 50);
+  const [spe, setSpe] = useState(player?.spe ?? 50);
+  const [pos, setPos] = useState(player?.pos ?? 50);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +62,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
       return;
     }
     setNameError('');
-    onSave({ name: trimmed, position, injured, goals, assists, min, wash_count: washCount, pac, sho, pas, dri, def });
+    onSave({ name: trimmed, position, injured, goals, assists, min, wash_count: washCount, pac, sho, pas, dri, def, div, han, kic, ref, spe, pos });
   };
 
   return (
@@ -130,14 +142,24 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
 
           <div>
             <h4 className="text-sm font-bold text-yellow-400 mb-2">🃏 FIFA Stats</h4>
-            <div className="grid grid-cols-5 gap-2">
-              {([
-                { label: 'PAC', value: pac, setter: setPac },
-                { label: 'SHO', value: sho, setter: setSho },
-                { label: 'PAS', value: pas, setter: setPas },
-                { label: 'DRI', value: dri, setter: setDri },
-                { label: 'DEF', value: def, setter: setDef },
-              ] as const).map(({ label, value, setter }) => (
+            <div className={`grid gap-2 ${position === 'Keeper' ? 'grid-cols-6' : 'grid-cols-5'}`}>
+              {(position === 'Keeper'
+                ? [
+                    { label: 'DIV', value: div, setter: setDiv },
+                    { label: 'HAN', value: han, setter: setHan },
+                    { label: 'KIC', value: kic, setter: setKic },
+                    { label: 'REF', value: ref, setter: setRef },
+                    { label: 'SPE', value: spe, setter: setSpe },
+                    { label: 'POS', value: pos, setter: setPos },
+                  ]
+                : [
+                    { label: 'PAC', value: pac, setter: setPac },
+                    { label: 'SHO', value: sho, setter: setSho },
+                    { label: 'PAS', value: pas, setter: setPas },
+                    { label: 'DRI', value: dri, setter: setDri },
+                    { label: 'DEF', value: def, setter: setDef },
+                  ]
+              ).map(({ label, value, setter }) => (
                 <div key={label} className="text-center">
                   <label className="block text-[10px] font-bold text-yellow-400/70 mb-1">{label}</label>
                   <input
