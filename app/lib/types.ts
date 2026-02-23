@@ -100,9 +100,23 @@ export interface Player {
     name: string;
     slug: string;
     team_size: number;
-    created_by: string;
+    color: string;
+    setup_done: boolean;
     created_at: string;
     updated_at: string;
+  }
+
+  export interface TeamSettings {
+    team_id: string;
+    default_formation: string;
+    match_duration: number;
+    track_goals: boolean;
+    track_assists: boolean;
+    track_minutes: boolean;
+    track_cards: boolean;
+    track_clean_sheets: boolean;
+    track_spdw: boolean;
+    track_results: boolean;
   }
 
   export interface TeamMember {
