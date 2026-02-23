@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PositionInstruction } from '../../lib/types';
+import DraggableModal from './DraggableModal';
 
 interface InstructionEditModalProps {
   instruction: PositionInstruction;
@@ -15,8 +16,8 @@ export default function InstructionEditModal({
   onClose
 }: InstructionEditModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl p-6 max-w-2xl w-full my-8">
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-2xl">
+      <div className="p-6 overflow-y-auto max-h-[calc(90vh-2.5rem)]">
         <h3 className="text-xl font-bold mb-4">✏️ Bewerk instructie: {instruction.title}</h3>
 
         <div className="space-y-4">
@@ -67,7 +68,7 @@ export default function InstructionEditModal({
           </button>
         </div>
       </div>
-    </div>
+    </DraggableModal>
   );
 }
 

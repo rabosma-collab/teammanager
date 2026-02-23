@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Player, Substitution, TempSubstitution } from '../../lib/types';
+import DraggableModal from './DraggableModal';
 
 interface SubstitutionModalProps {
   subNumber: number;
@@ -97,8 +98,8 @@ export default function SubstitutionModal({
   const displayMinute = isFreeSubstitution ? customMinute : minute;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-5xl my-8">
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-1rem)] max-w-5xl">
+      <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-2.5rem)]">
         <div className="flex justify-between items-center mb-4 sm:mb-6">
           <h2 className="text-lg sm:text-2xl font-bold">
             🔄 {isFreeSubstitution ? 'Vrije wissel' : `Wissel ${subNumber}`} - {displayMinute}&apos;
@@ -205,6 +206,6 @@ export default function SubstitutionModal({
           </button>
         </div>
       </div>
-    </div>
+    </DraggableModal>
   );
 }

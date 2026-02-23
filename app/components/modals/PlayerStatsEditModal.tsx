@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Player } from '../../lib/types';
 import PlayerCard from '../PlayerCard';
+import DraggableModal from './DraggableModal';
 
 interface PlayerStatsEditModalProps {
   player: Player;
@@ -36,8 +37,8 @@ export default function PlayerStatsEditModal({ player, onUpdateStat, onClose }: 
       ];
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-sm">
+      <div className="p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold">✏️ Stats - {player.name}</h3>
           <button onClick={onClose} className="text-xl hover:text-red-500 p-2">✕</button>
@@ -81,6 +82,6 @@ export default function PlayerStatsEditModal({ player, onUpdateStat, onClose }: 
           ✅ Klaar
         </button>
       </div>
-    </div>
+    </DraggableModal>
   );
 }

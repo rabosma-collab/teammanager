@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { positionOrder, positionEmojis } from '../../lib/constants';
 import { useToast } from '../../contexts/ToastContext';
+import DraggableModal from './DraggableModal';
 
 interface GuestPlayerModalProps {
   onAdd: (name: string, position: string) => void;
@@ -21,8 +22,8 @@ export default function GuestPlayerModal({ onAdd, onClose }: GuestPlayerModalPro
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full">
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-md">
+      <div className="p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">👤 Gastspeler toevoegen</h2>
           <button onClick={onClose} className="text-2xl hover:text-red-500">✕</button>
@@ -70,6 +71,6 @@ export default function GuestPlayerModal({ onAdd, onClose }: GuestPlayerModalPro
           </div>
         </div>
       </div>
-    </div>
+    </DraggableModal>
   );
 }

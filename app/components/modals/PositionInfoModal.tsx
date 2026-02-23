@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Player, PositionInstruction } from '../../lib/types';
 import PlayerCard from '../PlayerCard';
+import DraggableModal from './DraggableModal';
 
 interface PositionInfoModalProps {
   player: Player;
@@ -18,23 +19,11 @@ export default function PositionInfoModal({
   onClose,
 }: PositionInfoModalProps) {
   return (
-    <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative bg-gray-800 rounded-xl max-w-sm w-full overflow-y-auto max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 z-10 w-8 h-8 bg-gray-700 hover:bg-red-600 rounded-full flex items-center justify-center text-sm font-bold shadow-lg transition"
-        >
-          ✕
-        </button>
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-sm">
+      <div className="overflow-y-auto max-h-[calc(90vh-2.5rem)]">
 
         {/* Spelerskaart */}
-        <div className="flex justify-center pt-8 pb-4 px-4">
+        <div className="flex justify-center pt-4 pb-4 px-4">
           <PlayerCard player={player} />
         </div>
 
@@ -66,7 +55,7 @@ export default function PositionInfoModal({
           </div>
         )}
       </div>
-    </div>
+    </DraggableModal>
   );
 }
 
