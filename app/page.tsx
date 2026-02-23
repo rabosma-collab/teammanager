@@ -33,6 +33,7 @@ import PlayerCardsView from './components/PlayerCardsView';
 import DashboardView from './components/DashboardView';
 import InvitesManageView from './components/InvitesManageView';
 import MededelingenView from './components/MededelingenView';
+import TeamSettingsView from './components/TeamSettingsView';
 
 // Modals
 import TooltipModal from './components/modals/TooltipModal';
@@ -484,21 +485,7 @@ export default function FootballApp() {
       return null;
     }
 
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
-        <div className="text-center">
-          <div className="text-4xl mb-4">⚽</div>
-          <h2 className="text-xl font-bold mb-2">Geen team gevonden</h2>
-          <p className="text-gray-400 mb-4">Je bent nog niet lid van een team.</p>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-bold"
-          >
-            Uitloggen
-          </button>
-        </div>
-      </div>
-    );
+    return <WelcomeScreen onLogout={handleLogout} onNavigateToNew={() => router.push('/team/new')} />;
   }
 
   if (loading) {
@@ -849,6 +836,8 @@ export default function FootballApp() {
         <InvitesManageView />
       ) : view === 'mededelingen' && isManager ? (
         <MededelingenView />
+      ) : view === 'team-settings' && isManager ? (
+        <TeamSettingsView />
       ) : view === 'cards' ? (
         <PlayerCardsView
           players={players}
@@ -1070,6 +1059,50 @@ export default function FootballApp() {
       ) : (
         <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} />
       )}
+    </div>
+  );
+}
+
+function WelcomeScreen({ onLogout, onNavigateToNew }: { onLogout: () => void; onNavigateToNew: () => void }) {
+  const [showInviteInfo, setShowInviteInfo] = useState(false);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+      <div className="max-w-sm w-full text-center">
+        <div className="text-6xl mb-6">🏆</div>
+        <h1 className="text-2xl font-black mb-2">Welkom bij Team Manager</h1>
+        <p className="text-gray-400 mb-8">Je bent nog geen lid van een team. Maak je eigen team aan of doe mee via een uitnodiging.</p>
+
+        <div className="space-y-3">
+          <button
+            onClick={onNavigateToNew}
+            className="w-full px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl text-base transition active:scale-95"
+          >
+            ⚽ Maak een team aan
+          </button>
+
+          <button
+            onClick={() => setShowInviteInfo(v => !v)}
+            className="w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl text-base transition"
+          >
+            📨 Meedoen via uitnodiging
+          </button>
+
+          {showInviteInfo && (
+            <div className="mt-2 p-4 bg-gray-800 rounded-xl text-sm text-gray-300 text-left">
+              <p className="font-bold text-white mb-1">Hoe werkt het?</p>
+              <p>Vraag de manager van het team om een uitnodigingslink. Klik op die link en je wordt automatisch lid.</p>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onLogout}
+          className="mt-8 text-sm text-gray-500 hover:text-gray-300 transition"
+        >
+          Uitloggen
+        </button>
+      </div>
     </div>
   );
 }

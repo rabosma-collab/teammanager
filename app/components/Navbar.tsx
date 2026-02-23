@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import ProfileModal from './modals/ProfileModal';
@@ -14,7 +15,7 @@ interface NavbarProps {
   onPlayerUpdated?: () => void;
 }
 
-const ADMIN_VIEWS = ['mededelingen', 'instructions', 'players-manage', 'matches-manage', 'invites'] as const;
+const ADMIN_VIEWS = ['mededelingen', 'instructions', 'players-manage', 'matches-manage', 'invites', 'team-settings'] as const;
 
 export default function Navbar({
   view,
@@ -24,14 +25,17 @@ export default function Navbar({
   onToggleSidebar,
   onPlayerUpdated
 }: NavbarProps) {
-  const { currentTeam, currentPlayerId } = useTeamContext();
+  const router = useRouter();
+  const { currentTeam, currentPlayerId, teams, switchTeam, userRole } = useTeamContext();
   const [pendingCount, setPendingCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
   const [profileInitials, setProfileInitials] = useState('?');
   const [showBeheer, setShowBeheer] = useState(false);
+  const [showTeamSwitcher, setShowTeamSwitcher] = useState(false);
   const beheerRef = useRef<HTMLDivElement>(null);
+  const teamSwitcherRef = useRef<HTMLDivElement>(null);
 
   // Laad avatar van de ingelogde speler
   useEffect(() => {
@@ -121,6 +125,18 @@ export default function Navbar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showBeheer]);
 
+  // Sluit team-switcher dropdown bij klik buiten
+  useEffect(() => {
+    if (!showTeamSwitcher) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (teamSwitcherRef.current && !teamSwitcherRef.current.contains(e.target as Node)) {
+        setShowTeamSwitcher(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTeamSwitcher]);
+
   const beheerActive = (ADMIN_VIEWS as readonly string[]).includes(view);
 
   const navigateTo = (target: string) => {
@@ -153,11 +169,66 @@ export default function Navbar({
           </button>
         )}
 
-        {currentTeam && (
-          <span className="text-xs text-gray-400 font-medium px-2 py-1 bg-gray-700/50 rounded flex-shrink-0 hidden sm:inline">
-            {currentTeam.name}
-          </span>
-        )}
+        {/* Team-switcher */}
+        <div className="relative flex-shrink-0 hidden sm:block" ref={teamSwitcherRef}>
+          <button
+            onClick={() => setShowTeamSwitcher(v => !v)}
+            className="flex items-center gap-1.5 text-xs text-gray-300 font-medium px-2 py-1.5 bg-gray-700/50 hover:bg-gray-700 rounded transition-colors"
+          >
+            {currentTeam && (
+              <span
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: currentTeam.color || '#f59e0b' }}
+              />
+            )}
+            <span className="max-w-[120px] truncate">
+              {currentTeam ? currentTeam.name : 'Geen team'}
+            </span>
+            <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showTeamSwitcher && (
+            <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 w-56 py-1">
+              {teams.map(team => (
+                <button
+                  key={team.id}
+                  onClick={async () => {
+                    await switchTeam(team.id);
+                    setShowTeamSwitcher(false);
+                    setView('dashboard');
+                  }}
+                  className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 transition hover:bg-gray-700 ${
+                    team.id === currentTeam?.id ? 'bg-gray-700/50' : ''
+                  }`}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: team.color || '#f59e0b' }}
+                  />
+                  <span className="flex-1 truncate font-medium">{team.name}</span>
+                  {team.id === currentTeam?.id && (
+                    <svg className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+              <div className="border-t border-gray-700 mt-1 pt-1">
+                <button
+                  onClick={() => { setShowTeamSwitcher(false); router.push('/team/new'); }}
+                  className="w-full text-left px-3 py-2.5 text-sm text-yellow-400 hover:bg-gray-700 transition flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Nieuw team aanmaken
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
         <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
@@ -181,6 +252,13 @@ export default function Navbar({
 
             {showBeheer && (
               <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 w-48 py-1">
+                <BeheerItem
+                  icon="⚙️"
+                  label="Teaminstellingen"
+                  active={view === 'team-settings'}
+                  onClick={() => navigateTo('team-settings')}
+                />
+                <div className="border-t border-gray-700/60 my-1" />
                 <BeheerItem
                   icon="📣"
                   label="Mededelingen"
