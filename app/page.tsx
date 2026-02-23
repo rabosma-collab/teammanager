@@ -478,6 +478,12 @@ export default function FootballApp() {
   }
 
   if (!currentTeam) {
+    const pendingInvite = typeof window !== 'undefined' ? localStorage.getItem('inviteToken') : null;
+    if (pendingInvite) {
+      router.replace(`/join/${pendingInvite}`);
+      return null;
+    }
+
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
         <div className="text-center">
