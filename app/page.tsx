@@ -1034,6 +1034,7 @@ export default function FootballApp() {
                 selectedPlayer={selectedPlayer}
                 isEditable={activelyEditing}
                 onSelectPlayer={handleSelectPlayer}
+                onShowPlayerCard={setShowPlayerCard}
               />
             </div>
 
