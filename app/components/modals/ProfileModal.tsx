@@ -34,6 +34,10 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
       setEmail(user.email ?? '');
       setIsGoogle(user.app_metadata?.provider === 'google');
 
+      // Avatar centraal: eerst uit user_metadata, daarna fallback naar player record
+      const centralAvatar = user.user_metadata?.avatar_url ?? null;
+      setAvatarUrl(centralAvatar);
+
       if (currentPlayerId) {
         const { data } = await supabase
           .from('players')
@@ -43,7 +47,8 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
 
         if (data) {
           setName(data.name ?? '');
-          setAvatarUrl(data.avatar_url ?? null);
+          // Gebruik player avatar alleen als fallback wanneer central nog niet gezet
+          if (!centralAvatar && data.avatar_url) setAvatarUrl(data.avatar_url);
         }
       }
     };
@@ -71,17 +76,20 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
   };
 
   const handleRemoveAvatar = async () => {
-    if (!currentPlayerId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
     if (avatarUrl) {
-      // Extract path after the bucket name in the URL
-      const match = avatarUrl.match(/\/avatars\/(.+)$/);
-      if (match) {
-        await supabase.storage.from('avatars').remove([match[1]]);
-      }
+      const match = avatarUrl.match(/\/avatars\/(.+?)(\?|$)/);
+      if (match) await supabase.storage.from('avatars').remove([match[1]]);
     }
 
-    await supabase.from('players').update({ avatar_url: null }).eq('id', currentPlayerId);
+    // Verwijder centraal
+    await supabase.auth.updateUser({ data: { avatar_url: null } });
+
+    // Sync naar alle gekoppelde spelers
+    await syncAvatarToPlayers(user.id, null);
+
     setAvatarUrl(null);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
@@ -89,8 +97,22 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
     onPlayerUpdated();
   };
 
+  const syncAvatarToPlayers = async (userId: string, url: string | null) => {
+    const { data: members } = await supabase
+      .from('team_members')
+      .select('player_id')
+      .eq('user_id', userId)
+      .not('player_id', 'is', null);
+
+    if (members?.length) {
+      const ids = members.map(m => m.player_id).filter(Boolean);
+      if (ids.length) {
+        await supabase.from('players').update({ avatar_url: url }).in('id', ids);
+      }
+    }
+  };
+
   const handleSave = async () => {
-    // Client-side validatie vóór DB-calls
     const trimmedName = name.trim();
     if (currentPlayerId) {
       if (trimmedName.length < 2) {
@@ -119,12 +141,15 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
     setMessage(null);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Niet ingelogd');
+
       let newAvatarUrl = avatarUrl;
 
-      // 1. Upload avatar als er een nieuw bestand is geselecteerd
-      if (selectedFile && currentPlayerId) {
+      // 1. Upload avatar als nieuw bestand geselecteerd
+      if (selectedFile) {
         const ext = selectedFile.name.split('.').pop() ?? 'jpg';
-        const path = `${currentPlayerId}/avatar.${ext}`;
+        const path = `users/${user.id}/avatar.${ext}`;
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
@@ -132,47 +157,48 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(path);
-
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
         newAvatarUrl = `${publicUrl}?t=${Date.now()}`;
       }
 
-      // 2. Spelersnaam en avatar opslaan
+      // 2. Sla centraal op in user_metadata
+      await supabase.auth.updateUser({ data: { avatar_url: newAvatarUrl } });
+      setAvatarUrl(newAvatarUrl);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      setSelectedFile(null);
+
+      // 3. Sync naar alle gekoppelde spelers
+      await syncAvatarToPlayers(user.id, newAvatarUrl);
+
+      // 4. Spelersnaam opslaan
       if (currentPlayerId) {
         const { error: playerError } = await supabase
           .from('players')
-          .update({ name: name.trim(), avatar_url: newAvatarUrl })
+          .update({ name: trimmedName, avatar_url: newAvatarUrl })
           .eq('id', currentPlayerId);
-
         if (playerError) throw playerError;
-
-        setAvatarUrl(newAvatarUrl);
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-        setSelectedFile(null);
-        onPlayerUpdated();
       }
 
-      // 3. Email wijzigen als aangepast
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && email.trim() && email.trim() !== user.email) {
-        const { error: emailError } = await supabase.auth.updateUser({ email: email.trim() });
+      onPlayerUpdated();
+
+      // 5. Email wijzigen
+      if (trimmedEmail && trimmedEmail !== user.email) {
+        const { error: emailError } = await supabase.auth.updateUser({ email: trimmedEmail });
         if (emailError) throw emailError;
         setMessage({ text: 'Profiel opgeslagen. Controleer je inbox om het nieuwe emailadres te bevestigen.', error: false });
+        setSaving(false);
+        return;
       }
 
-      // 4. Wachtwoord wijzigen als ingevuld
+      // 6. Wachtwoord wijzigen
       if (newPassword) {
         const { error: pwError } = await supabase.auth.updateUser({ password: newPassword });
         if (pwError) throw pwError;
         setNewPassword('');
       }
 
-      if (!message) {
-        setMessage({ text: 'Profiel opgeslagen!', error: false });
-      }
+      setMessage({ text: 'Profiel opgeslagen!', error: false });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Onbekende fout';
       setMessage({ text: `Fout: ${msg}`, error: true });
@@ -218,20 +244,10 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
             </div>
           </button>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
 
           {displayUrl && !previewUrl && (
-            <button
-              type="button"
-              onClick={handleRemoveAvatar}
-              className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
-            >
+            <button type="button" onClick={handleRemoveAvatar} className="mt-2 text-xs text-red-400 hover:text-red-300 underline">
               Foto verwijderen
             </button>
           )}
@@ -241,10 +257,10 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
           {!displayUrl && (
             <p className="mt-2 text-xs text-gray-500">Klik op de cirkel om een foto toe te voegen</p>
           )}
+          <p className="mt-1 text-xs text-gray-600">Profielfoto geldt voor al je teams</p>
         </div>
 
         <div className="space-y-4">
-          {/* Naam — alleen als speler gekoppeld */}
           {currentPlayerId && (
             <div>
               <label className="block text-sm font-bold text-gray-400 mb-1">Naam</label>
@@ -257,7 +273,6 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
             </div>
           )}
 
-          {/* Email */}
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-1">Email</label>
             <input
@@ -268,7 +283,6 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
             />
           </div>
 
-          {/* Wachtwoord — niet tonen bij Google OAuth */}
           {!isGoogle && (
             <div>
               <label className="block text-sm font-bold text-gray-400 mb-1">Nieuw wachtwoord</label>
@@ -282,7 +296,6 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
             </div>
           )}
 
-          {/* Terugkoppeling */}
           {message && (
             <div className={`text-sm p-3 rounded ${message.error ? 'bg-red-900/50 text-red-300' : 'bg-green-900/50 text-green-300'}`}>
               {message.text}

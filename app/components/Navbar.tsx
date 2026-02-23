@@ -37,43 +37,31 @@ export default function Navbar({
   const beheerRef = useRef<HTMLDivElement>(null);
   const teamSwitcherRef = useRef<HTMLDivElement>(null);
 
-  // Laad avatar van de ingelogde speler
-  useEffect(() => {
-    (async () => {
-      if (!currentPlayerId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          setProfileInitials(user.email.substring(0, 2).toUpperCase());
-        }
-        return;
-      }
+  // Laad avatar centraal uit user_metadata
+  const loadProfileInfo = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      const { data } = await supabase
-        .from('players')
-        .select('name, avatar_url')
-        .eq('id', currentPlayerId)
-        .single();
+    // Avatar altijd uit user_metadata (centraal, geldt voor alle teams)
+    setProfileAvatar(user.user_metadata?.avatar_url ?? null);
 
-      if (data) {
-        setProfileAvatar(data.avatar_url ?? null);
-        setProfileInitials(data.name ? data.name.substring(0, 2).toUpperCase() : '?');
-      }
-    })();
-  }, [currentPlayerId]);
-
-  const handleProfileSaved = async () => {
+    // Initialen: spelersnaam als beschikbaar, anders email
     if (currentPlayerId) {
       const { data } = await supabase
         .from('players')
-        .select('name, avatar_url')
+        .select('name')
         .eq('id', currentPlayerId)
         .single();
-
-      if (data) {
-        setProfileAvatar(data.avatar_url ?? null);
-        setProfileInitials(data.name ? data.name.substring(0, 2).toUpperCase() : '?');
-      }
+      setProfileInitials(data?.name ? data.name.substring(0, 2).toUpperCase() : (user.email?.substring(0, 2).toUpperCase() ?? '?'));
+    } else {
+      setProfileInitials(user.email?.substring(0, 2).toUpperCase() ?? '?');
     }
+  };
+
+  useEffect(() => { loadProfileInfo(); }, [currentPlayerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleProfileSaved = async () => {
+    await loadProfileInfo();
     onPlayerUpdated?.();
   };
 
