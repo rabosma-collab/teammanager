@@ -105,7 +105,7 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
       .not('player_id', 'is', null);
 
     if (members?.length) {
-      const ids = members.map(m => m.player_id).filter(Boolean);
+      const ids = members.map((m: { player_id: number | null }) => m.player_id).filter(Boolean);
       if (ids.length) {
         await supabase.from('players').update({ avatar_url: url }).in('id', ids);
       }
