@@ -169,19 +169,26 @@ export default function Navbar({
           </button>
         )}
 
-        {/* Team-switcher */}
-        <div className="relative flex-shrink-0 hidden sm:block" ref={teamSwitcherRef}>
+        <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
+        <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
+        <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
+        <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon="🃏" label="Kaarten" />
+      </div>
+
+      {/* Right side: team-switcher + Beheer + profile + logout — NOT inside the overflow div */}
+      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 flex-shrink-0 border-l border-gray-700/50">
+
+        {/* Team-switcher — hier staat het dropdown BUITEN de overflow-x:auto container */}
+        <div className="relative" ref={teamSwitcherRef}>
           <button
             onClick={() => setShowTeamSwitcher(v => !v)}
             className="flex items-center gap-1.5 text-xs text-gray-300 font-medium px-2 py-1.5 bg-gray-700/50 hover:bg-gray-700 rounded transition-colors"
           >
-            {currentTeam && (
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: currentTeam.color || '#f59e0b' }}
-              />
-            )}
-            <span className="max-w-[120px] truncate">
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: currentTeam?.color || '#f59e0b' }}
+            />
+            <span className="hidden sm:block max-w-[110px] truncate">
               {currentTeam ? currentTeam.name : 'Geen team'}
             </span>
             <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,7 +197,7 @@ export default function Navbar({
           </button>
 
           {showTeamSwitcher && (
-            <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 w-56 py-1">
+            <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 w-56 py-1">
               {teams.map(team => (
                 <button
                   key={team.id}
@@ -230,14 +237,6 @@ export default function Navbar({
           )}
         </div>
 
-        <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
-        <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
-        <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
-        <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon="🃏" label="Kaarten" />
-      </div>
-
-      {/* Right side: Beheer dropdown + profile + logout — NOT inside the overflow div */}
-      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 flex-shrink-0 border-l border-gray-700/50">
         {isAdmin && (
           <div className="relative" ref={beheerRef}>
             <button
