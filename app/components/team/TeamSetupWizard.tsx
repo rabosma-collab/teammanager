@@ -96,7 +96,6 @@ export default function TeamSetupWizard() {
         color,
         setup_done: false,
         team_size: 20,
-        created_by: currentUserId,
       })
       .select('id')
       .single();

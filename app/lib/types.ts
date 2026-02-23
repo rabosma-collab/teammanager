@@ -102,7 +102,6 @@ export interface Player {
     team_size: number;
     color: string;
     setup_done: boolean;
-    created_by: string;
     created_at: string;
     updated_at: string;
   }
