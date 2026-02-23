@@ -10,6 +10,7 @@ interface BenchPanelProps {
   selectedPlayer: Player | null;
   isEditable: boolean;
   onSelectPlayer: (player: Player | null) => void;
+  onShowPlayerCard?: (player: Player) => void;
 }
 
 export default function BenchPanel({
@@ -17,7 +18,8 @@ export default function BenchPanel({
   unavailablePlayers,
   selectedPlayer,
   isEditable,
-  onSelectPlayer
+  onSelectPlayer,
+  onShowPlayerCard
 }: BenchPanelProps) {
   // NUCLEAR dedup: absolute last line of defense against duplicates
   const benchPlayers = React.useMemo(() => {
@@ -50,7 +52,10 @@ export default function BenchPanel({
               <div
                 key={`bench-${player.id}`}
                 onClick={() => {
-                  if (!isEditable) return;
+                  if (!isEditable) {
+                    onShowPlayerCard?.(player);
+                    return;
+                  }
                   // Toggle: deselect if already selected
                   if (selectedPlayer?.id === player.id) {
                     onSelectPlayer(null);
