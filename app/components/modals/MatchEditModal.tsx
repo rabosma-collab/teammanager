@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { formations, formationLabels } from '../../lib/constants';
 import type { Match, SubstitutionScheme } from '../../lib/types';
+import DraggableModal from './DraggableModal';
 
 export interface MatchFormData {
   date: string;
@@ -37,8 +38,8 @@ export default function MatchEditModal({ match, schemes, onSave, onClose }: Matc
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-md">
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-md">
+      <div className="p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg sm:text-xl font-bold">
             {match ? '✏️ Wedstrijd bewerken' : '➕ Nieuwe wedstrijd'}
@@ -129,6 +130,6 @@ export default function MatchEditModal({ match, schemes, onSave, onClose }: Matc
           </div>
         </form>
       </div>
-    </div>
+    </DraggableModal>
   );
 }

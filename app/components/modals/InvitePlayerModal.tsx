@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import DraggableModal from './DraggableModal';
 import type { Player } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
@@ -85,8 +86,8 @@ export default function InvitePlayerModal({ player, onClose, onInviteCreated }: 
   const emoji = positionEmojis[player.position] ?? '⚽';
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-md">
+      <div className="p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">📨 Speler uitnodigen</h2>
           <button onClick={onClose} className="text-2xl hover:text-red-500">✕</button>
@@ -169,6 +170,6 @@ export default function InvitePlayerModal({ player, onClose, onInviteCreated }: 
           Sluiten
         </button>
       </div>
-    </div>
+    </DraggableModal>
   );
 }

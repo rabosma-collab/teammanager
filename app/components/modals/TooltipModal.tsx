@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PositionInstruction } from '../../lib/types';
+import DraggableModal from './DraggableModal';
 
 interface TooltipModalProps {
   instruction: PositionInstruction | null;
@@ -10,8 +11,8 @@ export default function TooltipModal({ instruction, onClose }: TooltipModalProps
   if (!instruction) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-md">
+      <div className="p-6">
         <h3 className="text-xl font-bold mb-4">{instruction.title}</h3>
 
         <div className="space-y-4">
@@ -27,7 +28,7 @@ export default function TooltipModal({ instruction, onClose }: TooltipModalProps
           Sluiten
         </button>
       </div>
-    </div>
+    </DraggableModal>
   );
 }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import DraggableModal from './DraggableModal';
 import { supabase } from '../../lib/supabase';
 import { useTeamContext } from '../../contexts/TeamContext';
 
@@ -184,8 +185,8 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
   const initials = name ? name.substring(0, 2).toUpperCase() : '?';
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-md my-8">
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-md">
+      <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-2.5rem)]">
         <div className="flex justify-between items-center mb-6">
           <div>
             {welcomeMode && (
@@ -307,6 +308,6 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
           </div>
         </div>
       </div>
-    </div>
+    </DraggableModal>
   );
 }

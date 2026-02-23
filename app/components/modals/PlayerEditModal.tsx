@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { positionOrder } from '../../lib/constants';
 import type { Player } from '../../lib/types';
+import DraggableModal from './DraggableModal';
 
 export interface PlayerFormData {
   name: string;
@@ -66,8 +67,8 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-md my-8">
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-md">
+      <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-2.5rem)]">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg sm:text-xl font-bold">
             {player ? '✏️ Speler bewerken' : '➕ Nieuwe speler'}
@@ -192,6 +193,6 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
           </div>
         </form>
       </div>
-    </div>
+    </DraggableModal>
   );
 }

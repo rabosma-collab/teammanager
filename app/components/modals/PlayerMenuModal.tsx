@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Player } from '../../lib/types';
+import DraggableModal from './DraggableModal';
 
 interface PlayerMenuModalProps {
   player: Player;
@@ -21,8 +22,8 @@ export default function PlayerMenuModal({
   const isAbsent = matchAbsences.includes(player.id);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gray-800 rounded-xl p-4 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+    <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-sm">
+      <div className="p-4">
         <h3 className="text-lg font-bold mb-4 text-center">{player.name}</h3>
 
         <div className="space-y-2">
@@ -72,6 +73,6 @@ export default function PlayerMenuModal({
           </button>
         </div>
       </div>
-    </div>
+    </DraggableModal>
   );
 }
