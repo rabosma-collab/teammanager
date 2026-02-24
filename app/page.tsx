@@ -954,18 +954,19 @@ export default function FootballApp() {
                 ))}
               </select>
 
-              <select
-                value={schemeId}
-                onChange={(e) => activelyEditing && setSchemeId(parseInt(e.target.value))}
-                disabled={!activelyEditing || isFinalized}
-                className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 disabled:opacity-50 text-white text-sm sm:text-base"
-              >
-                {schemes.map((s: SubstitutionScheme) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}{s.minutes.length > 0 ? ` (${s.minutes.join("', ")}')` : ''}
-                  </option>
-                ))}
-              </select>
+              {activelyEditing && (
+                <select
+                  value={schemeId}
+                  onChange={(e) => setSchemeId(parseInt(e.target.value))}
+                  className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm sm:text-base"
+                >
+                  {schemes.map((s: SubstitutionScheme) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}{s.minutes.length > 0 ? ` (${s.minutes.join("', ")}')` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
 
               {editable && !isFinalized && !isEditingLineup && (
                 <button
