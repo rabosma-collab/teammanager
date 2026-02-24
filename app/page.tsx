@@ -123,7 +123,7 @@ export default function FootballApp() {
   } = useInstructions();
 
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
-  const { votingMatches, isLoadingVotes, fetchVotingMatches, submitVote } = useVoting();
+  const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCredit } = useStatCredits();
 
   // ---- BEREKENDE WAARDEN ----
@@ -868,6 +868,7 @@ export default function FootballApp() {
           onSelectVotingPlayer={setCurrentPlayerId}
           onVote={handleVote}
           creditBalance={creditBalance}
+          lastSpdwResult={lastSpdwResult}
         />
       ) : view === 'pitch' ? (
         <div className="flex flex-1 overflow-hidden relative">

@@ -1,16 +1,46 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Match, VotingMatch, VoteResults } from '../lib/types';
+import type { Match, VotingMatch, VoteResults, SpdwResult, SpdwPodiumEntry } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
 
 const VOTING_PERIOD_DAYS = 4;
+const POINTS_BY_RANK = [5, 3, 2];
+
+function computePodium(
+  voteCounts: Record<number, number>,
+  playerMap: Map<number, string>
+): SpdwPodiumEntry[] {
+  const sorted = Object.entries(voteCounts)
+    .map(([pid, count]) => ({ player_id: parseInt(pid), vote_count: count }))
+    .filter(e => e.vote_count > 0)
+    .sort((a, b) => b.vote_count - a.vote_count);
+
+  const podium: SpdwPodiumEntry[] = [];
+  let rank = 1;
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && sorted[i].vote_count < sorted[i - 1].vote_count) {
+      rank = i + 1;
+    }
+    if (rank > 3) break;
+    const credits = POINTS_BY_RANK[rank - 1] ?? 0;
+    podium.push({
+      rank,
+      player_id: sorted[i].player_id,
+      player_name: playerMap.get(sorted[i].player_id) ?? `Speler ${sorted[i].player_id}`,
+      vote_count: sorted[i].vote_count,
+      credits,
+    });
+  }
+  return podium;
+}
 
 export function useVoting() {
   const { currentTeam } = useTeamContext();
   const toast = useToast();
   const [votingMatches, setVotingMatches] = useState<VotingMatch[]>([]);
   const [isLoadingVotes, setIsLoadingVotes] = useState(false);
+  const [lastSpdwResult, setLastSpdwResult] = useState<SpdwResult | null>(null);
   const fetchIdRef = useRef(0);
 
   const fetchVotingMatches = useCallback(async (
@@ -41,8 +71,51 @@ export function useVoting() {
 
       if (eligibleMatches.length === 0) {
         if (fetchId === fetchIdRef.current) setVotingMatches([]);
+
+        // Geen actieve stemronde: zoek meest recente afgesloten wedstrijd voor eindstand
+        const finishedMatches = allMatches
+          .filter(m => m.match_status === 'afgerond')
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        if (finishedMatches.length === 0) {
+          if (fetchId === fetchIdRef.current) setLastSpdwResult(null);
+          return;
+        }
+
+        const lastMatch = finishedMatches[0];
+
+        const { data: votesData } = await supabase
+          .from('player_of_week_votes')
+          .select('voted_for_player_id')
+          .eq('match_id', lastMatch.id)
+          .eq('team_id', currentTeam.id);
+
+        if (!votesData || votesData.length === 0) {
+          if (fetchId === fetchIdRef.current) setLastSpdwResult({ match: lastMatch, podium: [] });
+          return;
+        }
+
+        const voteCounts: Record<number, number> = {};
+        for (const v of votesData) {
+          voteCounts[v.voted_for_player_id] = (voteCounts[v.voted_for_player_id] || 0) + 1;
+        }
+
+        const playerIds = Object.keys(voteCounts).map(Number);
+        const { data: playerData } = await supabase
+          .from('players')
+          .select('id, name')
+          .in('id', playerIds);
+
+        const playerMap = new Map<number, string>();
+        for (const p of (playerData || [])) playerMap.set(p.id, p.name);
+
+        const podium = computePodium(voteCounts, playerMap);
+        if (fetchId === fetchIdRef.current) setLastSpdwResult({ match: lastMatch, podium });
         return;
       }
+
+      // Actieve stemronde: wis de eindstand
+      if (fetchId === fetchIdRef.current) setLastSpdwResult(null);
 
       const matchIds = eligibleMatches.map(m => m.id);
 
@@ -264,6 +337,7 @@ export function useVoting() {
   return {
     votingMatches,
     isLoadingVotes,
+    lastSpdwResult,
     fetchVotingMatches,
     submitVote
   };

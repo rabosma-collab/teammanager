@@ -96,6 +96,19 @@ export interface Player {
     daysRemaining: number;
   }
 
+  export interface SpdwPodiumEntry {
+    rank: number;
+    player_id: number;
+    player_name: string;
+    vote_count: number;
+    credits: number;
+  }
+
+  export interface SpdwResult {
+    match: Match;
+    podium: SpdwPodiumEntry[];
+  }
+
   export interface Team {
     id: string;
     name: string;
