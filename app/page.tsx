@@ -7,7 +7,7 @@ import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
 import { useToast } from './contexts/ToastContext';
-import type { Player, PositionInstruction } from './lib/types';
+import type { Player, PositionInstruction, SubstitutionScheme } from './lib/types';
 
 // Hooks
 import { usePlayers } from './hooks/usePlayers';
@@ -67,6 +67,7 @@ export default function FootballApp() {
   // ---- UI STATE ----
   const [view, setView] = useState('dashboard');
   const [formation, setFormation] = useState('4-3-3-aanvallend');
+  const [schemeId, setSchemeId] = useState<number>(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isEditingLineup, setIsEditingLineup] = useState(false);
   const [isEditingMatchInstruction, setIsEditingMatchInstruction] = useState(false);
@@ -197,6 +198,7 @@ export default function FootballApp() {
   useEffect(() => {
     if (selectedMatch) {
       setFormation(normalizeFormation(selectedMatch.formation));
+      setSchemeId(selectedMatch.substitution_scheme_id);
       fetchAbsences(selectedMatch.id);
       fetchSubstitutions(selectedMatch.id);
       fetchPlayers(selectedMatch.id);
@@ -328,7 +330,7 @@ export default function FootballApp() {
 
   const handleSaveLineup = async (): Promise<boolean> => {
     if (!selectedMatch) return false;
-    const success = await saveLineup(selectedMatch, formation, (updatedMatch) => {
+    const success = await saveLineup(selectedMatch, formation, schemeId, (updatedMatch) => {
       setSelectedMatch(updatedMatch);
       setMatches(prev => prev.map(m => m.id === updatedMatch.id ? updatedMatch : m));
     });
@@ -949,6 +951,19 @@ export default function FootballApp() {
               >
                 {Object.keys(formations).map(f => (
                   <option key={f} value={f}>{formationLabels[f]}</option>
+                ))}
+              </select>
+
+              <select
+                value={schemeId}
+                onChange={(e) => activelyEditing && setSchemeId(parseInt(e.target.value))}
+                disabled={!activelyEditing || isFinalized}
+                className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 disabled:opacity-50 text-white text-sm sm:text-base"
+              >
+                {schemes.map((s: SubstitutionScheme) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.minutes.length > 0 ? ` (${s.minutes.join("', ")}')` : ''}
+                  </option>
                 ))}
               </select>
 
