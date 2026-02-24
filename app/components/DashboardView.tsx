@@ -88,6 +88,20 @@ export default function DashboardView({
     return matchInstructions.find((i: PositionInstruction) => i.position_index === playerPositionIndex) ?? null;
   }, [playerPositionIndex, matchInstructions]);
 
+  // Werkelijke positie-categorie o.b.v. formatie + slot-index (niet het speler-profiel)
+  const lineupPositionName = useMemo(() => {
+    if (!dashboardMatch || playerPositionIndex === -1) return undefined;
+    if (playerPositionIndex === 0) return 'Keeper';
+    const numericParts = dashboardMatch.formation.split('-').filter((p: string) => !isNaN(Number(p))).map(Number);
+    const categories = ['Verdediger', 'Middenvelder', 'Aanvaller'];
+    let cumulative = 1;
+    for (let i = 0; i < numericParts.length; i++) {
+      cumulative += numericParts[i];
+      if (playerPositionIndex < cumulative) return categories[i];
+    }
+    return 'Aanvaller';
+  }, [dashboardMatch?.formation, playerPositionIndex]);
+
   useEffect(() => {
     if (!dashboardMatch) {
       setDashboardAbsences([]);
@@ -204,7 +218,7 @@ export default function DashboardView({
             currentPlayerId={currentPlayerId}
             isManager={isManager}
             players={players}
-            positionName={playerMatchInstruction?.position_name || undefined}
+            positionName={playerMatchInstruction?.position_name || lineupPositionName}
             onToggleAbsence={handleToggleAbsence}
             onToggleInjury={handleToggleInjury}
             onNavigateToWedstrijd={onNavigateToWedstrijd}
