@@ -1120,7 +1120,7 @@ export default function FootballApp() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-y-auto">
           <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} />
         </div>
       )}
