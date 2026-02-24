@@ -101,8 +101,8 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
         ))}
       </div>
 
-      <div className="overflow-x-auto">
-      <div className="bg-gray-800 rounded-lg overflow-hidden min-w-[600px]">
+      <div className="overflow-x-auto pb-1">
+      <div className="bg-gray-800 rounded-lg overflow-hidden min-w-max pr-4">
         <table className="w-full">
           <thead className="bg-gray-700">
             <tr className="text-left">
