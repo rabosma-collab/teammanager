@@ -1104,7 +1104,9 @@ export default function FootballApp() {
           </div>
         </div>
       ) : (
-        <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} />
+        <div className="flex-1 overflow-auto">
+          <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} />
+        </div>
       )}
 
 
