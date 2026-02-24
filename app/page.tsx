@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { formations, formationLabels, normalizeFormation } from './lib/constants';
 import { supabase } from './lib/supabase';
@@ -36,7 +36,6 @@ import MededelingenView from './components/MededelingenView';
 import TeamSettingsView from './components/TeamSettingsView';
 
 // PDF
-import MatchPdfView from './components/MatchPdfView';
 import { generateMatchPdf } from './utils/generateMatchPdf';
 
 // Modals
@@ -86,8 +85,6 @@ export default function FootballApp() {
   const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
   const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
-  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
-  const pdfViewRef = useRef<HTMLDivElement>(null);
 
   // ---- HOOKS ----
   const {
@@ -1010,23 +1007,23 @@ export default function FootballApp() {
 
               {isManager && selectedMatch && (
                 <button
-                  onClick={async () => {
-                    if (!pdfViewRef.current) return;
-                    setIsPdfGenerating(true);
-                    try {
-                      const opponent = selectedMatch.opponent.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-                      const date = selectedMatch.date.slice(0, 10);
-                      await generateMatchPdf(pdfViewRef.current, `opstelling-${opponent}-${date}.pdf`);
-                    } finally {
-                      setIsPdfGenerating(false);
-                    }
+                  onClick={() => {
+                    generateMatchPdf({
+                      match: selectedMatch,
+                      players,
+                      fieldOccupants,
+                      substitutions,
+                      matchAbsences,
+                      positionInstructions: matchInstructions.length > 0 ? matchInstructions : positionInstructions,
+                      scheme: currentScheme,
+                      teamName: currentTeam?.name,
+                      teamColor: currentTeam?.color,
+                    });
                   }}
-                  disabled={isPdfGenerating}
                   title="Wedstrijdrapport als PDF"
-                  className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-sm flex items-center gap-1.5"
+                  className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm flex items-center gap-1.5"
                 >
-                  {isPdfGenerating ? '⏳' : '📄'}
-                  <span className="hidden sm:inline">{isPdfGenerating ? 'PDF...' : 'PDF'}</span>
+                  📄 <span className="hidden sm:inline">PDF</span>
                 </button>
               )}
             </div>
@@ -1110,21 +1107,7 @@ export default function FootballApp() {
         <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} />
       )}
 
-      {/* Off-screen PDF layout — alleen gerenderd als er een wedstrijd geselecteerd is */}
-      {selectedMatch && (
-        <MatchPdfView
-          ref={pdfViewRef}
-          match={selectedMatch}
-          players={players}
-          fieldOccupants={fieldOccupants}
-          substitutions={substitutions}
-          matchAbsences={matchAbsences}
-          positionInstructions={matchInstructions.length > 0 ? matchInstructions : positionInstructions}
-          scheme={currentScheme}
-          teamName={currentTeam?.name}
-          teamColor={currentTeam?.color}
-        />
-      )}
+
     </div>
   );
 }
