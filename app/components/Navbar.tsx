@@ -60,6 +60,18 @@ export default function Navbar({
 
   useEffect(() => { loadProfileInfo(); }, [currentPlayerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Supabase initialiseert de sessie asynchroon vanuit localStorage. Als loadProfileInfo()
+  // wordt aangeroepen vóórdat de sessie klaar is, geeft getUser() null terug en verdwijnt
+  // de avatar. INITIAL_SESSION wordt gefired zodra de sessie hersteld is — dan opnieuw laden.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+        loadProfileInfo();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleProfileSaved = async () => {
     await loadProfileInfo();
     onPlayerUpdated?.();
