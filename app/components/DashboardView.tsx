@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Match, Player, PositionInstruction, VotingMatch } from '../lib/types';
+import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import PersonalCard from './dashboard/PersonalCard';
 import NextMatchCard from './dashboard/NextMatchCard';
 import SquadAvailabilityPanel from './dashboard/SquadAvailabilityPanel';
 import VotingSection from './VotingSection';
+import SpdwResultCard from './dashboard/SpdwResultCard';
 import AnnouncementBanner from './dashboard/AnnouncementBanner';
 
 interface DashboardViewProps {
@@ -25,6 +26,7 @@ interface DashboardViewProps {
   onSelectVotingPlayer: (playerId: number) => void;
   onVote: (matchId: number, votedForPlayerId: number) => void;
   creditBalance?: number | null;
+  lastSpdwResult?: SpdwResult | null;
 }
 
 export default function DashboardView({
@@ -41,6 +43,7 @@ export default function DashboardView({
   onSelectVotingPlayer,
   onVote,
   creditBalance,
+  lastSpdwResult,
 }: DashboardViewProps) {
   // Use TeamContext for authoritative identity (not the voting override)
   const { currentTeam, currentPlayerId, isManager, isStaff } = useTeamContext();
@@ -227,15 +230,19 @@ export default function DashboardView({
         </div>
 
         {/* Speler van de week — boven selectie aanwezigheid */}
-        <VotingSection
-          votingMatches={votingMatches}
-          isLoading={isLoadingVotes}
-          players={players}
-          currentPlayerId={votingCurrentPlayerId}
-          isStaff={isStaff}
-          onSelectCurrentPlayer={onSelectVotingPlayer}
-          onVote={onVote}
-        />
+        {votingMatches.length === 0 && lastSpdwResult ? (
+          <SpdwResultCard result={lastSpdwResult} />
+        ) : (
+          <VotingSection
+            votingMatches={votingMatches}
+            isLoading={isLoadingVotes}
+            players={players}
+            currentPlayerId={votingCurrentPlayerId}
+            isStaff={isStaff}
+            onSelectCurrentPlayer={onSelectVotingPlayer}
+            onVote={onVote}
+          />
+        )}
 
         {/* Manager: selectie aanwezigheid */}
         {isManager && dashboardMatch && (
