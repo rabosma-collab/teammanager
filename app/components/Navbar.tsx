@@ -64,7 +64,7 @@ export default function Navbar({
   // wordt aangeroepen vóórdat de sessie klaar is, geeft getUser() null terug en verdwijnt
   // de avatar. INITIAL_SESSION wordt gefired zodra de sessie hersteld is — dan opnieuw laden.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
         loadProfileInfo();
       }
