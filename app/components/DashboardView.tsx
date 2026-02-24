@@ -204,6 +204,7 @@ export default function DashboardView({
             currentPlayerId={currentPlayerId}
             isManager={isManager}
             players={players}
+            positionName={playerMatchInstruction?.position_name || undefined}
             onToggleAbsence={handleToggleAbsence}
             onToggleInjury={handleToggleInjury}
             onNavigateToWedstrijd={onNavigateToWedstrijd}

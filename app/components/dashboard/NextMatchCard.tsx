@@ -12,6 +12,7 @@ interface NextMatchCardProps {
   currentPlayerId: number | null;
   isManager: boolean;
   players: Player[];
+  positionName?: string;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
   onToggleInjury: (playerId: number) => Promise<boolean>;
   onNavigateToWedstrijd: (match: Match) => void;
@@ -45,6 +46,7 @@ export default function NextMatchCard({
   currentPlayerId,
   isManager,
   players,
+  positionName,
   onToggleAbsence,
   onToggleInjury,
   onNavigateToWedstrijd,
@@ -133,6 +135,15 @@ export default function NextMatchCard({
           {isFinalized && (
             <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded border border-gray-600">✅ Afgerond</span>
           )}
+          {!isFinalized && (
+            <span className={`text-xs px-2 py-0.5 rounded border font-bold ${
+              match.lineup_published
+                ? 'bg-green-900/50 text-green-300 border-green-700/50'
+                : 'bg-gray-800 text-gray-400 border-gray-600'
+            }`}>
+              {match.lineup_published ? '✅ Opstelling definitief' : '⏳ Opstelling open'}
+            </span>
+          )}
         </div>
         {isFinalized && match.goals_for != null && match.goals_against != null && (
           <div className="text-3xl font-black text-yellow-400 mt-1">
@@ -158,6 +169,8 @@ export default function NextMatchCard({
             fieldOccupants={fieldOccupants}
             matchAbsences={matchAbsences}
             players={players}
+            lineupPublished={match.lineup_published ?? false}
+            positionName={positionName}
           />
         </div>
       )}
