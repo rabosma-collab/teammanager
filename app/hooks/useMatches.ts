@@ -179,6 +179,31 @@ export function useMatches() {
     }
   }, [selectedMatch?.id, currentTeam]);
 
+  const publishLineup = useCallback(async (matchId: number, published: boolean): Promise<boolean> => {
+    if (!currentTeam) return false;
+
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .update({ lineup_published: published })
+        .eq('id', matchId)
+        .eq('team_id', currentTeam.id);
+
+      if (error) throw error;
+
+      setMatches(prev =>
+        prev.map(m => m.id === matchId ? { ...m, lineup_published: published } : m)
+      );
+      if (selectedMatch?.id === matchId) {
+        setSelectedMatch(prev => prev ? { ...prev, lineup_published: published } : prev);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error publishing lineup:', error);
+      return false;
+    }
+  }, [selectedMatch?.id, currentTeam]);
+
   const deleteMatch = useCallback(async (matchId: number): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -222,6 +247,7 @@ export function useMatches() {
     addMatch,
     updateMatch,
     updateMatchScore,
+    publishLineup,
     deleteMatch
   };
 }

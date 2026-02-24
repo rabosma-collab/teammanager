@@ -36,6 +36,7 @@ export interface Player {
     match_status: 'concept' | 'afgerond';
     goals_for?: number | null;
     goals_against?: number | null;
+    lineup_published?: boolean;
   }
 
   export interface SubstitutionScheme {

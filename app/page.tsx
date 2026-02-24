@@ -35,6 +35,9 @@ import InvitesManageView from './components/InvitesManageView';
 import MededelingenView from './components/MededelingenView';
 import TeamSettingsView from './components/TeamSettingsView';
 
+// PDF
+import { generateMatchPdf } from './utils/generateMatchPdf';
+
 // Modals
 import TooltipModal from './components/modals/TooltipModal';
 import InstructionEditModal from './components/modals/InstructionEditModal';
@@ -94,7 +97,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, updateMatchScore, deleteMatch
+    addMatch, updateMatch, updateMatchScore, publishLineup, deleteMatch
   } = useMatches();
 
   const {
@@ -125,6 +128,7 @@ export default function FootballApp() {
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isManager);
   const isFinalized = selectedMatch?.match_status === 'afgerond';
+  const isLineupPublished = selectedMatch?.lineup_published === true;
   const activelyEditing = editable && isEditingLineup;
 
   const canFinalizeMatch = useCallback((): boolean => {
@@ -322,19 +326,19 @@ export default function FootballApp() {
     }
   }, [selectedPosition, activelyEditing, placePlayerAtPosition, setSelectedPlayer, setSelectedPosition]);
 
-  const handleSaveLineup = async () => {
-    if (!selectedMatch) return;
+  const handleSaveLineup = async (): Promise<boolean> => {
+    if (!selectedMatch) return false;
     const success = await saveLineup(selectedMatch, formation, (updatedMatch) => {
       setSelectedMatch(updatedMatch);
       setMatches(prev => prev.map(m => m.id === updatedMatch.id ? updatedMatch : m));
     });
     if (success) {
-      toast.success('✅ Opstelling en formatie opgeslagen!');
       // Do NOT reload lineup from DB here — guest players are not stored in the lineups table
       // and would be removed from fieldOccupants if we reload. The current state is correct.
     } else {
       toast.error('❌ Kon opstelling niet opslaan');
     }
+    return success;
   };
 
   const handleAddGuest = async (name: string, position: string) => {
@@ -904,9 +908,13 @@ export default function FootballApp() {
               <div className={`mb-4 p-3 rounded-lg text-sm font-bold text-center ${
                 selectedMatch.match_status === 'afgerond'
                   ? 'bg-green-900/30 border border-green-700'
+                  : isLineupPublished && !isEditingLineup
+                  ? 'bg-green-900/30 border border-green-700'
                   : 'bg-blue-900/30 border border-blue-700'
               }`}>
-                {getMatchStatusBadge()}
+                {isLineupPublished && !isFinalized && !isEditingLineup
+                  ? '✅ Opstelling definitief'
+                  : getMatchStatusBadge()}
               </div>
             ) : null}
 
@@ -946,27 +954,44 @@ export default function FootballApp() {
 
               {editable && !isFinalized && !isEditingLineup && (
                 <button
-                  onClick={() => setIsEditingLineup(true)}
+                  onClick={() => {
+                    setIsEditingLineup(true);
+                    if (isLineupPublished && selectedMatch) {
+                      publishLineup(selectedMatch.id, false);
+                    }
+                  }}
                   className="px-3 sm:px-4 py-2 rounded font-bold bg-blue-600 hover:bg-blue-700 text-sm sm:text-base"
                 >
-                  ✏️ Aanpassen
+                  {isLineupPublished ? '✏️ Herzien' : '✏️ Aanpassen'}
                 </button>
               )}
 
               {editable && !isFinalized && isEditingLineup && (
                 <>
                   <button
-                    onClick={handleSaveLineup}
+                    onClick={async () => {
+                      const ok = await handleSaveLineup();
+                      if (!ok) return;
+                      toast.success('💾 Opstelling opgeslagen!');
+                      setIsEditingLineup(false);
+                    }}
                     disabled={savingLineup}
-                    className="px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
+                    className="px-3 sm:px-4 py-2 rounded font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-sm sm:text-base"
                   >
                     {savingLineup ? '💾 Bezig...' : '💾 Opslaan'}
                   </button>
                   <button
-                    onClick={() => setIsEditingLineup(false)}
-                    className="px-3 sm:px-4 py-2 rounded font-bold bg-gray-600 hover:bg-gray-700 text-sm sm:text-base"
+                    onClick={async () => {
+                      const ok = await handleSaveLineup();
+                      if (!ok) return;
+                      if (selectedMatch) await publishLineup(selectedMatch.id, true);
+                      toast.success('✅ Opstelling definitief gemaakt!');
+                      setIsEditingLineup(false);
+                    }}
+                    disabled={savingLineup}
+                    className="px-3 sm:px-4 py-2 rounded font-bold bg-green-600 hover:bg-green-700 disabled:opacity-50 text-sm sm:text-base"
                   >
-                    ✅ Klaar
+                    ✅ Opstelling definitief
                   </button>
                 </>
               )}
@@ -977,6 +1002,28 @@ export default function FootballApp() {
                   className="px-3 sm:px-4 py-2 rounded font-bold bg-purple-600 hover:bg-purple-700 text-sm sm:text-base"
                 >
                   🏁 Wedstrijd afsluiten
+                </button>
+              )}
+
+              {isManager && selectedMatch && (
+                <button
+                  onClick={() => {
+                    generateMatchPdf({
+                      match: selectedMatch,
+                      players,
+                      fieldOccupants,
+                      substitutions,
+                      matchAbsences,
+                      positionInstructions: matchInstructions.length > 0 ? matchInstructions : positionInstructions,
+                      scheme: currentScheme,
+                      teamName: currentTeam?.name,
+                      teamColor: currentTeam?.color,
+                    });
+                  }}
+                  title="Wedstrijdrapport als PDF"
+                  className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm flex items-center gap-1.5"
+                >
+                  📄 <span className="hidden sm:inline">PDF</span>
                 </button>
               )}
             </div>
@@ -1059,6 +1106,8 @@ export default function FootballApp() {
       ) : (
         <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} />
       )}
+
+
     </div>
   );
 }

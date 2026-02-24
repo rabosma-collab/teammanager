@@ -36,6 +36,8 @@ interface LineupStatusBadgeProps {
   fieldOccupants: (Player | null)[];
   matchAbsences: number[];
   players: Player[];
+  lineupPublished?: boolean;
+  positionName?: string;
 }
 
 const statusConfig: Record<LineupStatus, { bg: string; border: string; text: string; label: string }> = {
@@ -46,9 +48,18 @@ const statusConfig: Record<LineupStatus, { bg: string; border: string; text: str
   'opstelling-onbekend': { bg: 'bg-gray-800/80', border: 'border-gray-600', text: 'text-gray-400', label: '❓ Opstelling nog niet ingesteld' },
 };
 
-export default function LineupStatusBadge({ currentPlayerId, fieldOccupants, matchAbsences, players }: LineupStatusBadgeProps) {
+export default function LineupStatusBadge({ currentPlayerId, fieldOccupants, matchAbsences, players, lineupPublished, positionName }: LineupStatusBadgeProps) {
   const status = getLineupStatus(currentPlayerId, fieldOccupants, matchAbsences, players);
   if (!status) return null;
+
+  // 'opstelling-onbekend' tonen als geen spelers op het veld staan
+  if (status === 'opstelling-onbekend') {
+    return (
+      <div className="inline-flex items-center px-3 py-2 rounded-lg border bg-gray-800/80 border-gray-600 text-gray-400 font-bold text-sm">
+        ❓ Opstelling nog niet ingesteld
+      </div>
+    );
+  }
 
   const config = statusConfig[status];
 
@@ -57,13 +68,19 @@ export default function LineupStatusBadge({ currentPlayerId, fieldOccupants, mat
     const player = players.find(p => p.id === currentPlayerId && !p.is_guest);
     if (player) {
       const emoji = positionEmojis[player.position] || '⚽';
-      label = `${emoji} ${player.position}`;
+      // Gebruik specifieke positienaam uit instructies indien beschikbaar
+      label = positionName ? `${emoji} ${positionName}` : `${emoji} ${player.position}`;
     }
   }
 
   return (
-    <div className={`inline-flex items-center px-3 py-2 rounded-lg border ${config.bg} ${config.border} ${config.text} font-bold text-sm`}>
-      {label}
+    <div className="inline-flex flex-col gap-1">
+      <div className={`inline-flex items-center px-3 py-2 rounded-lg border ${config.bg} ${config.border} ${config.text} font-bold text-sm`}>
+        {label}
+      </div>
+      {!lineupPublished && status !== 'geblesseerd' && status !== 'afwezig' && (
+        <div className="text-xs text-gray-500 pl-1">🔄 Concept — kan nog wijzigen</div>
+      )}
     </div>
   );
 }

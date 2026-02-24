@@ -81,7 +81,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
   ];
 
   return (
-    <div className="p-4 sm:p-8 overflow-x-auto">
+    <div className="p-4 sm:p-8">
       <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">📊 Ranglijst</h2>
 
       {/* Positie-filter */}
@@ -101,6 +101,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
         ))}
       </div>
 
+      <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
       <div className="bg-gray-800 rounded-lg overflow-hidden min-w-[600px]">
         <table className="w-full">
           <thead className="bg-gray-700">
@@ -142,6 +143,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
             ))}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );
