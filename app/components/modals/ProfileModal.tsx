@@ -161,21 +161,26 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
         newAvatarUrl = `${publicUrl}?t=${Date.now()}`;
       }
 
-      // 2. Sla centraal op in user_metadata
-      await supabase.auth.updateUser({ data: { avatar_url: newAvatarUrl } });
-      setAvatarUrl(newAvatarUrl);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-      setSelectedFile(null);
+      // 2. Sla centraal op in user_metadata — alleen als er een nieuwe foto geselecteerd is
+      //    (verwijderen gaat via handleRemoveAvatar; nooit null overschrijven bij gewoon opslaan)
+      if (selectedFile) {
+        await supabase.auth.updateUser({ data: { avatar_url: newAvatarUrl } });
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setAvatarUrl(newAvatarUrl);
 
-      // 3. Sync naar alle gekoppelde spelers
-      await syncAvatarToPlayers(user.id, newAvatarUrl);
+        // 3. Sync naar alle gekoppelde spelers
+        await syncAvatarToPlayers(user.id, newAvatarUrl);
+      }
 
       // 4. Spelersnaam opslaan
       if (currentPlayerId) {
+        const playerUpdate: { name: string; avatar_url?: string | null } = { name: trimmedName };
+        if (selectedFile) playerUpdate.avatar_url = newAvatarUrl;
         const { error: playerError } = await supabase
           .from('players')
-          .update({ name: trimmedName, avatar_url: newAvatarUrl })
+          .update(playerUpdate)
           .eq('id', currentPlayerId);
         if (playerError) throw playerError;
       }
