@@ -46,6 +46,7 @@ export default function PlayerCardsView({
   const [creditEditingId, setCreditEditingId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'position' | 'rating'>('position');
   const [pendingSpend, setPendingSpend] = useState<string | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   const regularPlayers = players.filter(p => !p.is_guest);
   const hasCredits = currentPlayerId != null && creditBalance != null && creditBalance > 0;
@@ -141,7 +142,20 @@ export default function PlayerCardsView({
   return (
     <div className="p-4 sm:p-8 overflow-y-auto flex-1">
       <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
-        <h2 className="text-2xl sm:text-3xl font-bold">🃏 Spelerskaarten</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl sm:text-3xl font-bold">🃏 Spelerskaarten</h2>
+          <button
+            onClick={() => setShowInfo(v => !v)}
+            title="Hoe werkt het?"
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+              showInfo
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            }`}
+          >
+            i
+          </button>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           {hasCredits && (
             <span className="px-3 py-1.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs font-bold text-yellow-400">
@@ -166,6 +180,103 @@ export default function PlayerCardsView({
           </button>
         </div>
       </div>
+
+      {showInfo && (
+        <div className="mb-6 p-4 bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-300 space-y-5">
+          {/* Rating berekening */}
+          <div>
+            <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
+              <span>⚡</span> Hoe wordt de rating berekend?
+            </h3>
+            <p className="text-gray-400 text-xs mb-3">
+              De overall rating is een gewogen gemiddelde van de basisstats. Per positie tellen andere stats zwaarder mee.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                {
+                  pos: '🧤 Keeper',
+                  color: 'border-green-600',
+                  stats: [
+                    { label: 'DIV', pct: 25 }, { label: 'REF', pct: 25 },
+                    { label: 'POS', pct: 20 }, { label: 'HAN', pct: 15 },
+                    { label: 'SPE', pct: 10 }, { label: 'KIC', pct: 5 },
+                  ],
+                },
+                {
+                  pos: '🛡️ Verdediger',
+                  color: 'border-blue-600',
+                  stats: [
+                    { label: 'DEF', pct: 55 }, { label: 'PAC', pct: 15 },
+                    { label: 'PAS', pct: 15 }, { label: 'DRI', pct: 10 },
+                    { label: 'SHO', pct: 5 },
+                  ],
+                },
+                {
+                  pos: '⚙️ Middenvelder',
+                  color: 'border-yellow-600',
+                  stats: [
+                    { label: 'PAS', pct: 30 }, { label: 'DRI', pct: 25 },
+                    { label: 'PAC', pct: 15 }, { label: 'SHO', pct: 15 },
+                    { label: 'DEF', pct: 15 },
+                  ],
+                },
+                {
+                  pos: '⚡ Aanvaller',
+                  color: 'border-red-600',
+                  stats: [
+                    { label: 'SHO', pct: 35 }, { label: 'DRI', pct: 25 },
+                    { label: 'PAC', pct: 20 }, { label: 'PAS', pct: 15 },
+                    { label: 'DEF', pct: 5 },
+                  ],
+                },
+              ].map(({ pos, color, stats }) => (
+                <div key={pos} className={`bg-gray-900 rounded-lg p-3 border-l-2 ${color}`}>
+                  <div className="font-semibold text-white text-xs mb-2">{pos}</div>
+                  <div className="space-y-1.5">
+                    {stats.map(({ label, pct }) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <span className="text-gray-400 text-xs w-8">{label}</span>
+                        <div className="flex-1 bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-gray-300 text-xs w-7 text-right">{pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Credit systeem */}
+          <div className="border-t border-gray-700 pt-4">
+            <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
+              <span>💰</span> Hoe werkt het creditsysteem?
+            </h3>
+            <div className="space-y-2 text-xs text-gray-400">
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-400 mt-0.5">→</span>
+                <span>Je verdient credits door de <span className="text-yellow-300 font-semibold">Speler van de Week</span> te winnen op het Dashboard. De winnaar ontvangt credits op basis van het aantal stemmen.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-400 mt-0.5">→</span>
+                <span>Met 1 credit kun je <span className="text-white font-semibold">één statpunt</span> omhoog of omlaag aanpassen bij <em>elke willekeurige speler</em>, inclusief jezelf.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-400 mt-0.5">→</span>
+                <span>Klik op de <span className="text-yellow-300 font-semibold">💰-knop</span> onder een spelerskaart om het aanpasspaneel te openen. Elke klik op + of − kost 1 credit.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-400 mt-0.5">→</span>
+                <span>Jouw huidige saldo staat rechts bovenaan deze pagina. Credits kun je niet overdragen.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingPlayer && isAdmin && (
         <PlayerStatsEditModal
