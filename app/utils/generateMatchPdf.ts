@@ -137,9 +137,10 @@ ${sectionHeader('Bank')}
 <div style="margin-bottom:4px">${bankPlayers.map(p => chip(p.name, '#6b7280', true)).join('')}</div>
 ` : ''}
 
-${sortedSubs.length > 0 ? `
+${(sortedSubs.length > 0 || scheme) ? `
 ${sectionHeader('Wissels')}
-${sortedSubs.map(sub => {
+${scheme ? `<div style="font-size:12px;color:#9ca3af;margin-bottom:8px">Schema: <strong style="color:#d1d5db">${scheme.name}</strong>${scheme.minutes.length > 0 ? ' · minuten: ' + scheme.minutes.map(m => m + "'").join(', ') : ' (vrije wissels)'}</div>` : ''}
+${sortedSubs.length > 0 ? sortedSubs.map(sub => {
   const out = players.find(p => p.id === sub.player_out_id);
   const inn = players.find(p => p.id === sub.player_in_id);
   return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:13px">
@@ -147,7 +148,7 @@ ${sortedSubs.map(sub => {
     <span style="color:#f87171">⬇ ${out?.name ?? '–'}</span>
     <span style="color:#4ade80">⬆ ${inn?.name ?? '–'}</span>
   </div>`;
-}).join('')}
+}).join('') : '<div style="font-size:12px;color:#6b7280">Nog geen spelers toegewezen aan wissels</div>'}
 ` : ''}
 
 ${wasbeurtSpeler ? `
@@ -168,11 +169,19 @@ ${sectionHeader('Afwezigen')}
 
 ${positionInstructions.length > 0 ? `
 ${sectionHeader('Positie-instructies')}
-${positionInstructions.slice(0, 6).map(instr => `
-  <div style="margin-bottom:8px">
-    <div style="font-size:12px;font-weight:700;color:#d1d5db">${instr.position_name}</div>
-    ${instr.title ? `<div style="font-size:12px;color:#9ca3af;margin-left:8px">${instr.title}</div>` : ''}
-  </div>`).join('')}
+${positionInstructions.map(instr => {
+  const tipRow = (emoji: string, label: string, items: string[]) =>
+    items.length > 0
+      ? `<div style="margin-top:4px;font-size:11px;color:#9ca3af"><span style="margin-right:4px">${emoji}</span><strong style="color:#d1d5db">${label}:</strong> ${items.join(' · ')}</div>`
+      : '';
+  return `<div style="margin-bottom:14px;padding:10px 12px;background:#1f2937;border-radius:8px;border:1px solid #374151">
+    <div style="font-size:13px;font-weight:700;color:#f9fafb;margin-bottom:2px">${instr.position_name}</div>
+    ${instr.title ? `<div style="font-size:12px;color:#9ca3af;margin-bottom:4px;font-style:italic">${instr.title}</div>` : ''}
+    ${tipRow('💡', 'Algemeen', instr.general_tips || [])}
+    ${tipRow('⚽', 'Met bal', instr.with_ball || [])}
+    ${tipRow('🛡️', 'Zonder bal', instr.without_ball || [])}
+  </div>`;
+}).join('')}
 ` : ''}
 
 <!-- Footer -->
