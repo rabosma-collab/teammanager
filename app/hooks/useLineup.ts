@@ -56,6 +56,7 @@ export function useLineup() {
   const saveLineup = useCallback(async (
     match: Match,
     formation: string,
+    substitutionSchemeId: number,
     onMatchUpdate: (updatedMatch: Match) => void
   ): Promise<boolean> => {
     if (!currentTeam) return false;
@@ -65,7 +66,7 @@ export function useLineup() {
     try {
       const { error: formationError } = await supabase
         .from('matches')
-        .update({ formation })
+        .update({ formation, substitution_scheme_id: substitutionSchemeId })
         .eq('id', match.id)
         .eq('team_id', currentTeam.id);
 
@@ -119,7 +120,7 @@ export function useLineup() {
           .eq('team_id', currentTeam.id);
       }
 
-      const updatedMatch = { ...match, formation };
+      const updatedMatch = { ...match, formation, substitution_scheme_id: substitutionSchemeId };
       onMatchUpdate(updatedMatch);
 
       return true;
