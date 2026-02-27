@@ -42,7 +42,10 @@ export function generateMatchPdf(data: MatchPdfData): void {
   const eligibleForWash = players
     .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
     .sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
-  const wasbeurtSpeler = eligibleForWash[0] ?? null;
+  const overrideWasbeurt = match.wasbeurt_player_id
+    ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
+    : null;
+  const wasbeurtSpeler = overrideWasbeurt ?? eligibleForWash[0] ?? null;
 
   const sortedSubs = [...substitutions].sort((a, b) => a.substitution_number - b.substitution_number);
 
