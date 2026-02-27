@@ -67,6 +67,7 @@ export default function TeamSetupWizard() {
 
   // Stap 2
   const [gameFormat, setGameFormat] = useState('11v11');
+  const [matchDuration, setMatchDuration] = useState(GAME_FORMATS['11v11'].match_duration);
 
   // Stap 3
   const [formation, setFormation] = useState('4-3-3-aanvallend');
@@ -156,7 +157,7 @@ export default function TeamSetupWizard() {
           team_id: teamId,
           game_format: chosen,
           periods: fmtData.periods,
-          match_duration: fmtData.match_duration,
+          match_duration: matchDuration,
           default_formation: defaultFormation,
         }, { onConflict: 'team_id' });
     }
@@ -248,7 +249,12 @@ export default function TeamSetupWizard() {
           {step === 2 && (
             <StepSpelvorm
               gameFormat={gameFormat}
-              onChangeGameFormat={setGameFormat}
+              matchDuration={matchDuration}
+              onChangeGameFormat={(fmt) => {
+                setGameFormat(fmt);
+                setMatchDuration(GAME_FORMATS[fmt].match_duration);
+              }}
+              onChangeMatchDuration={setMatchDuration}
               onNext={() => handleSaveGameFormat(gameFormat)}
               onSkip={() => setStep(3)}
             />
