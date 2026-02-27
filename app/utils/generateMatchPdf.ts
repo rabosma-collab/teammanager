@@ -93,7 +93,10 @@ export function generateMatchPdf(data: MatchPdfData): void {
 <body>
 
 <!-- Printknop -->
-<div class="no-print" style="text-align:right;margin-bottom:20px">
+<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+  <button onclick="window.close()" style="padding:8px 18px;background:#374151;color:#f9fafb;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">
+    ← Terug
+  </button>
   <button onclick="window.print()" style="padding:8px 18px;background:${color};color:#111827;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">
     🖨️ Afdrukken / Opslaan als PDF
   </button>
