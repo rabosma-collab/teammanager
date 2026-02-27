@@ -855,6 +855,7 @@ export default function FootballApp() {
           matches={matches}
           schemes={schemes}
           gameFormat={gameFormat}
+          matchDuration={matchDuration}
           defaultFormation={teamSettings?.default_formation}
           onAddMatch={addMatch}
           onUpdateMatch={updateMatch}

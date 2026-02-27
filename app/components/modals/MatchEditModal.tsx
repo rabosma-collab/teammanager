@@ -15,12 +15,13 @@ interface MatchEditModalProps {
   match: Match | null; // null = new match
   schemes: SubstitutionScheme[];
   gameFormat: string;
+  matchDuration?: number;
   defaultFormation?: string;
   onSave: (data: MatchFormData) => void;
   onClose: () => void;
 }
 
-export default function MatchEditModal({ match, schemes, gameFormat, defaultFormation = '4-3-3-aanvallend', onSave, onClose }: MatchEditModalProps) {
+export default function MatchEditModal({ match, schemes, gameFormat, matchDuration = 90, defaultFormation = '4-3-3-aanvallend', onSave, onClose }: MatchEditModalProps) {
   const [date, setDate] = useState(match?.date || '');
   const [opponent, setOpponent] = useState(match?.opponent || '');
   const [homeAway, setHomeAway] = useState(match?.home_away || 'Thuis');
@@ -106,12 +107,15 @@ export default function MatchEditModal({ match, schemes, gameFormat, defaultForm
               onChange={(e) => setSchemeId(parseInt(e.target.value))}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
             >
-              {schemes.map(scheme => (
-                <option key={scheme.id} value={scheme.id}>
-                  {scheme.name}
-                  {scheme.minutes.length > 0 ? ` (${scheme.minutes.join("', ")}')` : ''}
-                </option>
-              ))}
+              {schemes.map(scheme => {
+                const scaled = scheme.minutes.map(m => Math.round(m * matchDuration / 90));
+                return (
+                  <option key={scheme.id} value={scheme.id}>
+                    {scheme.name}
+                    {scaled.length > 0 ? ` (${scaled.join("', ")}')` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
