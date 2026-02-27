@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { formations, formationLabels, normalizeFormation } from './lib/constants';
+import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS } from './lib/constants';
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
@@ -18,6 +18,7 @@ import { useInstructions } from './hooks/useInstructions';
 import { useSubstitutionSchemes } from './hooks/useSubstitutionSchemes';
 import { useVoting } from './hooks/useVoting';
 import { useStatCredits } from './hooks/useStatCredits';
+import { useTeamSettings } from './hooks/useTeamSettings';
 
 // Components
 import Navbar from './components/Navbar';
@@ -125,6 +126,10 @@ export default function FootballApp() {
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCredit } = useStatCredits();
+  const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
+
+  const gameFormat = teamSettings?.game_format ?? DEFAULT_GAME_FORMAT;
+  const matchDuration = teamSettings?.match_duration ?? 90;
 
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isManager);
@@ -196,8 +201,14 @@ export default function FootballApp() {
   }, [fetchMatches, fetchSchemes]);
 
   useEffect(() => {
+    if (currentTeam?.id) {
+      fetchTeamSettings(currentTeam.id);
+    }
+  }, [currentTeam?.id, fetchTeamSettings]);
+
+  useEffect(() => {
     if (selectedMatch) {
-      setFormation(normalizeFormation(selectedMatch.formation));
+      setFormation(normalizeFormation(selectedMatch.formation, gameFormat));
       setSchemeId(selectedMatch.substitution_scheme_id);
       fetchAbsences(selectedMatch.id);
       fetchSubstitutions(selectedMatch.id);
@@ -209,29 +220,31 @@ export default function FootballApp() {
     }
   }, [selectedMatch?.id, fetchAbsences, fetchSubstitutions, fetchPlayers]);
 
-  useEffect(() => {
-    if (selectedMatch && players.length > 0) {
-      loadLineup(selectedMatch.id, players);
-    }
-  }, [players.length, selectedMatch?.id, loadLineup]);
+  const playerCount = GAME_FORMATS[gameFormat]?.players ?? 11;
 
   useEffect(() => {
-    fetchInstructions(formation);
+    if (selectedMatch && players.length > 0) {
+      loadLineup(selectedMatch.id, players, playerCount);
+    }
+  }, [players.length, selectedMatch?.id, loadLineup, playerCount]);
+
+  useEffect(() => {
+    fetchInstructions(gameFormat, formation);
     if (selectedMatch) {
       fetchMatchInstructions(selectedMatch.id, formation);
     } else {
       clearMatchInstructions();
     }
-  }, [formation, selectedMatch?.id, fetchInstructions, fetchMatchInstructions, clearMatchInstructions]);
+  }, [gameFormat, formation, selectedMatch?.id, fetchInstructions, fetchMatchInstructions, clearMatchInstructions]);
 
   useEffect(() => {
     if (view === 'instructions') {
-      fetchInstructions(instructionFormation);
+      fetchInstructions(gameFormat, instructionFormation);
       if (selectedMatch) {
         fetchMatchInstructions(selectedMatch.id, instructionFormation);
       }
     }
-  }, [view, instructionFormation, selectedMatch?.id, fetchInstructions, fetchMatchInstructions]);
+  }, [view, gameFormat, instructionFormation, selectedMatch?.id, fetchInstructions, fetchMatchInstructions]);
 
   // Load voting data when matches are available and currentPlayer changes
   useEffect(() => {
@@ -442,7 +455,7 @@ export default function FootballApp() {
 
       await fetchSubstitutions(selectedMatch.id);
       setShowExtraSubModal(false);
-      setExtraSubMinute(45);
+      setExtraSubMinute(Math.floor(matchDuration / 2));
       setExtraSubOut(null);
       setExtraSubIn(null);
       toast.success('✅ Extra wissel toegevoegd!');
@@ -535,7 +548,7 @@ export default function FootballApp() {
               if (success) toast.success('✅ Wedstrijdinstructie opgeslagen!');
               else toast.error('❌ Kon instructie niet opslaan');
             } else {
-              const success = await saveInstruction(editingInstruction, instructionFormation);
+              const success = await saveInstruction(editingInstruction, gameFormat, instructionFormation);
               if (success) toast.success('✅ Instructie opgeslagen!');
               else toast.error('❌ Kon instructie niet opslaan');
             }
@@ -623,6 +636,7 @@ export default function FootballApp() {
           subNumber={showSubModal}
           minute={showSubModalMinute}
           isFreeSubstitution={!!isFreeSubstitution}
+          matchDuration={matchDuration}
           tempSubs={tempSubs}
           fieldOccupants={fieldOccupants}
           benchPlayers={benchPlayers}
@@ -737,11 +751,11 @@ export default function FootballApp() {
                 <input
                   type="number"
                   min="1"
-                  max="90"
+                  max={matchDuration}
                   value={extraSubMinute}
-                  onChange={(e) => setExtraSubMinute(Math.max(1, Math.min(90, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => setExtraSubMinute(Math.max(1, Math.min(matchDuration, parseInt(e.target.value) || 1)))}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-lg font-bold text-center"
-                  placeholder="bijv. 45"
+                  placeholder={`bijv. ${Math.floor(matchDuration / 2)}`}
                 />
               </div>
 
@@ -796,7 +810,7 @@ export default function FootballApp() {
               <button
                 onClick={() => {
                   setShowExtraSubModal(false);
-                  setExtraSubMinute(45);
+                  setExtraSubMinute(Math.floor(matchDuration / 2));
                   setExtraSubOut(null);
                   setExtraSubIn(null);
                 }}
@@ -812,6 +826,7 @@ export default function FootballApp() {
       {/* === VIEWS === */}
       {view === 'instructions' && isManager ? (
         <InstructionsView
+          gameFormat={gameFormat}
           instructionFormation={instructionFormation}
           setInstructionFormation={setInstructionFormation}
           positionInstructions={positionInstructions}
@@ -832,6 +847,7 @@ export default function FootballApp() {
         <MatchesManageView
           matches={matches}
           schemes={schemes}
+          gameFormat={gameFormat}
           onAddMatch={addMatch}
           onUpdateMatch={updateMatch}
           onUpdateScore={updateMatchScore}
@@ -858,6 +874,7 @@ export default function FootballApp() {
           players={players}
           matches={matches}
           fieldOccupants={fieldOccupants}
+          gameFormat={gameFormat}
           onToggleAbsence={toggleAbsence}
           onToggleInjury={toggleInjury}
           onNavigateToWedstrijd={(match) => { setSelectedMatch(match); setView('pitch'); }}
@@ -928,7 +945,7 @@ export default function FootballApp() {
                 onChange={(e) => {
                   const match = matches.find(m => m.id === parseInt(e.target.value));
                   setSelectedMatch(match || null);
-                  clearField();
+                  clearField(playerCount);
                 }}
                 className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white font-bold text-sm sm:text-base flex-1 sm:flex-initial"
               >
@@ -950,8 +967,8 @@ export default function FootballApp() {
                 disabled={!activelyEditing || isFinalized}
                 className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 disabled:opacity-50 text-white text-sm sm:text-base"
               >
-                {Object.keys(formations).map(f => (
-                  <option key={f} value={f}>{formationLabels[f]}</option>
+                {Object.entries(formations[gameFormat] ?? formations['11v11']).map(([f]) => (
+                  <option key={f} value={f}>{formationLabels[gameFormat]?.[f] ?? f}</option>
                 ))}
               </select>
 
@@ -1035,6 +1052,7 @@ export default function FootballApp() {
                       scheme: currentScheme,
                       teamName: currentTeam?.name,
                       teamColor: currentTeam?.color,
+                      gameFormat,
                     });
                   }}
                   title="Wedstrijdrapport als PDF"
@@ -1048,6 +1066,7 @@ export default function FootballApp() {
             {/* Veld + Bank */}
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
               <PitchView
+                gameFormat={gameFormat}
                 formation={formation}
                 fieldOccupants={fieldOccupants}
                 selectedPosition={selectedPosition}
@@ -1099,6 +1118,7 @@ export default function FootballApp() {
               isAdmin={isManager}
               isEditable={activelyEditing}
               isFinalized={!!isFinalized}
+              matchDuration={matchDuration}
               onEditSub={handleEditSub}
               onAddExtraSub={() => setShowExtraSubModal(true)}
               onDeleteExtraSub={deleteExtraSubstitution}

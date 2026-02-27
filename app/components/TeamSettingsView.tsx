@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useTeamSettings } from '../hooks/useTeamSettings';
 import { useToast } from '../contexts/ToastContext';
-import { formationLabels } from '../lib/constants';
+import { formationLabels, GAME_FORMATS, DEFAULT_FORMATIONS } from '../lib/constants';
 
 const PRESET_COLORS = [
   { hex: '#f59e0b', name: 'Geel' },
@@ -24,6 +24,7 @@ export default function TeamSettingsView() {
 
   const [teamName, setTeamName] = useState('');
   const [teamColor, setTeamColor] = useState('#f59e0b');
+  const [localDuration, setLocalDuration] = useState<number>(90);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -33,6 +34,12 @@ export default function TeamSettingsView() {
       fetchSettings(currentTeam.id);
     }
   }, [currentTeam, fetchSettings]);
+
+  useEffect(() => {
+    if (settings?.match_duration != null) {
+      setLocalDuration(settings.match_duration);
+    }
+  }, [settings?.match_duration]);
 
   const handleSaveTeamInfo = async () => {
     if (!currentTeam) return;
@@ -58,6 +65,27 @@ export default function TeamSettingsView() {
     if (!currentTeam) return;
     const ok = await upsertSettings(currentTeam.id, { [key]: value });
     if (!ok) toast.error('❌ Kon instelling niet opslaan');
+  };
+
+  const handleGameFormatChange = async (fmt: string) => {
+    if (!currentTeam) return;
+    const fmtData = GAME_FORMATS[fmt];
+    const defaultFormation = DEFAULT_FORMATIONS[fmt] ?? '4-3-3-aanvallend';
+    const ok = await upsertSettings(currentTeam.id, {
+      game_format: fmt,
+      periods: fmtData.periods,
+      match_duration: fmtData.match_duration,
+      default_formation: defaultFormation,
+    });
+    if (!ok) toast.error('❌ Kon spelvorm niet opslaan');
+  };
+
+  const handleDurationBlur = async () => {
+    if (!currentTeam) return;
+    const clamped = Math.max(10, Math.min(120, localDuration || 10));
+    setLocalDuration(clamped);
+    const ok = await upsertSettings(currentTeam.id, { match_duration: clamped });
+    if (!ok) toast.error('❌ Kon wedstrijdduur niet opslaan');
   };
 
   const handleFormationChange = async (formation: string) => {
@@ -137,12 +165,62 @@ export default function TeamSettingsView() {
           </button>
         </section>
 
+        {/* ── Spelvorm ── */}
+        <section className="bg-gray-800 rounded-xl p-5 space-y-3">
+          <h2 className="font-bold text-base text-gray-200">Spelvorm</h2>
+          <p className="text-sm text-gray-400">
+            Bepaalt het aantal spelers en periodes.
+            <span className="text-yellow-500 ml-1">Let op: wijzigen reset de standaard formatie.</span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {Object.keys(GAME_FORMATS).map((fmt) => (
+              <button
+                key={fmt}
+                onClick={() => handleGameFormatChange(fmt)}
+                className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                  (settings.game_format ?? '11v11') === fmt
+                    ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                    : 'border-gray-600 hover:border-gray-500 text-gray-300'
+                }`}
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-gray-500">
+            {GAME_FORMATS[settings.game_format ?? '11v11']?.players} spelers ·{' '}
+            {GAME_FORMATS[settings.game_format ?? '11v11']?.periods} periodes
+          </div>
+
+          <div className="pt-2 border-t border-gray-700">
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Wedstrijdduur (totaal)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                value={localDuration}
+                onChange={(e) => setLocalDuration(parseInt(e.target.value) || 10)}
+                onBlur={handleDurationBlur}
+                min={10}
+                max={120}
+                step={5}
+                className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm text-center focus:outline-none focus:border-yellow-500"
+              />
+              <span className="text-sm text-gray-400">minuten totaal</span>
+              <span className="text-xs text-gray-500">
+                ({GAME_FORMATS[settings.game_format ?? '11v11']?.periods ?? 2}×{Math.round(localDuration / (GAME_FORMATS[settings.game_format ?? '11v11']?.periods ?? 2))} min)
+              </span>
+            </div>
+          </div>
+        </section>
+
         {/* ── Standaard formatie ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3">
           <h2 className="font-bold text-base text-gray-200">Standaard formatie</h2>
           <p className="text-sm text-gray-400">Wordt als standaard gebruikt bij nieuwe wedstrijden.</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {Object.entries(formationLabels).map(([key, label]) => (
+            {Object.entries(formationLabels[settings.game_format ?? '11v11'] ?? formationLabels['11v11']).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => handleFormationChange(key)}

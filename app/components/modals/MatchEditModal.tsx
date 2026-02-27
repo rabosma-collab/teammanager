@@ -14,11 +14,12 @@ export interface MatchFormData {
 interface MatchEditModalProps {
   match: Match | null; // null = new match
   schemes: SubstitutionScheme[];
+  gameFormat: string;
   onSave: (data: MatchFormData) => void;
   onClose: () => void;
 }
 
-export default function MatchEditModal({ match, schemes, onSave, onClose }: MatchEditModalProps) {
+export default function MatchEditModal({ match, schemes, gameFormat, onSave, onClose }: MatchEditModalProps) {
   const [date, setDate] = useState(match?.date || '');
   const [opponent, setOpponent] = useState(match?.opponent || '');
   const [homeAway, setHomeAway] = useState(match?.home_away || 'Thuis');
@@ -91,8 +92,8 @@ export default function MatchEditModal({ match, schemes, onSave, onClose }: Matc
               onChange={(e) => setFormation(e.target.value)}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
             >
-              {Object.keys(formations).map(f => (
-                <option key={f} value={f}>{formationLabels[f]}</option>
+              {Object.entries(formationLabels[gameFormat] ?? formationLabels['11v11']).map(([f, label]) => (
+                <option key={f} value={f}>{label}</option>
               ))}
             </select>
           </div>

@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import type { TeamSettings } from '../lib/types';
 
 const DEFAULT_SETTINGS: Omit<TeamSettings, 'team_id'> = {
+  game_format: '11v11',
+  periods: 2,
   default_formation: '4-3-3-aanvallend',
   match_duration: 90,
   track_goals: true,

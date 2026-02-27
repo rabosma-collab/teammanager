@@ -4,18 +4,21 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { useTeamContext } from '../../contexts/TeamContext';
+import { GAME_FORMATS, DEFAULT_FORMATIONS } from '../../lib/constants';
 import type { TeamSettings } from '../../lib/types';
 import StepBasicInfo from './wizard/StepBasicInfo';
+import StepSpelvorm from './wizard/StepSpelvorm';
 import StepFormation from './wizard/StepFormation';
 import StepSettings from './wizard/StepSettings';
 import StepPlayers from './wizard/StepPlayers';
 import StepMatch from './wizard/StepMatch';
 import StepSummary from './wizard/StepSummary';
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 const STEP_LABELS = [
   'Team',
+  'Spelvorm',
   'Formatie',
   'Stats',
   'Spelers',
@@ -63,20 +66,23 @@ export default function TeamSetupWizard() {
   const [step1Error, setStep1Error] = useState<string | null>(null);
 
   // Stap 2
+  const [gameFormat, setGameFormat] = useState('11v11');
+
+  // Stap 3
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [formationSaved, setFormationSaved] = useState(false);
 
-  // Stap 3
+  // Stap 4
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
-  // Stap 4
+  // Stap 5
   const [playersImported, setPlayersImported] = useState(0);
 
-  // Stap 5
+  // Stap 6
   const [matchCreated, setMatchCreated] = useState(false);
 
-  // Stap 6
+  // Stap 7
   const [finishLoading, setFinishLoading] = useState(false);
 
   // ── Stap 1: Team aanmaken ──────────────────────────────────
@@ -87,7 +93,6 @@ export default function TeamSetupWizard() {
     setStep1Loading(true);
     setStep1Error(null);
 
-    // 1. Team aanmaken
     const { data: teamData, error: teamError } = await supabase
       .from('teams')
       .insert({
@@ -107,7 +112,6 @@ export default function TeamSetupWizard() {
 
     const newTeamId = teamData.id as string;
 
-    // 2. Gebruiker als manager toevoegen
     const { error: memberError } = await supabase.from('team_members').insert({
       team_id: newTeamId,
       user_id: currentUserId,
@@ -121,10 +125,12 @@ export default function TeamSetupWizard() {
       return;
     }
 
-    // 3. Default team_settings aanmaken
+    // Default team_settings aanmaken met defaults voor 11v11
     await supabase.from('team_settings').insert({
       team_id: newTeamId,
-      default_formation: formation,
+      game_format: '11v11',
+      periods: 2,
+      default_formation: '4-3-3-aanvallend',
       match_duration: 90,
       ...DEFAULT_SETTINGS,
     });
@@ -134,7 +140,30 @@ export default function TeamSetupWizard() {
     setStep(2);
   };
 
-  // ── Stap 2: Formatie opslaan ───────────────────────────────
+  // ── Stap 2: Spelvorm opslaan ──────────────────────────────
+  const handleSaveGameFormat = async (fmt: string) => {
+    const chosen = fmt;
+    setGameFormat(chosen);
+    // Reset formation naar default voor de gekozen spelvorm
+    const defaultFormation = DEFAULT_FORMATIONS[chosen] ?? '4-3-3-aanvallend';
+    setFormation(defaultFormation);
+
+    if (teamId) {
+      const fmtData = GAME_FORMATS[chosen];
+      await supabase
+        .from('team_settings')
+        .upsert({
+          team_id: teamId,
+          game_format: chosen,
+          periods: fmtData.periods,
+          match_duration: fmtData.match_duration,
+          default_formation: defaultFormation,
+        }, { onConflict: 'team_id' });
+    }
+    setStep(3);
+  };
+
+  // ── Stap 3: Formatie opslaan ──────────────────────────────
   const handleSaveFormation = async () => {
     if (teamId) {
       await supabase
@@ -142,10 +171,10 @@ export default function TeamSetupWizard() {
         .upsert({ team_id: teamId, default_formation: formation }, { onConflict: 'team_id' });
       setFormationSaved(true);
     }
-    setStep(3);
+    setStep(4);
   };
 
-  // ── Stap 3: Settings opslaan ──────────────────────────────
+  // ── Stap 4: Settings opslaan ──────────────────────────────
   const handleSaveSettings = async () => {
     if (teamId) {
       await supabase
@@ -153,20 +182,15 @@ export default function TeamSetupWizard() {
         .upsert({ team_id: teamId, ...settings }, { onConflict: 'team_id' });
       setSettingsSaved(true);
     }
-    setStep(4);
+    setStep(5);
   };
 
-  // ── Stap 6: Afronden ──────────────────────────────────────
+  // ── Stap 7: Afronden ──────────────────────────────────────
   const handleFinish = async () => {
     if (!teamId) return;
     setFinishLoading(true);
-
-    // Markeer wizard als voltooid
     await supabase.from('teams').update({ setup_done: true }).eq('id', teamId);
-
-    // Wissel naar het nieuwe team
     await switchTeam(teamId);
-
     router.push('/');
   };
 
@@ -222,43 +246,53 @@ export default function TeamSetupWizard() {
             />
           )}
           {step === 2 && (
-            <StepFormation
-              formation={formation}
-              onChangeFormation={setFormation}
-              onNext={handleSaveFormation}
+            <StepSpelvorm
+              gameFormat={gameFormat}
+              onChangeGameFormat={setGameFormat}
+              onNext={() => handleSaveGameFormat(gameFormat)}
               onSkip={() => setStep(3)}
             />
           )}
           {step === 3 && (
+            <StepFormation
+              gameFormat={gameFormat}
+              formation={formation}
+              onChangeFormation={setFormation}
+              onNext={handleSaveFormation}
+              onSkip={() => setStep(4)}
+            />
+          )}
+          {step === 4 && (
             <StepSettings
               settings={settings}
               onToggle={(key) => setSettings(prev => ({ ...prev, [key]: !prev[key] }))}
               onNext={handleSaveSettings}
-              onSkip={() => setStep(4)}
+              onSkip={() => setStep(5)}
             />
           )}
-          {step === 4 && teamId && (
+          {step === 5 && teamId && (
             <StepPlayers
               teamId={teamId}
-              onNext={() => setStep(5)}
+              onNext={() => setStep(6)}
               onSkip={handleSkip}
               onPlayersImported={(count) => setPlayersImported(count)}
             />
           )}
-          {step === 5 && teamId && (
+          {step === 6 && teamId && (
             <StepMatch
               teamId={teamId}
               defaultFormation={formation}
-              onNext={() => setStep(6)}
+              onNext={() => setStep(7)}
               onSkip={handleSkip}
               onMatchCreated={() => setMatchCreated(true)}
             />
           )}
-          {step === 6 && (
+          {step === 7 && (
             <StepSummary
               data={{
                 name,
                 color,
+                gameFormat,
                 formation,
                 playersImported,
                 matchCreated,
