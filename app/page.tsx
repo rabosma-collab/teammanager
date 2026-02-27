@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS } from './lib/constants';
 import { supabase } from './lib/supabase';
@@ -71,6 +71,7 @@ export default function FootballApp() {
   const [schemeId, setSchemeId] = useState<number>(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isEditingLineup, setIsEditingLineup] = useState(false);
+  const wasPublishedBeforeEdit = useRef(false);
   const [isEditingMatchInstruction, setIsEditingMatchInstruction] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
   const [showPlayerMenu, setShowPlayerMenu] = useState<number | null>(null);
@@ -1002,6 +1003,7 @@ export default function FootballApp() {
               {editable && !isFinalized && !isEditingLineup && (
                 <button
                   onClick={() => {
+                    wasPublishedBeforeEdit.current = isLineupPublished;
                     takeSnapshot();
                     setIsEditingLineup(true);
                     if (isLineupPublished && selectedMatch) {
@@ -1019,6 +1021,9 @@ export default function FootballApp() {
                   <button
                     onClick={() => {
                       restoreSnapshot();
+                      if (wasPublishedBeforeEdit.current && selectedMatch) {
+                        publishLineup(selectedMatch.id, true);
+                      }
                       setIsEditingLineup(false);
                     }}
                     disabled={savingLineup}
@@ -1063,9 +1068,10 @@ export default function FootballApp() {
                 </button>
               )}
 
-              {isManager && selectedMatch && (
+              {isManager && activelyEditing && (
                 <button
                   onClick={() => {
+                    if (!selectedMatch) return;
                     generateMatchPdf({
                       match: selectedMatch,
                       players,
