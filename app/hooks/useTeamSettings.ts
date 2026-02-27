@@ -60,7 +60,7 @@ export function useTeamSettings() {
   ): Promise<boolean> => {
     const { error } = await supabase
       .from('teams')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', teamId);
 
     if (error) {

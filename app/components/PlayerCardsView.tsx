@@ -31,7 +31,7 @@ interface PlayerCardsViewProps {
   onUpdateStat: (id: number, field: string, value: string) => void;
   currentPlayerId?: number | null;
   creditBalance?: number | null;
-  onSpendCredit?: (targetPlayerId: number, stat: string, change: 1 | -1) => Promise<boolean>;
+  onSaveStatDraft?: (targetPlayerId: number, finalStats: Record<string, number>, totalCost: number) => Promise<boolean>;
 }
 
 export default function PlayerCardsView({
@@ -40,16 +40,20 @@ export default function PlayerCardsView({
   onUpdateStat,
   currentPlayerId,
   creditBalance,
-  onSpendCredit,
+  onSaveStatDraft,
 }: PlayerCardsViewProps) {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [creditEditingId, setCreditEditingId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'position' | 'rating'>('position');
-  const [pendingSpend, setPendingSpend] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(false);
 
+  // Draft-modus state
+  const [originalStats, setOriginalStats] = useState<Record<string, number> | null>(null);
+  const [draftStats, setDraftStats] = useState<Record<string, number> | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const regularPlayers = players.filter(p => !p.is_guest);
-  const hasCredits = currentPlayerId != null && creditBalance != null && creditBalance > 0;
+  const hasCredits = currentPlayerId != null && creditBalance != null;
 
   const sortedPlayers = [...regularPlayers].sort((a, b) => {
     if (sortBy === 'rating') {
@@ -62,53 +66,113 @@ export default function PlayerCardsView({
     return calcRating(b) - calcRating(a);
   });
 
-  const handleSpend = async (targetPlayerId: number, stat: string, change: 1 | -1) => {
-    if (!onSpendCredit || !currentPlayerId) return;
-    const key = `${targetPlayerId}-${stat}`;
-    setPendingSpend(key);
+  const openCreditPanel = (player: Player) => {
+    if (creditEditingId === player.id) {
+      closeCreditPanel();
+      return;
+    }
+    const statLabels = getStatLabels(player.position);
+    const stats: Record<string, number> = {};
+    for (const { key } of statLabels) {
+      stats[String(key)] = (player[key] as number) ?? 0;
+    }
+    setOriginalStats(stats);
+    setDraftStats({ ...stats });
+    setCreditEditingId(player.id);
+  };
+
+  const closeCreditPanel = () => {
+    setCreditEditingId(null);
+    setOriginalStats(null);
+    setDraftStats(null);
+  };
+
+  const handleSaveDraft = async (player: Player) => {
+    if (!onSaveStatDraft || !draftStats || !originalStats) return;
+    const statLabels = getStatLabels(player.position);
+    const cost = statLabels.reduce((sum, { key }) => {
+      const k = String(key);
+      return sum + Math.abs((draftStats[k] ?? 0) - (originalStats[k] ?? 0));
+    }, 0);
+    if (cost === 0) return;
+
+    setIsSaving(true);
     try {
-      await onSpendCredit(targetPlayerId, stat, change);
+      const success = await onSaveStatDraft(player.id, draftStats, cost);
+      if (success) closeCreditPanel();
     } finally {
-      setPendingSpend(null);
+      setIsSaving(false);
     }
   };
 
-  const renderCreditPanel = (player: Player) => (
-    <div className="mt-2 p-2 bg-gray-800 border border-yellow-700/50 rounded-lg w-[155px]">
-      <div className="text-xs text-yellow-400 font-bold mb-1.5 text-center">💰 Stats aanpassen</div>
-      {getStatLabels(player.position).map(({ key, label }) => {
-        const value = (player[key] as number) ?? 0;
-        const keyStr = String(key);
-        const isPending = pendingSpend === `${player.id}-${keyStr}`;
-        return (
-          <div key={keyStr} className="flex items-center justify-between gap-1 mb-1">
-            <span className="text-xs font-bold text-gray-400 w-8">{label}</span>
-            <button
-              onClick={() => handleSpend(player.id, keyStr, -1)}
-              disabled={isPending || !hasCredits || value <= 1}
-              className="w-6 h-6 bg-red-800 hover:bg-red-700 disabled:opacity-30 rounded text-xs font-black leading-none touch-manipulation"
-            >
-              −
-            </button>
-            <span className="text-xs font-black text-yellow-300 w-6 text-center">{value}</span>
-            <button
-              onClick={() => handleSpend(player.id, keyStr, 1)}
-              disabled={isPending || !hasCredits || value >= 99}
-              className="w-6 h-6 bg-green-800 hover:bg-green-700 disabled:opacity-30 rounded text-xs font-black leading-none touch-manipulation"
-            >
-              +
-            </button>
-          </div>
-        );
-      })}
-      <button
-        onClick={() => setCreditEditingId(null)}
-        className="w-full mt-1 py-0.5 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300"
-      >
-        Sluiten
-      </button>
-    </div>
-  );
+  const renderCreditPanel = (player: Player) => {
+    const statLabels = getStatLabels(player.position);
+    const cost = draftStats && originalStats
+      ? statLabels.reduce((sum, { key }) => {
+          const k = String(key);
+          return sum + Math.abs((draftStats[k] ?? 0) - (originalStats[k] ?? 0));
+        }, 0)
+      : 0;
+    const canSave = cost > 0 && creditBalance != null && cost <= creditBalance && !isSaving;
+
+    return (
+      <div className="mt-2 p-2 bg-gray-800 border border-yellow-700/50 rounded-lg w-[155px]">
+        <div className="text-xs text-yellow-400 font-bold mb-1.5 text-center">💰 Stats aanpassen</div>
+        {statLabels.map(({ key, label }) => {
+          const k = String(key);
+          const value = draftStats?.[k] ?? (player[key] as number) ?? 0;
+          const changed = draftStats && originalStats && draftStats[k] !== originalStats[k];
+          return (
+            <div key={k} className="flex items-center justify-between gap-1 mb-1">
+              <span className="text-xs font-bold text-gray-400 w-8">{label}</span>
+              <button
+                onClick={() => setDraftStats(prev => prev ? { ...prev, [k]: Math.max(1, prev[k] - 1) } : prev)}
+                disabled={isSaving || value <= 1}
+                className="w-6 h-6 bg-red-800 hover:bg-red-700 disabled:opacity-30 rounded text-xs font-black leading-none touch-manipulation"
+              >
+                −
+              </button>
+              <span className={`text-xs font-black w-6 text-center ${changed ? 'text-blue-300' : 'text-yellow-300'}`}>
+                {value}
+              </span>
+              <button
+                onClick={() => setDraftStats(prev => prev ? { ...prev, [k]: Math.min(99, prev[k] + 1) } : prev)}
+                disabled={isSaving || value >= 99}
+                className="w-6 h-6 bg-green-800 hover:bg-green-700 disabled:opacity-30 rounded text-xs font-black leading-none touch-manipulation"
+              >
+                +
+              </button>
+            </div>
+          );
+        })}
+
+        <div className="text-center text-xs mt-1.5 mb-1.5">
+          {cost > 0 ? (
+            <span className={cost > (creditBalance ?? 0) ? 'text-red-400 font-bold' : 'text-yellow-400'}>
+              {cost > (creditBalance ?? 0) ? 'Te weinig credits' : `Kosten: ${cost} ${cost === 1 ? 'credit' : 'credits'}`}
+            </span>
+          ) : (
+            <span className="text-gray-500">Geen wijzigingen</span>
+          )}
+        </div>
+
+        <button
+          onClick={() => handleSaveDraft(player)}
+          disabled={!canSave}
+          className="w-full py-1 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-30 rounded text-xs font-bold text-black touch-manipulation"
+        >
+          {isSaving ? '...' : 'Opslaan'}
+        </button>
+        <button
+          onClick={closeCreditPanel}
+          disabled={isSaving}
+          className="w-full mt-1 py-0.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-30 rounded text-xs text-gray-300 touch-manipulation"
+        >
+          Annuleren
+        </button>
+      </div>
+    );
+  };
 
   const renderCard = (player: Player) => (
     <div key={player.id} className="flex flex-col items-center">
@@ -125,7 +189,7 @@ export default function PlayerCardsView({
       </div>
       {hasCredits && !player.is_guest && (
         <button
-          onClick={() => setCreditEditingId(creditEditingId === player.id ? null : player.id)}
+          onClick={() => openCreditPanel(player)}
           className={`mt-1.5 px-3 py-1 rounded-full text-xs font-bold transition touch-manipulation ${
             creditEditingId === player.id
               ? 'bg-yellow-600 text-black'
@@ -267,7 +331,7 @@ export default function PlayerCardsView({
               </div>
               <div className="flex items-start gap-2">
                 <span className="text-yellow-400 mt-0.5">→</span>
-                <span>Klik op de <span className="text-yellow-300 font-semibold">💰-knop</span> onder een spelerskaart om het aanpasspaneel te openen. Elke klik op + of − kost 1 credit.</span>
+                <span>Klik op de <span className="text-yellow-300 font-semibold">💰-knop</span> onder een spelerskaart om het aanpasspaneel te openen. Pas stats naar wens aan en klik <span className="text-white font-semibold">Opslaan</span> — credits worden pas dan afgetrokken op basis van de netto wijziging.</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="text-yellow-400 mt-0.5">→</span>

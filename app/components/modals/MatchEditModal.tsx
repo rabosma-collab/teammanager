@@ -15,15 +15,16 @@ interface MatchEditModalProps {
   match: Match | null; // null = new match
   schemes: SubstitutionScheme[];
   gameFormat: string;
+  defaultFormation?: string;
   onSave: (data: MatchFormData) => void;
   onClose: () => void;
 }
 
-export default function MatchEditModal({ match, schemes, gameFormat, onSave, onClose }: MatchEditModalProps) {
+export default function MatchEditModal({ match, schemes, gameFormat, defaultFormation = '4-3-3-aanvallend', onSave, onClose }: MatchEditModalProps) {
   const [date, setDate] = useState(match?.date || '');
   const [opponent, setOpponent] = useState(match?.opponent || '');
   const [homeAway, setHomeAway] = useState(match?.home_away || 'Thuis');
-  const [formation, setFormation] = useState(match?.formation || '4-3-3-aanvallend');
+  const [formation, setFormation] = useState(match?.formation || defaultFormation);
   const [schemeId, setSchemeId] = useState(match?.substitution_scheme_id || 1);
 
   const handleSubmit = (e: React.FormEvent) => {

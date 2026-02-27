@@ -142,6 +142,48 @@ export function useStatCredits() {
     }
   }, [currentTeam, ensureBalance]);
 
+  // Spend multiple credits to save draft stat changes for a player
+  const spendCreditsForStats = useCallback(async (
+    spenderId: number,
+    targetPlayerId: number,
+    finalStats: Record<string, number>,
+    totalCost: number
+  ): Promise<boolean> => {
+    if (!currentTeam || balance === null || balance < totalCost || totalCost <= 0) return false;
+
+    try {
+      const { error: statError } = await supabase
+        .from('players')
+        .update(finalStats)
+        .eq('id', targetPlayerId);
+
+      if (statError) throw statError;
+
+      const newBalance = balance - totalCost;
+      const { error: creditError } = await supabase
+        .from('stat_credits')
+        .update({ balance: newBalance })
+        .eq('player_id', spenderId)
+        .eq('team_id', currentTeam.id);
+
+      if (creditError) throw creditError;
+
+      await supabase.from('stat_credit_transactions').insert({
+        team_id: currentTeam.id,
+        player_id: spenderId,
+        target_player_id: targetPlayerId,
+        balance_change: -totalCost,
+        reason: 'stat_change',
+      });
+
+      setBalance(newBalance);
+      return true;
+    } catch (e) {
+      console.error('Error spending credits for stats:', e);
+      return false;
+    }
+  }, [currentTeam, balance]);
+
   // Spend 1 credit to change a target player's stat by +1 or -1
   const spendCredit = useCallback(async (
     spenderId: number,
@@ -201,5 +243,5 @@ export function useStatCredits() {
     }
   }, [currentTeam, balance]);
 
-  return { balance, fetchBalance, awardSpdwCredits, spendCredit };
+  return { balance, fetchBalance, awardSpdwCredits, spendCredit, spendCreditsForStats };
 }

@@ -125,7 +125,7 @@ export default function FootballApp() {
 
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
-  const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCredit } = useStatCredits();
+  const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
   const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
 
   const gameFormat = teamSettings?.game_format ?? DEFAULT_GAME_FORMAT;
@@ -268,20 +268,20 @@ export default function FootballApp() {
   }, [currentTeam, awardSpdwCredits]);
 
   // ---- HANDLERS ----
-  const handleSpendCredit = useCallback(async (
+  const handleSaveStatDraft = useCallback(async (
     targetPlayerId: number,
-    stat: string,
-    change: 1 | -1
+    finalStats: Record<string, number>,
+    totalCost: number
   ): Promise<boolean> => {
     if (!teamPlayerId) return false;
-    const success = await spendCredit(teamPlayerId, targetPlayerId, stat, change);
+    const success = await spendCreditsForStats(teamPlayerId, targetPlayerId, finalStats, totalCost);
     if (success) {
-      // Refresh players so the updated stat reflects everywhere
+      // Refresh players so the updated stats reflect everywhere
       if (selectedMatch) fetchPlayers(selectedMatch.id);
       else fetchPlayers();
     }
     return success;
-  }, [teamPlayerId, spendCredit, fetchPlayers, selectedMatch]);
+  }, [teamPlayerId, spendCreditsForStats, fetchPlayers, selectedMatch]);
 
   const handleLogout = async () => {
     await signOut();
@@ -848,6 +848,7 @@ export default function FootballApp() {
           matches={matches}
           schemes={schemes}
           gameFormat={gameFormat}
+          defaultFormation={teamSettings?.default_formation}
           onAddMatch={addMatch}
           onUpdateMatch={updateMatch}
           onUpdateScore={updateMatchScore}
@@ -867,7 +868,7 @@ export default function FootballApp() {
           onUpdateStat={updateStat}
           currentPlayerId={teamPlayerId}
           creditBalance={creditBalance}
-          onSpendCredit={handleSpendCredit}
+          onSaveStatDraft={handleSaveStatDraft}
         />
       ) : view === 'dashboard' ? (
         <DashboardView

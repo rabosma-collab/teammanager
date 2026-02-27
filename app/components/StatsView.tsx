@@ -27,10 +27,28 @@ const POSITION_FILTERS: { value: PositionFilter; label: string }[] = [
   { value: 'Aanvaller', label: '⚡ Aanvallers' },
 ];
 
+const STAT_LABELS: Record<string, string> = {
+  goals: '⚽ Goals',
+  assists: '🅰️ Assists',
+  wash_count: '🧼 Wasbeurten',
+  yellow_cards: '🟨 Gele kaarten',
+  red_cards: '🟥 Rode kaarten',
+  min: '🔄 Wissels',
+};
+
+interface EditingCell {
+  playerId: number;
+  playerName: string;
+  field: string;
+  value: number;
+}
+
 export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewProps) {
   const [sortKey, setSortKey] = useState<SortKey>('goals');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [filterPosition, setFilterPosition] = useState<PositionFilter>('all');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
 
   const regularPlayers = useMemo(
     () => players.filter(p => !p.is_guest && (filterPosition === 'all' || p.position === filterPosition)),
@@ -60,12 +78,32 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
   }, [regularPlayers, sortKey, sortDir]);
 
   const handleSort = (key: SortKey) => {
+    if (isEditing) return;
     if (sortKey === key) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     } else {
       setSortKey(key);
       setSortDir(key === 'name' || key === 'position' ? 'asc' : 'desc');
     }
+  };
+
+  const handleCellClick = (playerId: number, playerName: string, field: string, value: number) => {
+    if (!isEditing) return;
+    setEditingCell({ playerId, playerName, field, value });
+  };
+
+  const handleOverlayStep = (delta: number) => {
+    if (!editingCell) return;
+    const newValue = Math.max(0, editingCell.value + delta);
+    onUpdateStat(editingCell.playerId, editingCell.field, String(newValue));
+    setEditingCell({ ...editingCell, value: newValue });
+  };
+
+  const handleOverlayClose = () => setEditingCell(null);
+
+  const toggleEditMode = () => {
+    setIsEditing(e => !e);
+    setEditingCell(null);
   };
 
   const columns: { key: SortKey; label: string }[] = [
@@ -82,7 +120,21 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
 
   return (
     <div className="p-4 sm:p-8">
-      <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">📊 Ranglijst</h2>
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-2xl sm:text-3xl font-bold">📊 Ranglijst</h2>
+        {isAdmin && (
+          <button
+            onClick={toggleEditMode}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition ${
+              isEditing
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+            }`}
+          >
+            {isEditing ? '✓ Klaar' : '✏️ Bewerken'}
+          </button>
+        )}
+      </div>
 
       {/* Positie-filter */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -102,49 +154,67 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
       </div>
 
       <div className="overflow-x-auto pb-1">
-      <div className="bg-gray-800 rounded-lg overflow-hidden min-w-max pr-4">
-        <table className="w-full">
-          <thead className="bg-gray-700">
-            <tr className="text-left">
-              {columns.map(col => (
-                <th
-                  key={col.key}
-                  className="p-2 sm:p-4 text-sm sm:text-base cursor-pointer select-none hover:bg-gray-600 transition-colors"
-                  onClick={() => handleSort(col.key)}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    {col.label}
-                    <SortIndicator active={sortKey === col.key} dir={sortDir} />
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedPlayers.map(player => (
-              <tr key={player.id} className="border-t border-gray-700 hover:bg-gray-700/50">
-                <td className="p-2 sm:p-4 font-bold text-sm sm:text-base">{player.name}</td>
-                <td className="p-2 sm:p-4">
-                  <span className="text-xs">{positionEmojis[player.position]} {player.position}</span>
-                </td>
-                <td className="p-2 sm:p-4">
-                  {player.injured
-                    ? <span className="text-red-500" title="Geblesseerd">🏥</span>
-                    : <span className="text-green-500">✓</span>
-                  }
-                </td>
-                <StatCell isAdmin={isAdmin} value={player.goals} field="goals" id={player.id} onUpdate={onUpdateStat} />
-                <StatCell isAdmin={isAdmin} value={player.assists} field="assists" id={player.id} onUpdate={onUpdateStat} />
-                <StatCell isAdmin={isAdmin} value={player.wash_count ?? 0} field="wash_count" id={player.id} onUpdate={onUpdateStat} />
-                <StatCell isAdmin={isAdmin} value={player.yellow_cards ?? 0} field="yellow_cards" id={player.id} onUpdate={onUpdateStat} />
-                <StatCell isAdmin={isAdmin} value={player.red_cards ?? 0} field="red_cards" id={player.id} onUpdate={onUpdateStat} />
-                <StatCell isAdmin={isAdmin} value={player.min} field="min" id={player.id} onUpdate={onUpdateStat} />
+        <div className="bg-gray-800 rounded-lg overflow-hidden min-w-max pr-4">
+          <table className="w-full">
+            <thead className="bg-gray-700">
+              <tr className="text-left">
+                {columns.map(col => (
+                  <th
+                    key={col.key}
+                    className={`p-2 sm:p-4 text-sm sm:text-base select-none transition-colors ${
+                      !isEditing ? 'cursor-pointer hover:bg-gray-600' : 'cursor-default'
+                    }`}
+                    onClick={() => handleSort(col.key)}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {!isEditing && <SortIndicator active={sortKey === col.key} dir={sortDir} />}
+                    </span>
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sortedPlayers.map(player => (
+                <tr key={player.id} className="border-t border-gray-700 hover:bg-gray-700/50">
+                  <td className="p-2 sm:p-4 font-bold text-sm sm:text-base">{player.name}</td>
+                  <td className="p-2 sm:p-4">
+                    <span className="text-xs">{positionEmojis[player.position]} {player.position}</span>
+                  </td>
+                  <td className="p-2 sm:p-4">
+                    {player.injured
+                      ? <span className="text-red-500" title="Geblesseerd">🏥</span>
+                      : <span className="text-green-500">✓</span>
+                    }
+                  </td>
+                  {(['goals', 'assists', 'wash_count', 'yellow_cards', 'red_cards', 'min'] as const).map(field => (
+                    <StatCell
+                      key={field}
+                      isEditing={isEditing}
+                      value={player[field] ?? 0}
+                      field={field}
+                      playerId={player.id}
+                      playerName={player.name}
+                      onCellClick={handleCellClick}
+                    />
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-      </div>
+
+      {/* Overlay */}
+      {editingCell && (
+        <StatEditOverlay
+          playerName={editingCell.playerName}
+          field={editingCell.field}
+          value={editingCell.value}
+          onStep={handleOverlayStep}
+          onClose={handleOverlayClose}
+        />
+      )}
     </div>
   );
 }
@@ -160,25 +230,82 @@ function SortIndicator({ active, dir }: { active: boolean; dir: SortDir }) {
   );
 }
 
-function StatCell({ isAdmin, value, field, id, onUpdate }: {
-  isAdmin: boolean;
+function StatCell({ isEditing, value, field, playerId, playerName, onCellClick }: {
+  isEditing: boolean;
   value: number;
   field: string;
-  id: number;
-  onUpdate: (id: number, field: string, value: string) => void;
+  playerId: number;
+  playerName: string;
+  onCellClick: (playerId: number, playerName: string, field: string, value: number) => void;
 }) {
   return (
     <td className="p-2 sm:p-4">
-      {isAdmin ? (
-        <input
-          type="number"
-          value={value}
-          onChange={(e) => onUpdate(id, field, e.target.value)}
-          className="w-12 sm:w-16 px-1 sm:px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm touch-manipulation"
-        />
+      {isEditing ? (
+        <button
+          onClick={() => onCellClick(playerId, playerName, field, value)}
+          className="min-w-[2.5rem] px-2 py-1 bg-gray-700 border border-blue-500/60 rounded text-white text-sm font-bold hover:bg-blue-600/30 hover:border-blue-400 transition cursor-pointer"
+        >
+          {value}
+        </button>
       ) : (
-        value
+        <span className="text-sm sm:text-base">{value}</span>
       )}
     </td>
+  );
+}
+
+function StatEditOverlay({ playerName, field, value, onStep, onClose }: {
+  playerName: string;
+  field: string;
+  value: number;
+  onStep: (delta: number) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-800 rounded-2xl p-6 w-full max-w-xs shadow-2xl border border-gray-700"
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="text-center mb-1">
+          <p className="text-gray-400 text-sm">{playerName}</p>
+          <p className="font-bold text-white">{STAT_LABELS[field] ?? field}</p>
+        </div>
+
+        {/* Value + controls */}
+        <div className="flex items-center justify-center gap-6 my-6">
+          <button
+            onClick={() => onStep(-1)}
+            disabled={value <= 0}
+            className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed text-white text-3xl font-bold transition flex items-center justify-center"
+          >
+            −
+          </button>
+
+          <span className="text-5xl font-black text-white w-16 text-center tabular-nums">
+            {value}
+          </span>
+
+          <button
+            onClick={() => onStep(1)}
+            className="w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 text-white text-3xl font-bold transition flex items-center justify-center"
+          >
+            +
+          </button>
+        </div>
+
+        {/* Close */}
+        <button
+          onClick={onClose}
+          className="w-full py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-bold transition"
+        >
+          Klaar
+        </button>
+      </div>
+    </div>
   );
 }

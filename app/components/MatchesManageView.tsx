@@ -10,6 +10,7 @@ interface MatchesManageViewProps {
   matches: Match[];
   schemes: SubstitutionScheme[];
   gameFormat: string;
+  defaultFormation?: string;
   onAddMatch: (data: MatchFormData) => Promise<boolean>;
   onUpdateMatch: (id: number, data: MatchFormData) => Promise<boolean>;
   onUpdateScore: (id: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
@@ -21,6 +22,7 @@ export default function MatchesManageView({
   matches,
   schemes,
   gameFormat,
+  defaultFormation,
   onAddMatch,
   onUpdateMatch,
   onUpdateScore,
@@ -110,6 +112,7 @@ export default function MatchesManageView({
           match={editingMatch === 'new' ? null : editingMatch}
           schemes={schemes}
           gameFormat={gameFormat}
+          defaultFormation={defaultFormation}
           onSave={handleSave}
           onClose={() => setEditingMatch(null)}
         />
