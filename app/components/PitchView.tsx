@@ -45,7 +45,7 @@ const PitchView = React.memo(function PitchView({
           backgroundImage: 'repeating-linear-gradient(0deg, #2d5f2e, #2d5f2e 40px, #246824 40px, #246824 80px)'
         }}
       >
-        {(formations[gameFormat]?.[formation] ?? formations['11v11']?.[formation] ?? []).map((pos, i) => {
+        {(formations[gameFormat]?.[formation] ?? []).map((pos, i) => {
           const player = fieldOccupants[i];
           const showWarning = player && !isPlayerAvailable(player, matchAbsences);
           const instruction = getInstructionForPosition(i);

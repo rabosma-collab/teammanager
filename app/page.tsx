@@ -220,6 +220,13 @@ export default function FootballApp() {
     }
   }, [selectedMatch?.id, fetchAbsences, fetchSubstitutions, fetchPlayers]);
 
+  // Herbereken formatie wanneer gameFormat laadt (teamSettings kan na selectedMatch binnenkomen)
+  useEffect(() => {
+    if (selectedMatch) {
+      setFormation(normalizeFormation(selectedMatch.formation, gameFormat));
+    }
+  }, [gameFormat]);
+
   const playerCount = GAME_FORMATS[gameFormat]?.players ?? 11;
 
   useEffect(() => {
