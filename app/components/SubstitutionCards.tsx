@@ -8,6 +8,7 @@ interface SubstitutionCardsProps {
   isAdmin: boolean;
   isEditable: boolean;
   isFinalized: boolean;
+  matchDuration: number;
   onEditSub: (subNumber: number, minute?: number) => void;
   onAddExtraSub: () => void;
   onDeleteExtraSub: (subId: number) => void;
@@ -31,10 +32,13 @@ export default function SubstitutionCards({
   isAdmin,
   isEditable,
   isFinalized,
+  matchDuration,
   onEditSub,
   onAddExtraSub,
   onDeleteExtraSub
 }: SubstitutionCardsProps) {
+  // Scale 90-min reference minutes to actual match duration
+  const scaleMinute = (m: number) => Math.round(m * matchDuration / 90);
   if (!scheme) return null;
 
   const regularSubs = substitutions.filter(s => !s.is_extra);
@@ -186,7 +190,8 @@ export default function SubstitutionCards({
   return (
     <div className="flex flex-col gap-3 sm:gap-4 w-full max-w-[900px] mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-        {scheme.minutes.map((minute, idx) => {
+        {scheme.minutes.map((storedMinute, idx) => {
+          const minute = scaleMinute(storedMinute);
           const subNumber = idx + 1;
           const subs = regularSubs.filter(s => s.substitution_number === subNumber);
           const c = colors[colorSchemes[idx % colorSchemes.length]];

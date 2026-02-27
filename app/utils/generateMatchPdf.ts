@@ -1,16 +1,9 @@
 import type { Match, Player, Substitution, PositionInstruction, SubstitutionScheme } from '../lib/types';
+import { formationLabels, DEFAULT_GAME_FORMAT } from '../lib/constants';
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
 const POSITION_EMOJIS: Record<string, string> = {
   Keeper: '🧤', Verdediger: '🛡️', Middenvelder: '⚙️', Aanvaller: '⚡',
-};
-const FORMATION_LABELS: Record<string, string> = {
-  '4-3-3-aanvallend': '4-3-3 Aanvallend',
-  '4-3-3-verdedigend': '4-3-3 Verdedigend',
-  '4-4-2-plat': '4-4-2 Plat',
-  '4-4-2-ruit': '4-4-2 Ruit',
-  '3-4-3': '3-4-3',
-  '5-3-2': '5-3-2',
 };
 
 export interface MatchPdfData {
@@ -23,11 +16,14 @@ export interface MatchPdfData {
   scheme: SubstitutionScheme | null;
   teamName?: string;
   teamColor?: string;
+  gameFormat?: string;
 }
 
 export function generateMatchPdf(data: MatchPdfData): void {
-  const { match, players, fieldOccupants, substitutions, matchAbsences, positionInstructions, scheme, teamName, teamColor } = data;
+  const { match, players, fieldOccupants, substitutions, matchAbsences, positionInstructions, scheme, teamName, teamColor, gameFormat } = data;
   const color = teamColor || '#f59e0b';
+  const fmt = gameFormat ?? DEFAULT_GAME_FORMAT;
+  const getFormationLabel = (formation: string) => formationLabels[fmt]?.[formation] ?? formation;
 
   const fieldPlayers = fieldOccupants.filter((p): p is Player => p !== null);
   const fieldIds = new Set(fieldPlayers.map(p => p.id));
@@ -112,7 +108,7 @@ export function generateMatchPdf(data: MatchPdfData): void {
     ${match.home_away === 'Thuis' ? '🏠' : '✈️'} vs ${match.opponent}
   </div>
   <div style="font-size:14px;color:#9ca3af">
-    ${formatDate(match.date)} · ${match.home_away} · ${FORMATION_LABELS[match.formation] || match.formation}
+    ${formatDate(match.date)} · ${match.home_away} · ${getFormationLabel(match.formation)}
   </div>
   ${match.goals_for != null && match.goals_against != null
     ? `<div style="font-size:22px;font-weight:900;color:#facc15;margin-top:6px">${match.goals_for} – ${match.goals_against}</div>`

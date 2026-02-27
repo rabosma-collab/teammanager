@@ -12,6 +12,7 @@ interface MatchPdfViewProps {
   matchAbsences: number[];
   positionInstructions: PositionInstruction[];
   scheme: SubstitutionScheme | null;
+  gameFormat: string;
   teamName?: string;
   teamColor?: string;
 }
@@ -19,7 +20,7 @@ interface MatchPdfViewProps {
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
 
 const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function MatchPdfView(
-  { match, players, fieldOccupants, substitutions, matchAbsences, positionInstructions, scheme, teamName, teamColor },
+  { match, players, fieldOccupants, substitutions, matchAbsences, positionInstructions, scheme, gameFormat, teamName, teamColor },
   ref
 ) {
   const color = teamColor || '#f59e0b';
@@ -88,7 +89,7 @@ const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function Matc
           {match.home_away === 'Thuis' ? '🏠' : '✈️'} vs {match.opponent}
         </div>
         <div style={{ fontSize: '14px', color: '#9ca3af' }}>
-          {formatDate(match.date)} · {match.home_away} · {formationLabels[match.formation] || match.formation}
+          {formatDate(match.date)} · {match.home_away} · {formationLabels[gameFormat]?.[match.formation] ?? match.formation}
         </div>
         {match.goals_for != null && match.goals_against != null && (
           <div style={{ fontSize: '22px', fontWeight: 900, color: '#facc15', marginTop: '6px' }}>

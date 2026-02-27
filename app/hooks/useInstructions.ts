@@ -7,11 +7,12 @@ export function useInstructions() {
   const [matchInstructions, setMatchInstructions] = useState<PositionInstruction[]>([]);
   const [editingInstruction, setEditingInstruction] = useState<PositionInstruction | null>(null);
 
-  const fetchInstructions = useCallback(async (formation: string) => {
+  const fetchInstructions = useCallback(async (gameFormat: string, formation: string) => {
     try {
       const { data, error } = await supabase
         .from('position_instructions')
         .select('*')
+        .eq('game_format', gameFormat)
         .eq('formation', formation)
         .order('position_index');
 
@@ -51,12 +52,14 @@ export function useInstructions() {
 
   const saveInstruction = useCallback(async (
     instruction: PositionInstruction,
+    gameFormat: string,
     formation: string
   ): Promise<boolean> => {
     try {
       const { error } = await supabase
         .from('position_instructions')
         .upsert({
+          game_format: instruction.game_format ?? gameFormat,
           formation: instruction.formation,
           position_index: instruction.position_index,
           position_name: instruction.position_name,
@@ -65,12 +68,12 @@ export function useInstructions() {
           with_ball: instruction.with_ball,
           without_ball: instruction.without_ball
         }, {
-          onConflict: 'formation,position_index'
+          onConflict: 'game_format,formation,position_index'
         });
 
       if (error) throw error;
 
-      await fetchInstructions(formation);
+      await fetchInstructions(gameFormat, formation);
       setEditingInstruction(null);
       return true;
     } catch (error) {

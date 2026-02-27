@@ -6,6 +6,7 @@ import { formationLabels } from '../../../lib/constants';
 interface SummaryData {
   name: string;
   color: string;
+  gameFormat: string;
   formation: string;
   playersImported: number;
   matchCreated: boolean;
@@ -27,7 +28,7 @@ export default function StepSummary({ data, onFinish, isLoading }: Props) {
     },
     {
       label: 'Formatie ingesteld',
-      value: data.formation ? (formationLabels[data.formation] ?? data.formation) : '—',
+      value: data.formation ? (formationLabels[data.gameFormat]?.[data.formation] ?? data.formation) : '—',
       done: !!data.formation,
     },
     {

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult } from '../lib/types';
+import { getPositionCategory } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import PersonalCard from './dashboard/PersonalCard';
@@ -15,6 +16,7 @@ interface DashboardViewProps {
   players: Player[];
   matches: Match[];
   fieldOccupants: (Player | null)[];
+  gameFormat: string;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
   onToggleInjury: (playerId: number) => Promise<boolean>;
   onNavigateToWedstrijd: (match: Match) => void;
@@ -33,6 +35,7 @@ export default function DashboardView({
   players,
   matches,
   fieldOccupants,
+  gameFormat,
   onToggleAbsence,
   onToggleInjury,
   onNavigateToWedstrijd,
@@ -91,19 +94,11 @@ export default function DashboardView({
     return matchInstructions.find((i: PositionInstruction) => i.position_index === playerPositionIndex) ?? null;
   }, [playerPositionIndex, matchInstructions]);
 
-  // Werkelijke positie-categorie o.b.v. formatie + slot-index (niet het speler-profiel)
+  // Werkelijke positie-categorie o.b.v. spelvorm + formatie + slot-index
   const lineupPositionName = useMemo(() => {
     if (!dashboardMatch || playerPositionIndex === -1) return undefined;
-    if (playerPositionIndex === 0) return 'Keeper';
-    const numericParts = dashboardMatch.formation.split('-').filter((p: string) => !isNaN(Number(p))).map(Number);
-    const categories = ['Verdediger', 'Middenvelder', 'Aanvaller'];
-    let cumulative = 1;
-    for (let i = 0; i < numericParts.length; i++) {
-      cumulative += numericParts[i];
-      if (playerPositionIndex < cumulative) return categories[i];
-    }
-    return 'Aanvaller';
-  }, [dashboardMatch?.formation, playerPositionIndex]);
+    return getPositionCategory(gameFormat, dashboardMatch.formation, playerPositionIndex);
+  }, [gameFormat, dashboardMatch?.formation, playerPositionIndex]);
 
   useEffect(() => {
     if (!dashboardMatch) {
@@ -221,6 +216,7 @@ export default function DashboardView({
             currentPlayerId={currentPlayerId}
             isManager={isManager}
             players={players}
+            gameFormat={gameFormat}
             positionName={playerMatchInstruction?.position_name || lineupPositionName}
             onToggleAbsence={handleToggleAbsence}
             onToggleInjury={handleToggleInjury}

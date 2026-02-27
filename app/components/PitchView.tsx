@@ -3,6 +3,7 @@ import { formations } from '../lib/constants';
 import type { Player, PositionInstruction } from '../lib/types';
 
 interface PitchViewProps {
+  gameFormat: string;
   formation: string;
   fieldOccupants: (Player | null)[];
   selectedPosition: number | null;
@@ -17,6 +18,7 @@ interface PitchViewProps {
 }
 
 const PitchView = React.memo(function PitchView({
+  gameFormat,
   formation,
   fieldOccupants,
   selectedPosition,
@@ -43,7 +45,7 @@ const PitchView = React.memo(function PitchView({
           backgroundImage: 'repeating-linear-gradient(0deg, #2d5f2e, #2d5f2e 40px, #246824 40px, #246824 80px)'
         }}
       >
-        {formations[formation]?.map((pos, i) => {
+        {(formations[gameFormat]?.[formation] ?? []).map((pos, i) => {
           const player = fieldOccupants[i];
           const showWarning = player && !isPlayerAvailable(player, matchAbsences);
           const instruction = getInstructionForPosition(i);

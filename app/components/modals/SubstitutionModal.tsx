@@ -6,6 +6,7 @@ interface SubstitutionModalProps {
   subNumber: number;
   minute: number | null; // null = free substitution (user inputs minute)
   isFreeSubstitution: boolean;
+  matchDuration: number;
   tempSubs: TempSubstitution[];
   fieldOccupants: (Player | null)[];
   benchPlayers: Player[];
@@ -22,6 +23,7 @@ export default function SubstitutionModal({
   subNumber,
   minute,
   isFreeSubstitution,
+  matchDuration,
   tempSubs,
   fieldOccupants,
   benchPlayers,
@@ -33,7 +35,7 @@ export default function SubstitutionModal({
   onSave,
   onClose
 }: SubstitutionModalProps) {
-  const [customMinute, setCustomMinute] = useState<number>(minute ?? 45);
+  const [customMinute, setCustomMinute] = useState<number>(minute ?? Math.floor(matchDuration / 2));
 
   const getAvailablePlayers = (index: number) => {
     let availableOut: Player[] = [];
@@ -113,10 +115,10 @@ export default function SubstitutionModal({
             <input
               type="number"
               value={customMinute}
-              onChange={(e) => setCustomMinute(Math.max(1, Math.min(90, parseInt(e.target.value) || 1)))}
+              onChange={(e) => setCustomMinute(Math.max(1, Math.min(matchDuration, parseInt(e.target.value) || 1)))}
               className="w-24 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-lg font-bold text-center"
               min="1"
-              max="90"
+              max={matchDuration}
             />
           </div>
         )}

@@ -12,6 +12,7 @@ interface NextMatchCardProps {
   currentPlayerId: number | null;
   isManager: boolean;
   players: Player[];
+  gameFormat: string;
   positionName?: string;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
   onToggleInjury: (playerId: number) => Promise<boolean>;
@@ -46,6 +47,7 @@ export default function NextMatchCard({
   currentPlayerId,
   isManager,
   players,
+  gameFormat,
   positionName,
   onToggleAbsence,
   onToggleInjury,
@@ -74,7 +76,7 @@ export default function NextMatchCard({
 
   const isFinalized = match.match_status === 'afgerond';
   const isThuis = match.home_away === 'Thuis';
-  const formationLabel = formationLabels[match.formation] || match.formation;
+  const formationLabel = formationLabels[gameFormat]?.[match.formation] ?? match.formation;
 
   const currentPlayer = currentPlayerId
     ? players.find(p => p.id === currentPlayerId && !p.is_guest)

@@ -10,7 +10,7 @@ export function useLineup() {
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [savingLineup, setSavingLineup] = useState(false);
 
-  const loadLineup = useCallback(async (matchId: number, players: Player[]) => {
+  const loadLineup = useCallback(async (matchId: number, players: Player[], playerCount: number = 11) => {
     if (!currentTeam || players.length === 0) return;
 
     try {
@@ -21,11 +21,11 @@ export function useLineup() {
 
       if (error) throw error;
 
-      const lineup: (Player | null)[] = Array(11).fill(null);
+      const lineup: (Player | null)[] = Array(playerCount).fill(null);
 
       if (data && data.length > 0) {
         data.forEach((entry: { position: number; player_id: number }) => {
-          if (entry.position >= 0 && entry.position < 11 && entry.player_id) {
+          if (entry.position >= 0 && entry.position < playerCount && entry.player_id) {
             // Only match non-guest players to avoid ID collision with guest_players table
             const player = players.find(p => p.id === entry.player_id && !p.is_guest);
             if (player) {
@@ -40,7 +40,7 @@ export function useLineup() {
       for (const player of players) {
         if (player.is_guest && player.lineup_position != null) {
           const pos = player.lineup_position;
-          if (pos >= 0 && pos < 11) {
+          if (pos >= 0 && pos < playerCount) {
             lineup[pos] = player;
           }
         }
@@ -49,7 +49,7 @@ export function useLineup() {
       setFieldOccupants(lineup);
     } catch (error) {
       console.error('Error loading lineup:', error);
-      setFieldOccupants(Array(11).fill(null));
+      setFieldOccupants(Array(playerCount).fill(null));
     }
   }, [currentTeam]);
 
@@ -179,8 +179,8 @@ export function useLineup() {
     return !player.injured && !matchAbsences.includes(player.id);
   }, []);
 
-  const clearField = useCallback(() => {
-    setFieldOccupants(Array(11).fill(null));
+  const clearField = useCallback((playerCount: number = 11) => {
+    setFieldOccupants(Array(playerCount).fill(null));
     setSelectedPlayer(null);
     setSelectedPosition(null);
   }, []);

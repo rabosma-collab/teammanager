@@ -1,8 +1,11 @@
+'use client';
+
 import React from 'react';
 import { formations, formationLabels } from '../lib/constants';
 import type { PositionInstruction } from '../lib/types';
 
 interface InstructionsViewProps {
+  gameFormat: string;
   instructionFormation: string;
   setInstructionFormation: (f: string) => void;
   positionInstructions: PositionInstruction[];
@@ -10,11 +13,15 @@ interface InstructionsViewProps {
 }
 
 export default function InstructionsView({
+  gameFormat,
   instructionFormation,
   setInstructionFormation,
   positionInstructions,
   onEditInstruction,
 }: InstructionsViewProps) {
+  const availableFormations = formationLabels[gameFormat] ?? formationLabels['11v11'];
+  const positionCount = formations[gameFormat]?.[instructionFormation]?.length ?? 11;
+
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-8">
       <h2 className="text-2xl sm:text-3xl font-bold mb-6">📋 Positie Instructies</h2>
@@ -26,14 +33,14 @@ export default function InstructionsView({
           onChange={(e) => setInstructionFormation(e.target.value)}
           className="px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white"
         >
-          {Object.keys(formations).map(f => (
-            <option key={f} value={f}>{formationLabels[f]}</option>
+          {Object.entries(availableFormations).map(([f, label]) => (
+            <option key={f} value={f}>{label}</option>
           ))}
         </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 11 }).map((_, i) => {
+        {Array.from({ length: positionCount }).map((_, i) => {
           const instruction = positionInstructions.find(inst => inst.position_index === i);
 
           return (
@@ -50,6 +57,7 @@ export default function InstructionsView({
                     } else {
                       onEditInstruction({
                         id: 0,
+                        game_format: gameFormat,
                         formation: instructionFormation,
                         position_index: i,
                         position_name: `Positie ${i + 1}`,

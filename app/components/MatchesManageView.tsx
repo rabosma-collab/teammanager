@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { formationLabels } from '../lib/constants';
 import type { Match, SubstitutionScheme } from '../lib/types';
@@ -7,6 +9,9 @@ import { useToast } from '../contexts/ToastContext';
 interface MatchesManageViewProps {
   matches: Match[];
   schemes: SubstitutionScheme[];
+  gameFormat: string;
+  matchDuration?: number;
+  defaultFormation?: string;
   onAddMatch: (data: MatchFormData) => Promise<boolean>;
   onUpdateMatch: (id: number, data: MatchFormData) => Promise<boolean>;
   onUpdateScore: (id: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
@@ -17,6 +22,9 @@ interface MatchesManageViewProps {
 export default function MatchesManageView({
   matches,
   schemes,
+  gameFormat,
+  matchDuration = 90,
+  defaultFormation,
   onAddMatch,
   onUpdateMatch,
   onUpdateScore,
@@ -105,6 +113,9 @@ export default function MatchesManageView({
         <MatchEditModal
           match={editingMatch === 'new' ? null : editingMatch}
           schemes={schemes}
+          gameFormat={gameFormat}
+          matchDuration={matchDuration}
+          defaultFormation={defaultFormation}
           onSave={handleSave}
           onClose={() => setEditingMatch(null)}
         />
@@ -151,7 +162,7 @@ export default function MatchesManageView({
                   </div>
                   <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
                     <span>📅 {matchDate.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                    <span>📋 {formationLabels[match.formation] || match.formation}</span>
+                    <span>📋 {formationLabels[gameFormat]?.[match.formation] ?? match.formation}</span>
                   </div>
                   {/* Inline score editor */}
                   {isFinalized && editingScoreId === match.id && (

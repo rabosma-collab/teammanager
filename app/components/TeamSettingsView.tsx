@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useTeamSettings } from '../hooks/useTeamSettings';
 import { useToast } from '../contexts/ToastContext';
-import { formationLabels } from '../lib/constants';
+import { formationLabels, GAME_FORMATS, DEFAULT_FORMATIONS } from '../lib/constants';
+import type { TeamSettings } from '../lib/types';
 
 const PRESET_COLORS = [
   { hex: '#f59e0b', name: 'Geel' },
@@ -17,14 +18,22 @@ const PRESET_COLORS = [
   { hex: '#ffffff', name: 'Wit' },
 ];
 
-export default function TeamSettingsView() {
+type SettingsDraft = Omit<TeamSettings, 'team_id'>;
+
+export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?: () => void }) {
   const { currentTeam, refreshTeam } = useTeamContext();
   const { settings, isLoading, fetchSettings, upsertSettings, updateTeamInfo } = useTeamSettings();
   const toast = useToast();
 
+  // --- Teamgegevens (eigen opslaan) ---
   const [teamName, setTeamName] = useState('');
   const [teamColor, setTeamColor] = useState('#f59e0b');
-  const [saving, setSaving] = useState(false);
+  const [savingTeam, setSavingTeam] = useState(false);
+
+  // --- Settings draft (één opslaan voor spelvorm + formatie + statistieken) ---
+  const [draft, setDraft] = useState<SettingsDraft | null>(null);
+  const [localDuration, setLocalDuration] = useState<string>('90');
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     if (currentTeam) {
@@ -34,13 +43,34 @@ export default function TeamSettingsView() {
     }
   }, [currentTeam, fetchSettings]);
 
+  // Initialiseer draft zodra settings geladen zijn
+  useEffect(() => {
+    if (settings) {
+      const duration = settings.match_duration ?? 90;
+      setLocalDuration(String(duration));
+      setDraft({
+        game_format:       settings.game_format       ?? '11v11',
+        periods:           settings.periods            ?? 2,
+        default_formation: settings.default_formation  ?? '4-3-3-aanvallend',
+        match_duration:    duration,
+        track_goals:       settings.track_goals        ?? true,
+        track_assists:     settings.track_assists      ?? true,
+        track_minutes:     settings.track_minutes      ?? true,
+        track_cards:       settings.track_cards        ?? false,
+        track_clean_sheets:settings.track_clean_sheets ?? false,
+        track_spdw:        settings.track_spdw         ?? true,
+        track_results:     settings.track_results      ?? true,
+      });
+    }
+  }, [settings]);
+
   const handleSaveTeamInfo = async () => {
     if (!currentTeam) return;
     if (!teamName.trim() || teamName.trim().length < 2) {
       toast.error('Teamnaam moet minimaal 2 tekens zijn');
       return;
     }
-    setSaving(true);
+    setSavingTeam(true);
     const ok = await updateTeamInfo(currentTeam.id, {
       name: teamName.trim(),
       color: teamColor,
@@ -51,28 +81,60 @@ export default function TeamSettingsView() {
     } else {
       toast.error('❌ Kon teamgegevens niet opslaan');
     }
-    setSaving(false);
+    setSavingTeam(false);
   };
 
-  const handleToggle = async (key: string, value: boolean) => {
-    if (!currentTeam) return;
-    const ok = await upsertSettings(currentTeam.id, { [key]: value });
-    if (!ok) toast.error('❌ Kon instelling niet opslaan');
+  const handleSaveSettings = async () => {
+    if (!currentTeam || !draft) return;
+    const clampedDuration = Math.max(10, Math.min(120, parseInt(localDuration) || 90));
+    setLocalDuration(String(clampedDuration));
+    const finalDraft = { ...draft, match_duration: clampedDuration };
+    setSavingSettings(true);
+    const ok = await upsertSettings(currentTeam.id, finalDraft);
+    if (ok) {
+      toast.success('✅ Instellingen opgeslagen!');
+      onSettingsSaved?.();
+    } else {
+      toast.error('❌ Kon instellingen niet opslaan');
+    }
+    setSavingSettings(false);
   };
 
-  const handleFormationChange = async (formation: string) => {
-    if (!currentTeam) return;
-    const ok = await upsertSettings(currentTeam.id, { default_formation: formation });
-    if (!ok) toast.error('❌ Kon formatie niet opslaan');
+  const handleGameFormatChange = (fmt: string) => {
+    const fmtData = GAME_FORMATS[fmt];
+    const defaultFormation = DEFAULT_FORMATIONS[fmt] ?? '4-3-3-aanvallend';
+    setLocalDuration(String(fmtData.match_duration));
+    setDraft(prev => prev ? {
+      ...prev,
+      game_format:       fmt,
+      periods:           fmtData.periods,
+      match_duration:    fmtData.match_duration,
+      default_formation: defaultFormation,
+    } : null);
   };
 
-  if (isLoading || !settings) {
+  const handleFormationChange = (formation: string) => {
+    setDraft(prev => prev ? { ...prev, default_formation: formation } : null);
+  };
+
+  const handleDurationChange = (value: string) => {
+    setLocalDuration(value);
+  };
+
+  const handleToggle = (key: keyof SettingsDraft, value: boolean) => {
+    setDraft(prev => prev ? { ...prev, [key]: value } : null);
+  };
+
+  if (isLoading || !settings || !draft) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-gray-400">Laden...</div>
       </div>
     );
   }
+
+  const currentFormat = draft.game_format ?? '11v11';
+  const availableFormations = formationLabels[currentFormat] ?? formationLabels['11v11'];
 
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -130,11 +192,60 @@ export default function TeamSettingsView() {
 
           <button
             onClick={handleSaveTeamInfo}
-            disabled={saving}
+            disabled={savingTeam}
             className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition"
           >
-            {saving ? 'Opslaan...' : 'Opslaan'}
+            {savingTeam ? 'Opslaan...' : 'Opslaan'}
           </button>
+        </section>
+
+        {/* ── Spelvorm ── */}
+        <section className="bg-gray-800 rounded-xl p-5 space-y-3">
+          <h2 className="font-bold text-base text-gray-200">Spelvorm</h2>
+          <p className="text-sm text-gray-400">
+            Bepaalt het aantal spelers en periodes.
+            <span className="text-yellow-500 ml-1">Let op: wijzigen reset de standaard formatie.</span>
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {Object.keys(GAME_FORMATS).map((fmt) => (
+              <button
+                key={fmt}
+                onClick={() => handleGameFormatChange(fmt)}
+                className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                  currentFormat === fmt
+                    ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                    : 'border-gray-600 hover:border-gray-500 text-gray-300'
+                }`}
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-gray-500">
+            {GAME_FORMATS[currentFormat]?.players} spelers ·{' '}
+            {GAME_FORMATS[currentFormat]?.periods} periodes
+          </div>
+
+          <div className="pt-2 border-t border-gray-700">
+            <label className="block text-sm font-medium text-gray-400 mb-2">
+              Wedstrijdduur (totaal)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                value={localDuration}
+                onChange={(e) => handleDurationChange(e.target.value)}
+                min={10}
+                max={120}
+                step={5}
+                className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm text-center focus:outline-none focus:border-yellow-500"
+              />
+              <span className="text-sm text-gray-400">minuten totaal</span>
+              <span className="text-xs text-gray-500">
+                ({GAME_FORMATS[currentFormat]?.periods ?? 2}×{Math.round((parseInt(localDuration) || 90) / (GAME_FORMATS[currentFormat]?.periods ?? 2))} min)
+              </span>
+            </div>
+          </div>
         </section>
 
         {/* ── Standaard formatie ── */}
@@ -142,12 +253,12 @@ export default function TeamSettingsView() {
           <h2 className="font-bold text-base text-gray-200">Standaard formatie</h2>
           <p className="text-sm text-gray-400">Wordt als standaard gebruikt bij nieuwe wedstrijden.</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {Object.entries(formationLabels).map(([key, label]) => (
+            {Object.entries(availableFormations).map(([key, label]) => (
               <button
                 key={key}
                 onClick={() => handleFormationChange(key)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium border transition ${
-                  settings.default_formation === key
+                  draft.default_formation === key
                     ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
                     : 'border-gray-600 hover:border-gray-500 text-gray-300'
                 }`}
@@ -158,7 +269,7 @@ export default function TeamSettingsView() {
           </div>
         </section>
 
-        {/* ── Ranglijst bijhouden ── */}
+        {/* ── Statistieken bijhouden ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3">
           <h2 className="font-bold text-base text-gray-200">Statistieken bijhouden</h2>
           <p className="text-sm text-gray-400">Kies welke stats zichtbaar zijn op de ranglijst.</p>
@@ -177,15 +288,15 @@ export default function TeamSettingsView() {
                 <span className="text-sm font-medium">{label}</span>
                 <button
                   role="switch"
-                  aria-checked={settings[key as keyof typeof settings] as boolean}
-                  onClick={() => handleToggle(key, !(settings[key as keyof typeof settings] as boolean))}
+                  aria-checked={draft[key as keyof SettingsDraft] as boolean}
+                  onClick={() => handleToggle(key as keyof SettingsDraft, !(draft[key as keyof SettingsDraft] as boolean))}
                   className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
-                    settings[key as keyof typeof settings] ? 'bg-yellow-500' : 'bg-gray-600'
+                    draft[key as keyof SettingsDraft] ? 'bg-yellow-500' : 'bg-gray-600'
                   }`}
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                      settings[key as keyof typeof settings] ? 'translate-x-5' : 'translate-x-0'
+                      draft[key as keyof SettingsDraft] ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
@@ -193,6 +304,17 @@ export default function TeamSettingsView() {
             ))}
           </div>
         </section>
+
+        {/* ── Opslaan ── */}
+        <div className="flex justify-end pb-4">
+          <button
+            onClick={handleSaveSettings}
+            disabled={savingSettings}
+            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition text-base"
+          >
+            {savingSettings ? 'Opslaan...' : '💾 Instellingen opslaan'}
+          </button>
+        </div>
       </div>
     </div>
   );

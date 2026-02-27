@@ -59,6 +59,7 @@ export interface Player {
 
   export interface PositionInstruction {
     id: number;
+    game_format?: string;
     formation: string;
     position_index: number;
     position_name: string;
@@ -122,6 +123,8 @@ export interface Player {
 
   export interface TeamSettings {
     team_id: string;
+    game_format: string;
+    periods: number;
     default_formation: string;
     match_duration: number;
     track_goals: boolean;

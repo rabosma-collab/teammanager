@@ -14,15 +14,18 @@ export interface MatchFormData {
 interface MatchEditModalProps {
   match: Match | null; // null = new match
   schemes: SubstitutionScheme[];
+  gameFormat: string;
+  matchDuration?: number;
+  defaultFormation?: string;
   onSave: (data: MatchFormData) => void;
   onClose: () => void;
 }
 
-export default function MatchEditModal({ match, schemes, onSave, onClose }: MatchEditModalProps) {
+export default function MatchEditModal({ match, schemes, gameFormat, matchDuration = 90, defaultFormation = '4-3-3-aanvallend', onSave, onClose }: MatchEditModalProps) {
   const [date, setDate] = useState(match?.date || '');
   const [opponent, setOpponent] = useState(match?.opponent || '');
   const [homeAway, setHomeAway] = useState(match?.home_away || 'Thuis');
-  const [formation, setFormation] = useState(match?.formation || '4-3-3-aanvallend');
+  const [formation, setFormation] = useState(match?.formation || defaultFormation);
   const [schemeId, setSchemeId] = useState(match?.substitution_scheme_id || 1);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -91,8 +94,8 @@ export default function MatchEditModal({ match, schemes, onSave, onClose }: Matc
               onChange={(e) => setFormation(e.target.value)}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
             >
-              {Object.keys(formations).map(f => (
-                <option key={f} value={f}>{formationLabels[f]}</option>
+              {Object.entries(formationLabels[gameFormat] ?? formationLabels['11v11']).map(([f, label]) => (
+                <option key={f} value={f}>{label}</option>
               ))}
             </select>
           </div>
@@ -104,12 +107,15 @@ export default function MatchEditModal({ match, schemes, onSave, onClose }: Matc
               onChange={(e) => setSchemeId(parseInt(e.target.value))}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
             >
-              {schemes.map(scheme => (
-                <option key={scheme.id} value={scheme.id}>
-                  {scheme.name}
-                  {scheme.minutes.length > 0 ? ` (${scheme.minutes.join("', ")}')` : ''}
-                </option>
-              ))}
+              {schemes.map(scheme => {
+                const scaled = scheme.minutes.map(m => Math.round(m * matchDuration / 90));
+                return (
+                  <option key={scheme.id} value={scheme.id}>
+                    {scheme.name}
+                    {scaled.length > 0 ? ` (${scaled.join("', ")}')` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
