@@ -1071,6 +1071,7 @@ export default function FootballApp() {
               {isManager && activelyEditing && (
                 <button
                   onClick={() => {
+                    if (!selectedMatch) return;
                     generateMatchPdf({
                       match: selectedMatch,
                       players,
