@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult } from '../lib/types';
 import { getPositionCategory } from '../lib/constants';
 import { supabase } from '../lib/supabase';
@@ -73,14 +73,28 @@ export default function DashboardView({
   // Match-instructie voor de ingelogde speler
   const [matchInstructions, setMatchInstructions] = useState<PositionInstruction[]>([]);
 
+  // POTW-overwinningen berekenen voor de ingelogde speler
+  const [potwWins, setPotwWins] = useState(0);
+
+  // Loading gates: wacht tot alle lokale fetches klaar zijn zodat alles tegelijk verschijnt
+  const [absencesReady, setAbsencesReady] = useState(false);
+  const [instructionsReady, setInstructionsReady] = useState(false);
+  const [potwReady, setPotwReady] = useState(false);
+  const isReady = absencesReady && instructionsReady && potwReady;
+  // Na de eerste volledige load nooit meer de skeleton tonen (voorkomt flits bij re-renders)
+  const hasLoadedOnce = useRef(false);
+  if (isReady) hasLoadedOnce.current = true;
+
   useEffect(() => {
-    if (!dashboardMatch) { setMatchInstructions([]); return; }
+    setInstructionsReady(false);
+    if (!dashboardMatch) { setMatchInstructions([]); setInstructionsReady(true); return; }
     supabase
       .from('match_position_instructions')
       .select('*')
       .eq('match_id', dashboardMatch.id)
       .then(({ data }: { data: PositionInstruction[] | null }) => {
         setMatchInstructions(data || []);
+        setInstructionsReady(true);
       });
   }, [dashboardMatch?.id]);
 
@@ -101,8 +115,10 @@ export default function DashboardView({
   }, [gameFormat, dashboardMatch?.formation, playerPositionIndex]);
 
   useEffect(() => {
+    setAbsencesReady(false);
     if (!dashboardMatch) {
       setDashboardAbsences([]);
+      setAbsencesReady(true);
       return;
     }
     supabase
@@ -111,6 +127,7 @@ export default function DashboardView({
       .eq('match_id', dashboardMatch.id)
       .then(({ data }: { data: { player_id: number }[] | null }) => {
         setDashboardAbsences(data?.map((a) => a.player_id) || []);
+        setAbsencesReady(true);
       });
   }, [dashboardMatch?.id]);
 
@@ -133,12 +150,11 @@ export default function DashboardView({
     return onToggleInjury(playerId);
   }, [onToggleInjury]);
 
-  // POTW-overwinningen berekenen voor de ingelogde speler
-  const [potwWins, setPotwWins] = useState(0);
-
   useEffect(() => {
+    setPotwReady(false);
     if (!currentPlayerId || !currentTeam) {
       setPotwWins(0);
+      setPotwReady(true);
       return;
     }
     (async () => {
@@ -147,7 +163,7 @@ export default function DashboardView({
         .select('match_id, voted_for_player_id')
         .eq('team_id', currentTeam.id);
 
-      if (!data) return;
+      if (!data) { setPotwReady(true); return; }
 
       // Groepeer stemmen per wedstrijd
       const matchVotes: Record<number, Record<number, number>> = {};
@@ -168,6 +184,7 @@ export default function DashboardView({
         }
       }
       setPotwWins(wins);
+      setPotwReady(true);
     })();
   }, [currentPlayerId, currentTeam?.id]);
 
@@ -187,6 +204,22 @@ export default function DashboardView({
   }).length, [dashboardAbsences, regularPlayers]);
   const availableCount = regularPlayers.length - injuredCount - absentCount;
   const lineupSet = useMemo(() => fieldOccupants.some(p => p !== null), [fieldOccupants]);
+
+  // Skeleton alleen bij de eerste load, niet bij re-renders
+  if (!isReady && !hasLoadedOnce.current) {
+    return (
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
+        <div className="max-w-4xl mx-auto space-y-4">
+          <div className="h-12 bg-gray-800/60 rounded-xl animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="h-64 bg-gray-800/60 rounded-xl animate-pulse" />
+            <div className="h-64 bg-gray-800/60 rounded-xl animate-pulse" />
+          </div>
+          <div className="h-28 bg-gray-800/60 rounded-xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
