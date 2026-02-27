@@ -20,7 +20,7 @@ const PRESET_COLORS = [
 
 type SettingsDraft = Omit<TeamSettings, 'team_id'>;
 
-export default function TeamSettingsView() {
+export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?: () => void }) {
   const { currentTeam, refreshTeam } = useTeamContext();
   const { settings, isLoading, fetchSettings, upsertSettings, updateTeamInfo } = useTeamSettings();
   const toast = useToast();
@@ -91,8 +91,12 @@ export default function TeamSettingsView() {
     const finalDraft = { ...draft, match_duration: clampedDuration };
     setSavingSettings(true);
     const ok = await upsertSettings(currentTeam.id, finalDraft);
-    if (ok) toast.success('✅ Instellingen opgeslagen!');
-    else toast.error('❌ Kon instellingen niet opslaan');
+    if (ok) {
+      toast.success('✅ Instellingen opgeslagen!');
+      onSettingsSaved?.();
+    } else {
+      toast.error('❌ Kon instellingen niet opslaan');
+    }
     setSavingSettings(false);
   };
 

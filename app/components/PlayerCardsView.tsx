@@ -115,6 +115,12 @@ export default function PlayerCardsView({
       : 0;
     const canSave = cost > 0 && creditBalance != null && cost <= creditBalance && !isSaving;
 
+    const currentRating = calcRating(player);
+    const draftRating = draftStats
+      ? calcRating({ ...player, ...Object.fromEntries(Object.entries(draftStats).map(([k, v]) => [k, v])) } as Player)
+      : currentRating;
+    const ratingDiff = draftRating - currentRating;
+
     return (
       <div className="mt-2 p-2 bg-gray-800 border border-yellow-700/50 rounded-lg w-[155px]">
         <div className="text-xs text-yellow-400 font-bold mb-1.5 text-center">💰 Stats aanpassen</div>
@@ -146,7 +152,20 @@ export default function PlayerCardsView({
           );
         })}
 
-        <div className="text-center text-xs mt-1.5 mb-1.5">
+        <div className="flex items-center justify-center gap-1.5 mt-2 mb-1 py-1 bg-gray-900/60 rounded">
+          <span className="text-sm font-black text-white">{currentRating}</span>
+          <span className="text-gray-500 text-xs">→</span>
+          <span className={`text-sm font-black ${ratingDiff > 0 ? 'text-green-400' : ratingDiff < 0 ? 'text-red-400' : 'text-white'}`}>
+            {draftRating}
+          </span>
+          {ratingDiff !== 0 && (
+            <span className={`text-xs font-bold ${ratingDiff > 0 ? 'text-green-400' : 'text-red-400'}`}>
+              ({ratingDiff > 0 ? '+' : ''}{ratingDiff})
+            </span>
+          )}
+        </div>
+
+        <div className="text-center text-xs mt-1 mb-1.5">
           {cost > 0 ? (
             <span className={cost > (creditBalance ?? 0) ? 'text-red-400 font-bold' : 'text-yellow-400'}>
               {cost > (creditBalance ?? 0) ? 'Te weinig credits' : `Kosten: ${cost} ${cost === 1 ? 'credit' : 'credits'}`}

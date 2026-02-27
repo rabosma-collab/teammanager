@@ -867,7 +867,7 @@ export default function FootballApp() {
       ) : view === 'mededelingen' && isManager ? (
         <MededelingenView />
       ) : view === 'team-settings' && isManager ? (
-        <TeamSettingsView />
+        <TeamSettingsView onSettingsSaved={() => currentTeam && fetchTeamSettings(currentTeam.id)} />
       ) : view === 'cards' ? (
         <PlayerCardsView
           players={players}
