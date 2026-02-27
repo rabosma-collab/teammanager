@@ -77,7 +77,8 @@ export default function TeamSettingsView() {
       match_duration: fmtData.match_duration,
       default_formation: defaultFormation,
     });
-    if (!ok) toast.error('❌ Kon spelvorm niet opslaan');
+    if (ok) toast.success('✅ Spelvorm opgeslagen!');
+    else toast.error('❌ Kon spelvorm niet opslaan');
   };
 
   const handleDurationBlur = async () => {
@@ -91,7 +92,8 @@ export default function TeamSettingsView() {
   const handleFormationChange = async (formation: string) => {
     if (!currentTeam) return;
     const ok = await upsertSettings(currentTeam.id, { default_formation: formation });
-    if (!ok) toast.error('❌ Kon formatie niet opslaan');
+    if (ok) toast.success('✅ Standaard formatie opgeslagen!');
+    else toast.error('❌ Kon formatie niet opslaan');
   };
 
   if (isLoading || !settings) {
