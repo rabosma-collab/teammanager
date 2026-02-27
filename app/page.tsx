@@ -987,11 +987,14 @@ export default function FootballApp() {
                   onChange={(e) => setSchemeId(parseInt(e.target.value))}
                   className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm sm:text-base"
                 >
-                  {schemes.map((s: SubstitutionScheme) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}{s.minutes.length > 0 ? ` (${s.minutes.join("', ")}')` : ''}
-                    </option>
-                  ))}
+                  {schemes.map((s: SubstitutionScheme) => {
+                    const scaled = s.minutes.map(m => Math.round(m * matchDuration / 90));
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.name}{scaled.length > 0 ? ` (${scaled.join("', ")}')` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               )}
 
