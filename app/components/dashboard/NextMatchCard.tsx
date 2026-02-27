@@ -85,17 +85,19 @@ export default function NextMatchCard({
   const isInjured = currentPlayer?.injured ?? false;
   const isAbsent = currentPlayerId ? matchAbsences.includes(currentPlayerId) : false;
 
-  // Wie moet wassen: laagste wash_count onder aanwezige niet-gastspelers, alfabetisch bij gelijkstand
-  const nextWasbeurt = (() => {
-    const eligible = players.filter(p =>
-      !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
-    );
-    if (eligible.length === 0) return null;
-    eligible.sort((a, b) =>
-      (a.wash_count - b.wash_count) || a.name.localeCompare(b.name)
-    );
-    return eligible[0];
-  })();
+  // Wie moet wassen: gebruik handmatige override als die beschikbaar en beschikbaar is, anders laagste wash_count
+  const wasbeurtEligible = players.filter(p =>
+    !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+  ).sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
+  const wasbeurtOverridePlayer = match.wasbeurt_player_id
+    ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest) ?? null
+    : null;
+  const wasbeurtOverrideUnavailable = wasbeurtOverridePlayer
+    ? (wasbeurtOverridePlayer.injured || matchAbsences.includes(wasbeurtOverridePlayer.id))
+    : false;
+  const nextWasbeurt = (!wasbeurtOverridePlayer || wasbeurtOverrideUnavailable)
+    ? wasbeurtEligible[0] ?? null
+    : wasbeurtOverridePlayer;
 
   // Toon knoppen alleen voor spelers (niet-manager of manager met spelerrecord) bij niet-afgeronde wedstrijden
   const showPlayerButtons = !!(currentPlayerId && !isFinalized && currentPlayer);
@@ -154,10 +156,15 @@ export default function NextMatchCard({
         )}
         <div className="text-xs text-gray-500 mt-1">{formationLabel}</div>
         {!isFinalized && nextWasbeurt && (
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-blue-300">
+          <div className="mt-2 flex items-center gap-1.5 text-xs flex-wrap">
             <span>🧺</span>
-            <span>Wasbeurt: <span className="font-bold text-white">{nextWasbeurt.name}</span></span>
+            <span className="text-blue-300">Wasbeurt: <span className="font-bold text-white">{nextWasbeurt.name}</span></span>
             <span className="text-gray-500">({nextWasbeurt.wash_count}x gewassen)</span>
+            {wasbeurtOverrideUnavailable && wasbeurtOverridePlayer && (
+              <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-1.5 py-0.5">
+                ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}, automatisch gekozen
+              </span>
+            )}
           </div>
         )}
       </div>

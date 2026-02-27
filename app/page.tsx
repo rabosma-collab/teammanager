@@ -100,7 +100,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, updateMatchScore, publishLineup, deleteMatch
+    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, deleteMatch
   } = useMatches();
 
   const {
@@ -138,6 +138,25 @@ export default function FootballApp() {
   const isFinalized = selectedMatch?.match_status === 'afgerond';
   const isLineupPublished = selectedMatch?.lineup_published === true;
   const activelyEditing = editable && isEditingLineup;
+
+  // Wasbeurt berekening voor PitchView toolbar
+  const wasbeurtEligible = useMemo(() =>
+    players.filter((p: Player) => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .sort((a: Player, b: Player) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name)),
+    [players, matchAbsences]
+  );
+  const wasbeurtOverrideId = selectedMatch?.wasbeurt_player_id ?? null;
+  const wasbeurtOverridePlayer = wasbeurtOverrideId
+    ? players.find((p: Player) => p.id === wasbeurtOverrideId) ?? null
+    : null;
+  const wasbeurtDisplayPlayer = wasbeurtOverridePlayer ?? wasbeurtEligible[0] ?? null;
+  const wasbeurtIsUnavailable = wasbeurtOverridePlayer
+    ? (wasbeurtOverridePlayer.injured || matchAbsences.includes(wasbeurtOverridePlayer.id))
+    : false;
+  const wasbeurtAllPlayers = useMemo(() =>
+    players.filter((p: Player) => !p.is_guest).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
+    [players]
+  );
 
   const canFinalizeMatch = useCallback((): boolean => {
     if (!selectedMatch || !isManager) return false;
@@ -1035,6 +1054,9 @@ export default function FootballApp() {
                     onClick={async () => {
                       const ok = await handleSaveLineup();
                       if (!ok) return;
+                      if (wasPublishedBeforeEdit.current && selectedMatch) {
+                        await publishLineup(selectedMatch.id, true);
+                      }
                       toast.success('💾 Opstelling opgeslagen!');
                       setIsEditingLineup(false);
                     }}
@@ -1092,6 +1114,34 @@ export default function FootballApp() {
                 </button>
               )}
             </div>
+
+            {/* Wasbeurt */}
+            {selectedMatch && !isFinalized && isManager && wasbeurtDisplayPlayer && (
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <span className="text-gray-400 text-sm">🧺 Wasbeurt:</span>
+                {wasbeurtIsUnavailable && wasbeurtOverridePlayer && (
+                  <span className="text-xs text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-2 py-0.5">
+                    ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}
+                  </span>
+                )}
+                {!wasbeurtIsUnavailable && (
+                  <span className="text-sm font-bold text-white">{wasbeurtDisplayPlayer.name}</span>
+                )}
+                <select
+                  value={wasbeurtOverrideId ?? ''}
+                  onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
+                    const val = e.target.value;
+                    await updateWasbeurtPlayer(selectedMatch.id, val ? Number(val) : null);
+                  }}
+                  className="text-xs bg-gray-700 border border-gray-600 text-white rounded px-2 py-1"
+                >
+                  <option value="">— automatisch ({wasbeurtEligible[0]?.name ?? '?'})</option>
+                  {wasbeurtAllPlayers.map((p: Player) => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.wash_count}x)</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Veld + Bank */}
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">

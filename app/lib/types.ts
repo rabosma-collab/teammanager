@@ -37,6 +37,7 @@ export interface Player {
     goals_for?: number | null;
     goals_against?: number | null;
     lineup_published?: boolean;
+    wasbeurt_player_id?: number | null;
   }
 
   export interface SubstitutionScheme {

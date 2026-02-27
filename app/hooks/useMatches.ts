@@ -204,6 +204,34 @@ export function useMatches() {
     }
   }, [selectedMatch?.id, currentTeam]);
 
+  const updateWasbeurtPlayer = useCallback(async (
+    matchId: number,
+    playerId: number | null
+  ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .update({ wasbeurt_player_id: playerId })
+        .eq('id', matchId)
+        .eq('team_id', currentTeam.id);
+
+      if (error) throw error;
+
+      setMatches(prev =>
+        prev.map(m => m.id === matchId ? { ...m, wasbeurt_player_id: playerId } : m)
+      );
+      if (selectedMatch?.id === matchId) {
+        setSelectedMatch(prev => prev ? { ...prev, wasbeurt_player_id: playerId } : prev);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error updating wasbeurt player:', error);
+      return false;
+    }
+  }, [selectedMatch?.id, currentTeam]);
+
   const deleteMatch = useCallback(async (matchId: number): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -248,6 +276,7 @@ export function useMatches() {
     updateMatch,
     updateMatchScore,
     publishLineup,
+    updateWasbeurtPlayer,
     deleteMatch
   };
 }
