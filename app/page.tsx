@@ -1035,6 +1035,9 @@ export default function FootballApp() {
                     onClick={async () => {
                       const ok = await handleSaveLineup();
                       if (!ok) return;
+                      if (wasPublishedBeforeEdit.current && selectedMatch) {
+                        await publishLineup(selectedMatch.id, true);
+                      }
                       toast.success('💾 Opstelling opgeslagen!');
                       setIsEditingLineup(false);
                     }}
