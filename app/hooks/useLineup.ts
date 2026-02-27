@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -9,6 +9,7 @@ export function useLineup() {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [savingLineup, setSavingLineup] = useState(false);
+  const lineupSnapshot = useRef<(Player | null)[]>(Array(11).fill(null));
 
   const loadLineup = useCallback(async (matchId: number, players: Player[], playerCount: number = 11) => {
     if (!currentTeam || players.length === 0) return;
@@ -179,6 +180,16 @@ export function useLineup() {
     return !player.injured && !matchAbsences.includes(player.id);
   }, []);
 
+  const takeSnapshot = useCallback(() => {
+    lineupSnapshot.current = [...fieldOccupants];
+  }, [fieldOccupants]);
+
+  const restoreSnapshot = useCallback(() => {
+    setFieldOccupants([...lineupSnapshot.current]);
+    setSelectedPlayer(null);
+    setSelectedPosition(null);
+  }, []);
+
   const clearField = useCallback((playerCount: number = 11) => {
     setFieldOccupants(Array(playerCount).fill(null));
     setSelectedPlayer(null);
@@ -198,6 +209,8 @@ export function useLineup() {
     isPlayerOnField,
     getBenchPlayers,
     isPlayerAvailable,
-    clearField
+    clearField,
+    takeSnapshot,
+    restoreSnapshot
   };
 }
