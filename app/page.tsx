@@ -107,7 +107,8 @@ export default function FootballApp() {
     selectedPlayer, setSelectedPlayer,
     selectedPosition, setSelectedPosition,
     savingLineup, loadLineup, saveLineup,
-    isPlayerOnField, getBenchPlayers, isPlayerAvailable, clearField
+    isPlayerOnField, getBenchPlayers, isPlayerAvailable, clearField,
+    takeSnapshot, restoreSnapshot
   } = useLineup();
 
   const {
@@ -1001,6 +1002,7 @@ export default function FootballApp() {
               {editable && !isFinalized && !isEditingLineup && (
                 <button
                   onClick={() => {
+                    takeSnapshot();
                     setIsEditingLineup(true);
                     if (isLineupPublished && selectedMatch) {
                       publishLineup(selectedMatch.id, false);
@@ -1014,6 +1016,16 @@ export default function FootballApp() {
 
               {editable && !isFinalized && isEditingLineup && (
                 <>
+                  <button
+                    onClick={() => {
+                      restoreSnapshot();
+                      setIsEditingLineup(false);
+                    }}
+                    disabled={savingLineup}
+                    className="px-3 sm:px-4 py-2 rounded font-bold bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-sm sm:text-base"
+                  >
+                    Annuleer
+                  </button>
                   <button
                     onClick={async () => {
                       const ok = await handleSaveLineup();
