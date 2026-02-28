@@ -1116,8 +1116,8 @@ export default function FootballApp() {
             </div>
 
             {/* Wasbeurt */}
-            {selectedMatch && !isFinalized && isManager && wasbeurtDisplayPlayer && (
-              <div className="flex items-center gap-2 flex-wrap mb-2">
+            {activelyEditing && selectedMatch && !isFinalized && isManager && wasbeurtDisplayPlayer && (
+              <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
                 <span className="text-gray-400 text-sm">🧺 Wasbeurt:</span>
                 {wasbeurtIsUnavailable && wasbeurtOverridePlayer && (
                   <span className="text-xs text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-2 py-0.5">
