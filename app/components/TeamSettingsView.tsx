@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useTeamSettings } from '../hooks/useTeamSettings';
 import { useToast } from '../contexts/ToastContext';
+import { supabase } from '../lib/supabase';
 import { formationLabels, GAME_FORMATS, DEFAULT_FORMATIONS } from '../lib/constants';
 import type { TeamSettings } from '../lib/types';
 
@@ -21,7 +22,7 @@ const PRESET_COLORS = [
 type SettingsDraft = Omit<TeamSettings, 'team_id'>;
 
 export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?: () => void }) {
-  const { currentTeam, refreshTeam } = useTeamContext();
+  const { currentTeam, isManager, refreshTeam } = useTeamContext();
   const { settings, isLoading, fetchSettings, upsertSettings, updateTeamInfo } = useTeamSettings();
   const toast = useToast();
 
@@ -34,6 +35,11 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [localDuration, setLocalDuration] = useState<string>('90');
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // --- Team verwijderen ---
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [deletingTeam, setDeletingTeam] = useState(false);
 
   useEffect(() => {
     if (currentTeam) {
@@ -98,6 +104,50 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
       toast.error('❌ Kon instellingen niet opslaan');
     }
     setSavingSettings(false);
+  };
+
+  const handleDeleteTeam = async () => {
+    if (!currentTeam || !isManager || deleteConfirmName !== currentTeam.name) return;
+    setDeletingTeam(true);
+    try {
+      const teamId = currentTeam.id;
+
+      // Haal match- en speler-IDs op voor cascade-achtige verwijdering
+      const { data: matchRows } = await supabase.from('matches').select('id').eq('team_id', teamId);
+      const matchIds = (matchRows ?? []).map((m: { id: number }) => m.id);
+
+      const { data: playerRows } = await supabase.from('players').select('id').eq('team_id', teamId);
+      const playerIds = (playerRows ?? []).map((p: { id: number }) => p.id);
+
+      if (matchIds.length > 0) {
+        await supabase.from('lineups').delete().in('match_id', matchIds);
+        await supabase.from('substitutions').delete().in('match_id', matchIds);
+        await supabase.from('match_absences').delete().in('match_id', matchIds);
+        await supabase.from('match_position_instructions').delete().in('match_id', matchIds);
+        await supabase.from('guest_players').delete().in('match_id', matchIds);
+      }
+
+      if (playerIds.length > 0) {
+        await supabase.from('stat_credit_transactions').delete().in('player_id', playerIds);
+      }
+
+      await supabase.from('player_of_week_votes').delete().eq('team_id', teamId);
+      await supabase.from('stat_credits').delete().eq('team_id', teamId);
+      await supabase.from('players').delete().eq('team_id', teamId);
+      await supabase.from('matches').delete().eq('team_id', teamId);
+      await supabase.from('position_instructions').delete().eq('team_id', teamId);
+      await supabase.from('team_settings').delete().eq('team_id', teamId);
+      await supabase.from('invite_tokens').delete().eq('team_id', teamId);
+      await supabase.from('announcements').delete().eq('team_id', teamId);
+      await supabase.from('team_members').delete().eq('team_id', teamId);
+      const { error: teamDeleteError } = await supabase.from('teams').delete().eq('id', teamId);
+      if (teamDeleteError) throw teamDeleteError;
+
+      window.location.href = '/';
+    } catch {
+      toast.error('Fout bij verwijderen van team');
+      setDeletingTeam(false);
+    }
   };
 
   const handleGameFormatChange = (fmt: string) => {
@@ -315,6 +365,52 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
             {savingSettings ? 'Opslaan...' : '💾 Instellingen opslaan'}
           </button>
         </div>
+
+        {/* ── Gevaarzone ── */}
+        <section className="bg-gray-800 rounded-xl p-5 space-y-3 border border-red-900/40">
+          <h2 className="font-bold text-base text-red-400">Gevaarzone</h2>
+          <p className="text-sm text-gray-400">
+            Het verwijderen van een team wist alle spelers, wedstrijden, statistieken en instellingen permanent. Dit kan niet ongedaan worden gemaakt.
+          </p>
+
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="px-4 py-2 bg-red-900/30 hover:bg-red-900/50 border border-red-700 text-red-400 font-bold rounded-lg transition text-sm"
+            >
+              Team verwijderen
+            </button>
+          ) : (
+            <div className="space-y-3 p-4 bg-red-900/20 border border-red-700/60 rounded-xl">
+              <p className="text-sm text-red-300 font-medium">
+                Weet je zeker dat je <strong>{currentTeam?.name}</strong> wilt verwijderen?
+              </p>
+              <p className="text-xs text-gray-400">Typ de teamnaam om te bevestigen:</p>
+              <input
+                type="text"
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder={currentTeam?.name ?? ''}
+                className="w-full px-3 py-2 bg-gray-900 border border-red-700 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDeleteTeam}
+                  disabled={deleteConfirmName !== currentTeam?.name || deletingTeam}
+                  className="flex-1 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg text-sm transition"
+                >
+                  {deletingTeam ? 'Verwijderen...' : 'Ja, verwijder dit team'}
+                </button>
+                <button
+                  onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmName(''); }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium rounded-lg text-sm transition"
+                >
+                  Annuleer
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

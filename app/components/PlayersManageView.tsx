@@ -77,13 +77,13 @@ export default function PlayersManageView({
       setPlayerAccounts(map);
     }
 
-    // Fetch staff members (member_type='staff', no player_id)
+    // Fetch staff members (role='staff', no player_id)
     const { data: staffData } = await supabase
       .from('team_members')
       .select('id, user_id, role, display_name')
       .eq('team_id', currentTeam.id)
       .eq('status', 'active')
-      .eq('member_type', 'staff');
+      .eq('role', 'staff');
 
     if (staffData) {
       setStaffMembers(staffData.map((m: any) => ({

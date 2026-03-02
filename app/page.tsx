@@ -372,13 +372,15 @@ export default function FootballApp() {
   const handleSaveLineup = async (): Promise<boolean> => {
     if (!selectedMatch) return false;
     const success = await saveLineup(selectedMatch, formation, schemeId, (updatedMatch) => {
-      setSelectedMatch(updatedMatch);
-      setMatches(prev => prev.map(m => m.id === updatedMatch.id ? updatedMatch : m));
+      // Alleen formation en substitution_scheme_id bijwerken — lineup_published NIET aanraken
+      // zodat een gelijktijdige publishLineup-update niet wordt overschreven.
+      setSelectedMatch(prev => prev ? { ...prev, formation: updatedMatch.formation, substitution_scheme_id: updatedMatch.substitution_scheme_id } : prev);
+      setMatches(prev => prev.map(m => m.id === updatedMatch.id
+        ? { ...m, formation: updatedMatch.formation, substitution_scheme_id: updatedMatch.substitution_scheme_id }
+        : m
+      ));
     });
-    if (success) {
-      // Do NOT reload lineup from DB here — guest players are not stored in the lineups table
-      // and would be removed from fieldOccupants if we reload. The current state is correct.
-    } else {
+    if (!success) {
       toast.error('❌ Kon opstelling niet opslaan');
     }
     return success;
@@ -1055,7 +1057,11 @@ export default function FootballApp() {
                       const ok = await handleSaveLineup();
                       if (!ok) return;
                       if (wasPublishedBeforeEdit.current && selectedMatch) {
-                        await publishLineup(selectedMatch.id, true);
+                        const published = await publishLineup(selectedMatch.id, true);
+                        if (!published) {
+                          toast.error('❌ Kon opstelling niet definitief maken. Controleer de console voor details.');
+                          return;
+                        }
                       }
                       toast.success('💾 Opstelling opgeslagen!');
                       setIsEditingLineup(false);
@@ -1069,7 +1075,13 @@ export default function FootballApp() {
                     onClick={async () => {
                       const ok = await handleSaveLineup();
                       if (!ok) return;
-                      if (selectedMatch) await publishLineup(selectedMatch.id, true);
+                      if (selectedMatch) {
+                        const published = await publishLineup(selectedMatch.id, true);
+                        if (!published) {
+                          toast.error('❌ Kon opstelling niet definitief maken. Controleer de console voor details.');
+                          return;
+                        }
+                      }
                       toast.success('✅ Opstelling definitief gemaakt!');
                       setIsEditingLineup(false);
                     }}
@@ -1114,34 +1126,6 @@ export default function FootballApp() {
                 </button>
               )}
             </div>
-
-            {/* Wasbeurt */}
-            {selectedMatch && !isFinalized && isManager && wasbeurtDisplayPlayer && (
-              <div className="flex items-center gap-2 flex-wrap mb-2">
-                <span className="text-gray-400 text-sm">🧺 Wasbeurt:</span>
-                {wasbeurtIsUnavailable && wasbeurtOverridePlayer && (
-                  <span className="text-xs text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-2 py-0.5">
-                    ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}
-                  </span>
-                )}
-                {!wasbeurtIsUnavailable && (
-                  <span className="text-sm font-bold text-white">{wasbeurtDisplayPlayer.name}</span>
-                )}
-                <select
-                  value={wasbeurtOverrideId ?? ''}
-                  onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
-                    const val = e.target.value;
-                    await updateWasbeurtPlayer(selectedMatch.id, val ? Number(val) : null);
-                  }}
-                  className="text-xs bg-gray-700 border border-gray-600 text-white rounded px-2 py-1"
-                >
-                  <option value="">— automatisch ({wasbeurtEligible[0]?.name ?? '?'})</option>
-                  {wasbeurtAllPlayers.map((p: Player) => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.wash_count}x)</option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             {/* Veld + Bank */}
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
@@ -1203,6 +1187,35 @@ export default function FootballApp() {
               onAddExtraSub={() => setShowExtraSubModal(true)}
               onDeleteExtraSub={deleteExtraSubstitution}
             />
+
+            {/* Wasbeurt */}
+            {selectedMatch && !isFinalized && wasbeurtDisplayPlayer && (
+              <div className="flex items-center justify-center gap-2 flex-wrap my-3 text-sm">
+                <span className="text-gray-400">🧺 Wasbeurt:</span>
+                {wasbeurtIsUnavailable && wasbeurtOverridePlayer ? (
+                  <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-2 py-0.5 text-xs">
+                    ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}
+                  </span>
+                ) : (
+                  <span className="font-bold text-white">{wasbeurtDisplayPlayer.name}</span>
+                )}
+                {activelyEditing && isManager && (
+                  <select
+                    value={wasbeurtOverrideId ?? ''}
+                    onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
+                      const val = e.target.value;
+                      await updateWasbeurtPlayer(selectedMatch.id, val ? Number(val) : null);
+                    }}
+                    className="text-xs bg-gray-700 border border-gray-600 text-white rounded px-2 py-1"
+                  >
+                    <option value="">— automatisch ({wasbeurtEligible[0]?.name ?? '?'})</option>
+                    {wasbeurtAllPlayers.map((p: Player) => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.wash_count}x)</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
 
             {/* Geselecteerde speler/positie indicator */}
             {activelyEditing && !isFinalized && (selectedPlayer || selectedPosition !== null) && (
