@@ -34,9 +34,10 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
       setEmail(user.email ?? '');
       setIsGoogle(user.app_metadata?.provider === 'google');
 
-      // Avatar centraal: eerst uit user_metadata, daarna fallback naar player record
+      // Avatar: user_metadata als basis, maar player record is autoritatief
+      // (user_metadata kan stale/leeg zijn na OAuth-refresh of race condition bij laden)
       const centralAvatar = user.user_metadata?.avatar_url ?? null;
-      setAvatarUrl(centralAvatar);
+      let resolvedAvatar = centralAvatar;
 
       if (currentPlayerId) {
         const { data } = await supabase
@@ -47,10 +48,12 @@ export default function ProfileModal({ onClose, onPlayerUpdated, welcomeMode = f
 
         if (data) {
           setName(data.name ?? '');
-          // Gebruik player avatar alleen als fallback wanneer central nog niet gezet
-          if (!centralAvatar && data.avatar_url) setAvatarUrl(data.avatar_url);
+          // Player record altijd prefereren — syncAvatarToPlayers houdt dit up-to-date
+          if (data.avatar_url) resolvedAvatar = data.avatar_url;
         }
       }
+
+      setAvatarUrl(resolvedAvatar);
     };
 
     load();

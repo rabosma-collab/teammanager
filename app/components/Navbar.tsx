@@ -45,14 +45,18 @@ export default function Navbar({
     // Avatar altijd uit user_metadata (centraal, geldt voor alle teams)
     setProfileAvatar(user.user_metadata?.avatar_url ?? null);
 
-    // Initialen: spelersnaam als beschikbaar, anders email
+    // Initialen en avatar fallback: spelersnaam/avatar als beschikbaar, anders email
     if (currentPlayerId) {
       const { data } = await supabase
         .from('players')
-        .select('name')
+        .select('name, avatar_url')
         .eq('id', currentPlayerId)
         .single();
       setProfileInitials(data?.name ? data.name.substring(0, 2).toUpperCase() : (user.email?.substring(0, 2).toUpperCase() ?? '?'));
+      // Gebruik player.avatar_url als fallback als user_metadata stale/leeg is
+      if (!user.user_metadata?.avatar_url && data?.avatar_url) {
+        setProfileAvatar(data.avatar_url);
+      }
     } else {
       setProfileInitials(user.email?.substring(0, 2).toUpperCase() ?? '?');
     }
