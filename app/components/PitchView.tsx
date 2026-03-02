@@ -32,7 +32,7 @@ const PitchView = React.memo(function PitchView({
   onShowPositionInfo,
 }: PitchViewProps) {
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center w-full">
       {/* Hint voor view mode */}
       {!isEditable && (
         <p className="text-center text-gray-500 text-xs mb-2">
