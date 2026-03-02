@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { useTeamContext } from '../../contexts/TeamContext';
@@ -85,6 +85,56 @@ export default function TeamSetupWizard() {
 
   // Stap 7
   const [finishLoading, setFinishLoading] = useState(false);
+
+  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
+  const [startingOver, setStartingOver] = useState(false);
+
+  // Herstel wizard vanuit localStorage als de gebruiker terugkomt
+  useEffect(() => {
+    const saved = localStorage.getItem('team_manager_wizard');
+    if (!saved) return;
+    try {
+      const { savedTeamId, savedStep } = JSON.parse(saved);
+      if (!savedTeamId) return;
+      // Controleer of dit team nog bestaat en nog niet afgerond is
+      supabase
+        .from('teams')
+        .select('id, name, color')
+        .eq('id', savedTeamId)
+        .eq('setup_done', false)
+        .single()
+        .then(async ({ data: teamData }) => {
+          if (!teamData) {
+            localStorage.removeItem('team_manager_wizard');
+            return;
+          }
+          const { data: s } = await supabase
+            .from('team_settings')
+            .select('default_formation, game_format, match_duration')
+            .eq('team_id', savedTeamId)
+            .single();
+          setTeamId(savedTeamId);
+          setName(teamData.name);
+          setColor(teamData.color ?? '#f59e0b');
+          if (s) {
+            setFormation(s.default_formation ?? '4-3-3-aanvallend');
+            setGameFormat(s.game_format ?? '11v11');
+            setMatchDuration(s.match_duration ?? 90);
+          }
+          setStep(savedStep ?? 2);
+          setRestoredFromStorage(true);
+        });
+    } catch {
+      localStorage.removeItem('team_manager_wizard');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sla voortgang op in localStorage zodra teamId of step wijzigt
+  useEffect(() => {
+    if (teamId) {
+      localStorage.setItem('team_manager_wizard', JSON.stringify({ savedTeamId: teamId, savedStep: step }));
+    }
+  }, [teamId, step]);
 
   // ── Stap 1: Team aanmaken ──────────────────────────────────
   const handleCreateTeam = async () => {
@@ -191,11 +241,34 @@ export default function TeamSetupWizard() {
     if (!teamId) return;
     setFinishLoading(true);
     await supabase.from('teams').update({ setup_done: true }).eq('id', teamId);
+    localStorage.removeItem('team_manager_wizard');
     await switchTeam(teamId);
     router.push('/');
   };
 
   const handleSkip = () => setStep(s => s + 1);
+
+  const handleStartOver = async () => {
+    setStartingOver(true);
+    if (teamId) {
+      await supabase.from('teams').update({ setup_done: true }).eq('id', teamId);
+    }
+    localStorage.removeItem('team_manager_wizard');
+    setTeamId(null);
+    setStep(1);
+    setName('');
+    setColor('#f59e0b');
+    setGameFormat('11v11');
+    setMatchDuration(90);
+    setFormation('4-3-3-aanvallend');
+    setFormationSaved(false);
+    setSettings(DEFAULT_SETTINGS);
+    setSettingsSaved(false);
+    setPlayersImported(0);
+    setMatchCreated(false);
+    setRestoredFromStorage(false);
+    setStartingOver(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
@@ -204,6 +277,20 @@ export default function TeamSetupWizard() {
         <span className="font-bold text-sm text-gray-400">Team aanmaken</span>
         <span className="text-xs text-gray-500">Stap {step} van {TOTAL_STEPS}</span>
       </div>
+
+      {/* Hervat-banner: zichtbaar als de wizard hervat is vanuit localStorage */}
+      {restoredFromStorage && step > 1 && (
+        <div className="bg-blue-900/40 border-b border-blue-700/50 px-4 py-2 flex items-center justify-between text-xs">
+          <span className="text-blue-300">Verder gegaan waar je gebleven was</span>
+          <button
+            onClick={handleStartOver}
+            disabled={startingOver}
+            className="text-blue-400 hover:text-blue-200 underline transition disabled:opacity-50"
+          >
+            {startingOver ? 'Bezig...' : 'Begin opnieuw'}
+          </button>
+        </div>
+      )}
 
       {/* Progress dots */}
       <div className="flex items-center justify-center gap-2 py-4 px-4 bg-gray-800/50">

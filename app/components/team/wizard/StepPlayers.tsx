@@ -84,15 +84,16 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
     setManualError(null);
   };
 
-  const handleImportManual = async () => {
-    if (!manualList.length) return;
+  const handleImportManual = async (): Promise<boolean> => {
+    if (!manualList.length) return true;
     setManualImporting(true);
     setManualError(null);
     const { error } = await supabase.from('players').insert(buildRows(manualList, teamId));
     setManualImporting(false);
-    if (error) { setManualError('Fout bij opslaan: ' + error.message); return; }
+    if (error) { setManualError('Fout bij opslaan: ' + error.message); return false; }
     setManualImported(true);
     onPlayersImported(manualList.length);
+    return true;
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,15 +108,16 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
     reader.readAsText(file, 'UTF-8');
   };
 
-  const handleImportCsv = async () => {
-    if (!validCsvPlayers.length) return;
+  const handleImportCsv = async (): Promise<boolean> => {
+    if (!validCsvPlayers.length) return true;
     setCsvImporting(true);
     setCsvImportError(null);
     const { error } = await supabase.from('players').insert(buildRows(validCsvPlayers, teamId));
     setCsvImporting(false);
-    if (error) { setCsvImportError('Fout bij importeren: ' + error.message); return; }
+    if (error) { setCsvImportError('Fout bij importeren: ' + error.message); return false; }
     setCsvImported(true);
     onPlayersImported(validCsvPlayers.length);
+    return true;
   };
 
   return (
@@ -226,7 +228,7 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {manualList.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between px-3 py-2 bg-gray-700/50 rounded-lg text-sm">
+                  <div key={`${p.name}-${i}`} className="flex items-center justify-between px-3 py-2 bg-gray-700/50 rounded-lg text-sm">
                     <span className="font-medium">{p.name}</span>
                     <div className="flex items-center gap-3">
                       <span className="text-gray-400">{p.position}</span>
@@ -254,8 +256,18 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
             </button>
           )}
 
-          <button onClick={onNext} className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition active:scale-95">
-            Doorgaan →
+          <button
+            onClick={async () => {
+              if (manualList.length > 0 && !manualImported) {
+                const ok = await handleImportManual();
+                if (!ok) return;
+              }
+              onNext();
+            }}
+            disabled={manualImporting}
+            className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl transition active:scale-95"
+          >
+            {manualImporting ? 'Bezig met opslaan...' : 'Doorgaan →'}
           </button>
         </div>
       )}
@@ -293,7 +305,7 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {parsed.map((p, i) => (
-                  <div key={i} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${p.error ? 'bg-red-900/20 border border-red-700/50' : 'bg-gray-700/50'}`}>
+                  <div key={`${p.name}-${i}`} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${p.error ? 'bg-red-900/20 border border-red-700/50' : 'bg-gray-700/50'}`}>
                     <span className={p.error ? 'text-red-300' : 'text-white'}>{p.name}</span>
                     <span className={p.error ? 'text-red-400 text-xs' : 'text-gray-400'}>{p.error ?? p.position}</span>
                   </div>
@@ -318,8 +330,18 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
             </div>
           )}
 
-          <button onClick={onNext} className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition active:scale-95">
-            Doorgaan →
+          <button
+            onClick={async () => {
+              if (validCsvPlayers.length > 0 && !csvImported) {
+                const ok = await handleImportCsv();
+                if (!ok) return;
+              }
+              onNext();
+            }}
+            disabled={csvImporting}
+            className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl transition active:scale-95"
+          >
+            {csvImporting ? 'Bezig met opslaan...' : 'Doorgaan →'}
           </button>
         </div>
       )}

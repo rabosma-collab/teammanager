@@ -1127,34 +1127,6 @@ export default function FootballApp() {
               )}
             </div>
 
-            {/* Wasbeurt */}
-            {activelyEditing && selectedMatch && !isFinalized && isManager && wasbeurtDisplayPlayer && (
-              <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
-                <span className="text-gray-400 text-sm">🧺 Wasbeurt:</span>
-                {wasbeurtIsUnavailable && wasbeurtOverridePlayer && (
-                  <span className="text-xs text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-2 py-0.5">
-                    ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}
-                  </span>
-                )}
-                {!wasbeurtIsUnavailable && (
-                  <span className="text-sm font-bold text-white">{wasbeurtDisplayPlayer.name}</span>
-                )}
-                <select
-                  value={wasbeurtOverrideId ?? ''}
-                  onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
-                    const val = e.target.value;
-                    await updateWasbeurtPlayer(selectedMatch.id, val ? Number(val) : null);
-                  }}
-                  className="text-xs bg-gray-700 border border-gray-600 text-white rounded px-2 py-1"
-                >
-                  <option value="">— automatisch ({wasbeurtEligible[0]?.name ?? '?'})</option>
-                  {wasbeurtAllPlayers.map((p: Player) => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.wash_count}x)</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             {/* Veld + Bank */}
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
               <PitchView
@@ -1215,6 +1187,35 @@ export default function FootballApp() {
               onAddExtraSub={() => setShowExtraSubModal(true)}
               onDeleteExtraSub={deleteExtraSubstitution}
             />
+
+            {/* Wasbeurt */}
+            {selectedMatch && !isFinalized && wasbeurtDisplayPlayer && (
+              <div className="flex items-center justify-center gap-2 flex-wrap my-3 text-sm">
+                <span className="text-gray-400">🧺 Wasbeurt:</span>
+                {wasbeurtIsUnavailable && wasbeurtOverridePlayer ? (
+                  <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-2 py-0.5 text-xs">
+                    ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}
+                  </span>
+                ) : (
+                  <span className="font-bold text-white">{wasbeurtDisplayPlayer.name}</span>
+                )}
+                {activelyEditing && isManager && (
+                  <select
+                    value={wasbeurtOverrideId ?? ''}
+                    onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
+                      const val = e.target.value;
+                      await updateWasbeurtPlayer(selectedMatch.id, val ? Number(val) : null);
+                    }}
+                    className="text-xs bg-gray-700 border border-gray-600 text-white rounded px-2 py-1"
+                  >
+                    <option value="">— automatisch ({wasbeurtEligible[0]?.name ?? '?'})</option>
+                    {wasbeurtAllPlayers.map((p: Player) => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.wash_count}x)</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
 
             {/* Geselecteerde speler/positie indicator */}
             {activelyEditing && !isFinalized && (selectedPlayer || selectedPosition !== null) && (
