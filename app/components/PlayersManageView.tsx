@@ -60,6 +60,7 @@ export default function PlayersManageView({
   const [togglingPlayerId, setTogglingPlayerId] = useState<number | null>(null);
   const [togglingStaffId, setTogglingStaffId] = useState<string | null>(null);
   const [removingStaffId, setRemovingStaffId] = useState<string | null>(null);
+  const [revokingStaffToken, setRevokingStaffToken] = useState<string | null>(null);
 
   const regularPlayers = players.filter(p => !p.is_guest);
 
@@ -316,6 +317,27 @@ export default function PlayersManageView({
     }
   };
 
+  const handleRevokeStaffInvite = async (invite: PendingStaffInvite) => {
+    if (!confirm(`Uitnodiging voor ${invite.displayName ?? 'staflid'} intrekken?`)) return;
+
+    setRevokingStaffToken(invite.token);
+    try {
+      const { error } = await supabase
+        .from('invite_tokens')
+        .delete()
+        .eq('token', invite.token);
+
+      if (error) throw error;
+
+      setPendingStaffInvites(prev => prev.filter(i => i.token !== invite.token));
+      toast.success(`Uitnodiging voor ${invite.displayName ?? 'staflid'} ingetrokken`);
+    } catch {
+      toast.error('Kon uitnodiging niet intrekken');
+    } finally {
+      setRevokingStaffToken(null);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-8 overflow-y-auto flex-1">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -529,6 +551,7 @@ export default function PlayersManageView({
 
             {pendingStaffInvites.map(invite => {
               const isCopied = copiedStaffToken === invite.token;
+              const isRevoking = revokingStaffToken === invite.token;
               return (
                 <div
                   key={invite.token}
@@ -550,6 +573,14 @@ export default function PlayersManageView({
                       title="Uitnodigingslink kopiëren"
                     >
                       {isCopied ? '✅' : '📋'}
+                    </button>
+                    <button
+                      onClick={() => handleRevokeStaffInvite(invite)}
+                      disabled={isRevoking}
+                      className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
+                      title="Uitnodiging intrekken"
+                    >
+                      🗑️
                     </button>
                   </div>
                 </div>

@@ -68,6 +68,7 @@ export default function TeamSetupWizard() {
   // Stap 2
   const [gameFormat, setGameFormat] = useState('11v11');
   const [matchDuration, setMatchDuration] = useState(GAME_FORMATS['11v11'].match_duration);
+  const [periods, setPeriods] = useState(2);
 
   // Stap 3
   const [formation, setFormation] = useState('4-3-3-aanvallend');
@@ -200,13 +201,12 @@ export default function TeamSetupWizard() {
     setFormation(defaultFormation);
 
     if (teamId) {
-      const fmtData = GAME_FORMATS[chosen];
       await supabase
         .from('team_settings')
         .upsert({
           team_id: teamId,
           game_format: chosen,
-          periods: fmtData.periods,
+          periods,
           match_duration: matchDuration,
           default_formation: defaultFormation,
         }, { onConflict: 'team_id' });
@@ -337,11 +337,13 @@ export default function TeamSetupWizard() {
             <StepSpelvorm
               gameFormat={gameFormat}
               matchDuration={matchDuration}
+              periods={periods}
               onChangeGameFormat={(fmt) => {
                 setGameFormat(fmt);
                 setMatchDuration(GAME_FORMATS[fmt].match_duration);
               }}
               onChangeMatchDuration={setMatchDuration}
+              onChangePeriods={setPeriods}
               onNext={() => handleSaveGameFormat(gameFormat)}
               onSkip={() => setStep(3)}
             />
