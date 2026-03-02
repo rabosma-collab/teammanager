@@ -103,7 +103,7 @@ export default function TeamSetupWizard() {
         .eq('id', savedTeamId)
         .eq('setup_done', false)
         .single()
-        .then(async ({ data: teamData }) => {
+        .then(async ({ data: teamData }: { data: { id: string; name: string; color: string | null } | null }) => {
           if (!teamData) {
             localStorage.removeItem('team_manager_wizard');
             return;
@@ -246,7 +246,7 @@ export default function TeamSetupWizard() {
     router.push('/');
   };
 
-  const handleSkip = () => setStep(s => s + 1);
+  const handleSkip = () => setStep((s: number) => s + 1);
 
   const handleStartOver = async () => {
     setStartingOver(true);
@@ -358,7 +358,7 @@ export default function TeamSetupWizard() {
           {step === 4 && (
             <StepSettings
               settings={settings}
-              onToggle={(key) => setSettings(prev => ({ ...prev, [key]: !prev[key] }))}
+              onToggle={(key) => setSettings((prev: SettingsState) => ({ ...prev, [key]: !prev[key] }))}
               onNext={handleSaveSettings}
               onSkip={() => setStep(5)}
             />
