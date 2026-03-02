@@ -25,6 +25,12 @@ interface StaffMember {
   displayName: string | null;
 }
 
+interface PendingStaffInvite {
+  token: string;
+  displayName: string | null;
+  expiresAt: string;
+}
+
 interface PlayersManageViewProps {
   players: Player[];
   onAddPlayer: (data: PlayerFormData) => Promise<boolean>;
@@ -48,7 +54,9 @@ export default function PlayersManageView({
   const [playerAccounts, setPlayerAccounts] = useState<Map<number, PlayerAccount>>(new Map());
   const [activeInvites, setActiveInvites] = useState<Map<number, ActiveInvite>>(new Map());
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [pendingStaffInvites, setPendingStaffInvites] = useState<PendingStaffInvite[]>([]);
   const [copiedPlayerId, setCopiedPlayerId] = useState<number | null>(null);
+  const [copiedStaffToken, setCopiedStaffToken] = useState<string | null>(null);
   const [togglingPlayerId, setTogglingPlayerId] = useState<number | null>(null);
   const [togglingStaffId, setTogglingStaffId] = useState<string | null>(null);
   const [removingStaffId, setRemovingStaffId] = useState<string | null>(null);
@@ -91,6 +99,23 @@ export default function PlayersManageView({
         userId: m.user_id,
         role: m.role as 'manager' | 'staff',
         displayName: m.display_name ?? null,
+      })));
+    }
+
+    // Fetch pending staff invites
+    const { data: staffInvites } = await supabase
+      .from('invite_tokens')
+      .select('token, display_name, expires_at')
+      .eq('team_id', currentTeam.id)
+      .eq('invite_type', 'staff')
+      .is('used_at', null)
+      .gt('expires_at', new Date().toISOString());
+
+    if (staffInvites) {
+      setPendingStaffInvites(staffInvites.map((inv: any) => ({
+        token: inv.token,
+        displayName: inv.display_name ?? null,
+        expiresAt: inv.expires_at,
       })));
     }
 
@@ -152,9 +177,19 @@ export default function PlayersManageView({
   }, [fetchLinkStatus]);
 
   const handleStaffInviteCreated = useCallback(() => {
-    setShowStaffInviteModal(false);
     fetchLinkStatus();
   }, [fetchLinkStatus]);
+
+  const handleCopyStaffLink = async (token: string) => {
+    const link = `${window.location.origin}/join/${token}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedStaffToken(token);
+      setTimeout(() => setCopiedStaffToken(null), 2000);
+    } catch {
+      toast.warning('Kopiëren mislukt. Probeer het opnieuw.');
+    }
+  };
 
   const handleCopyLink = async (playerId: number) => {
     const invite = activeInvites.get(playerId);
@@ -438,7 +473,7 @@ export default function PlayersManageView({
           </button>
         </div>
 
-        {staffMembers.length === 0 ? (
+        {staffMembers.length === 0 && pendingStaffInvites.length === 0 ? (
           <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-500 text-sm border border-gray-700">
             Nog geen stafleden. Klik op &ldquo;Staflid uitnodigen&rdquo; om iemand toe te voegen.
           </div>
@@ -457,8 +492,8 @@ export default function PlayersManageView({
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2 flex-wrap">
                       {staff.displayName ?? <span className="text-gray-500 italic">Onbekend</span>}
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-900/40 border border-blue-700/50 rounded-full text-xs text-blue-300 font-medium">
-                        🧑‍💼 Staflid
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-900/40 border border-green-700/50 rounded-full text-xs text-green-400 font-medium">
+                        ✅ Gekoppeld
                       </span>
                       {isManager && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-600/50 rounded-full text-xs text-yellow-300 font-medium">
@@ -486,6 +521,35 @@ export default function PlayersManageView({
                       className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
                     >
                       🗑️
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {pendingStaffInvites.map(invite => {
+              const isCopied = copiedStaffToken === invite.token;
+              return (
+                <div
+                  key={invite.token}
+                  className="flex items-center gap-3 p-3 sm:p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2 flex-wrap">
+                      {invite.displayName ?? <span className="text-gray-500 italic">Staflid</span>}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs text-yellow-400 font-medium">
+                        ⏳ Uitgenodigd
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleCopyStaffLink(invite.token)}
+                      className={`px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm font-bold transition-colors ${isCopied ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'}`}
+                      title="Uitnodigingslink kopiëren"
+                    >
+                      {isCopied ? '✅' : '📋'}
                     </button>
                   </div>
                 </div>
