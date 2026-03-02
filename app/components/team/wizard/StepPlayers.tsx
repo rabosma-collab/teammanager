@@ -46,6 +46,65 @@ function buildRows(players: { name: string; position: string }[], teamId: string
   }));
 }
 
+interface StaffSectionProps {
+  staffName: string;
+  staffList: string[];
+  staffError: string | null;
+  onNameChange: (v: string) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+}
+
+function StaffSection({ staffName, staffList, staffError, onNameChange, onAdd, onRemove }: StaffSectionProps) {
+  return (
+    <div className="border-t border-gray-700 pt-4 space-y-3">
+      <h3 className="text-sm font-bold text-gray-300">
+        🧑‍💼 Stafleden toevoegen <span className="font-normal text-gray-500">(optioneel)</span>
+      </h3>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={staffName}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onNameChange(e.target.value)}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && onAdd()}
+          placeholder="bijv. Jan Koets"
+          maxLength={50}
+          className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-yellow-500"
+        />
+        <button
+          onClick={onAdd}
+          disabled={staffName.trim().length < 2}
+          className="px-3 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-40 rounded-lg text-sm font-bold transition"
+        >
+          + Toevoegen
+        </button>
+      </div>
+
+      {staffList.length > 0 && (
+        <div className="space-y-1">
+          {staffList.map((name: string, i: number) => (
+            <div key={`${name}-${i}`} className="flex items-center justify-between px-3 py-2 bg-gray-700/50 rounded-lg text-sm">
+              <span className="font-medium">{name}</span>
+              <button
+                onClick={() => onRemove(i)}
+                className="text-gray-600 hover:text-red-400 transition"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <p className="text-xs text-gray-500 pt-1">
+            Na het aanmaken kun je de uitnodigingslinks kopiëren via Beheer → Spelers.
+          </p>
+        </div>
+      )}
+
+      {staffError && <p className="text-red-400 text-xs">{staffError}</p>}
+    </div>
+  );
+}
+
 type Mode = 'choice' | 'manual' | 'csv';
 
 interface Props {
@@ -72,6 +131,12 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvImportError, setCsvImportError] = useState<string | null>(null);
   const [csvImported, setCsvImported] = useState(false);
+
+  // ── Stafleden ─────────────────────────────────────────────
+  const [staffName, setStaffName] = useState('');
+  const [staffList, setStaffList] = useState<string[]>([]);
+  const [staffSaving, setStaffSaving] = useState(false);
+  const [staffError, setStaffError] = useState<string | null>(null);
 
   const validCsvPlayers = parsed?.filter(p => !p.error) ?? [];
 
@@ -120,11 +185,57 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
     return true;
   };
 
+  const handleAddStaff = () => {
+    const trimmed = staffName.trim();
+    if (!trimmed || trimmed.length < 2) return;
+    setStaffList((prev: string[]) => [...prev, trimmed]);
+    setStaffName('');
+    setStaffError(null);
+  };
+
+  const handleRemoveStaff = (i: number) => {
+    setStaffList((prev: string[]) => prev.filter((_: string, j: number) => j !== i));
+  };
+
+  const saveStaff = async (): Promise<boolean> => {
+    if (!staffList.length) return true;
+    setStaffSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setStaffSaving(false); return false; }
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const { error } = await supabase.from('invite_tokens').insert(
+      staffList.map((name: string) => ({
+        team_id: teamId,
+        player_id: null,
+        created_by: user.id,
+        expires_at: expiresAt.toISOString(),
+        invite_type: 'staff',
+        display_name: name,
+      }))
+    );
+    setStaffSaving(false);
+    if (error) { setStaffError('Kon stafleden niet opslaan: ' + error.message); return false; }
+    return true;
+  };
+
+  const handleNext = async (importFn?: () => Promise<boolean>) => {
+    if (importFn) {
+      const ok = await importFn();
+      if (!ok) return;
+    }
+    const ok = await saveStaff();
+    if (!ok) return;
+    onNext();
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-black mb-1">Spelers toevoegen</h2>
-        <p className="text-gray-400 text-sm">Voeg je selectie toe via een formulier of importeer via CSV.</p>
+        <h2 className="text-xl font-black mb-1">Spelers &amp; stafleden toevoegen</h2>
+        <p className="text-gray-400 text-sm">Voeg je selectie toe via een formulier of importeer via CSV. Stafleden voeg je onderaan toe.</p>
       </div>
 
       {/* ── Keuzescherm ── */}
@@ -156,14 +267,22 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
             </div>
           </button>
 
-          <div className="p-3 bg-blue-900/20 border border-blue-700/50 rounded-xl text-sm text-blue-300">
-            <p className="font-medium mb-0.5">📨 Spelers uitnodigen</p>
-            <p className="text-blue-400 text-xs">Na het aanmaken kan je via Beheer → Uitnodigingen persoonlijke uitnodigingslinks versturen.</p>
-          </div>
+          <StaffSection
+            staffName={staffName}
+            staffList={staffList}
+            staffError={staffError}
+            onNameChange={setStaffName}
+            onAdd={handleAddStaff}
+            onRemove={handleRemoveStaff}
+          />
 
           <div className="flex gap-3">
-            <button onClick={onNext} className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition active:scale-95">
-              Doorgaan →
+            <button
+              onClick={() => handleNext()}
+              disabled={staffSaving}
+              className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl transition active:scale-95"
+            >
+              {staffSaving ? 'Bezig...' : 'Doorgaan →'}
             </button>
             <button onClick={onSkip} className="px-4 py-3 text-gray-400 hover:text-gray-200 font-medium text-sm transition">
               Sla over
@@ -256,18 +375,21 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
             </button>
           )}
 
+          <StaffSection
+            staffName={staffName}
+            staffList={staffList}
+            staffError={staffError}
+            onNameChange={setStaffName}
+            onAdd={handleAddStaff}
+            onRemove={handleRemoveStaff}
+          />
+
           <button
-            onClick={async () => {
-              if (manualList.length > 0 && !manualImported) {
-                const ok = await handleImportManual();
-                if (!ok) return;
-              }
-              onNext();
-            }}
-            disabled={manualImporting}
+            onClick={() => handleNext(manualList.length > 0 && !manualImported ? handleImportManual : undefined)}
+            disabled={manualImporting || staffSaving}
             className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl transition active:scale-95"
           >
-            {manualImporting ? 'Bezig met opslaan...' : 'Doorgaan →'}
+            {manualImporting || staffSaving ? 'Bezig met opslaan...' : 'Doorgaan →'}
           </button>
         </div>
       )}
@@ -330,18 +452,21 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
             </div>
           )}
 
+          <StaffSection
+            staffName={staffName}
+            staffList={staffList}
+            staffError={staffError}
+            onNameChange={setStaffName}
+            onAdd={handleAddStaff}
+            onRemove={handleRemoveStaff}
+          />
+
           <button
-            onClick={async () => {
-              if (validCsvPlayers.length > 0 && !csvImported) {
-                const ok = await handleImportCsv();
-                if (!ok) return;
-              }
-              onNext();
-            }}
-            disabled={csvImporting}
+            onClick={() => handleNext(validCsvPlayers.length > 0 && !csvImported ? handleImportCsv : undefined)}
+            disabled={csvImporting || staffSaving}
             className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl transition active:scale-95"
           >
-            {csvImporting ? 'Bezig met opslaan...' : 'Doorgaan →'}
+            {csvImporting || staffSaving ? 'Bezig met opslaan...' : 'Doorgaan →'}
           </button>
         </div>
       )}

@@ -6,13 +6,17 @@ import { GAME_FORMATS } from '../../../lib/constants';
 interface Props {
   gameFormat: string;
   matchDuration: number;
+  periods: number;
   onChangeGameFormat: (v: string) => void;
   onChangeMatchDuration: (v: number) => void;
+  onChangePeriods: (v: number) => void;
   onNext: () => void;
   onSkip: () => void;
 }
 
-export default function StepSpelvorm({ gameFormat, matchDuration, onChangeGameFormat, onChangeMatchDuration, onNext, onSkip }: Props) {
+export default function StepSpelvorm({ gameFormat, matchDuration, periods, onChangeGameFormat, onChangeMatchDuration, onChangePeriods, onNext, onSkip }: Props) {
+  const periodDuration = Math.round(matchDuration / periods);
+
   return (
     <div className="space-y-6">
       <div>
@@ -36,9 +40,28 @@ export default function StepSpelvorm({ gameFormat, matchDuration, onChangeGameFo
         ))}
       </div>
 
-      <div className="bg-gray-700/50 rounded-xl p-4 text-sm text-gray-300 space-y-1">
-        <div><span className="text-gray-400">Spelers op veld:</span> {GAME_FORMATS[gameFormat].players}</div>
-        <div><span className="text-gray-400">Periodes:</span> {GAME_FORMATS[gameFormat].periods}</div>
+      <div className="bg-gray-700/50 rounded-xl p-4 text-sm text-gray-300">
+        <span className="text-gray-400">Spelers op veld:</span> {GAME_FORMATS[gameFormat].players}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">Aantal periodes</label>
+        <div className="flex gap-2">
+          {[2, 3, 4].map((p) => (
+            <button
+              key={p}
+              onClick={() => onChangePeriods(p)}
+              className={`flex-1 py-2.5 rounded-xl border-2 font-bold text-sm transition ${
+                periods === p
+                  ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                  : 'border-gray-600 hover:border-gray-500 bg-gray-700/50 text-white'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-1.5">{periods} periodes van {periodDuration} minuten</p>
       </div>
 
       <div>

@@ -5,13 +5,20 @@ import type { SubstitutionScheme } from '../lib/types';
 export function useSubstitutionSchemes() {
   const [schemes, setSchemes] = useState<SubstitutionScheme[]>([]);
 
-  const fetchSchemes = useCallback(async () => {
+  const fetchSchemes = useCallback(async (teamId?: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('substitution_schemes')
         .select('*')
         .order('id', { ascending: true });
 
+      if (teamId) {
+        query = query.or(`team_id.is.null,team_id.eq.${teamId}`);
+      } else {
+        query = query.is('team_id', null);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setSchemes(data || []);
     } catch (error) {

@@ -282,6 +282,11 @@ export function usePlayers() {
       await supabase.from('lineups').delete().eq('player_id', playerId);
       await supabase.from('substitutions').delete().or(`player_out_id.eq.${playerId},player_in_id.eq.${playerId}`);
       await supabase.from('match_absences').delete().eq('player_id', playerId);
+      await supabase.from('player_of_week_votes').delete().eq('voted_for_player_id', playerId);
+      await supabase.from('player_of_week_votes').delete().eq('voter_player_id', playerId);
+      await supabase.from('stat_credit_transactions').delete().eq('player_id', playerId);
+      await supabase.from('stat_credits').delete().eq('player_id', playerId);
+      await supabase.from('team_members').delete().eq('player_id', playerId);
 
       const { error } = await supabase
         .from('players')

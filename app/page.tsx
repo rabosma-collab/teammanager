@@ -218,8 +218,8 @@ export default function FootballApp() {
   // ---- DATA LADEN ----
   useEffect(() => {
     fetchMatches();
-    fetchSchemes();
-  }, [fetchMatches, fetchSchemes]);
+    fetchSchemes(currentTeam?.id);
+  }, [fetchMatches, fetchSchemes, currentTeam?.id]);
 
   useEffect(() => {
     if (currentTeam?.id) {

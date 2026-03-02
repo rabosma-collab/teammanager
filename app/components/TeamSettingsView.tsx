@@ -157,9 +157,9 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
     setDraft(prev => prev ? {
       ...prev,
       game_format:       fmt,
-      periods:           fmtData.periods,
       match_duration:    fmtData.match_duration,
       default_formation: defaultFormation,
+      // periods wordt NIET gereset — manager kiest dit zelf
     } : null);
   };
 
@@ -272,8 +272,29 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
             ))}
           </div>
           <div className="text-xs text-gray-500">
-            {GAME_FORMATS[currentFormat]?.players} spelers ·{' '}
-            {GAME_FORMATS[currentFormat]?.periods} periodes
+            {GAME_FORMATS[currentFormat]?.players} spelers
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-2">Aantal periodes</label>
+            <div className="flex gap-2">
+              {[2, 3, 4].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setDraft(prev => prev ? { ...prev, periods: p } : null)}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-bold transition ${
+                    draft.periods === p
+                      ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                      : 'border-gray-600 hover:border-gray-500 text-gray-300'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">
+              {draft.periods} periodes van {Math.round((parseInt(localDuration) || 90) / draft.periods)} minuten
+            </p>
           </div>
 
           <div className="pt-2 border-t border-gray-700">
@@ -292,7 +313,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
               />
               <span className="text-sm text-gray-400">minuten totaal</span>
               <span className="text-xs text-gray-500">
-                ({GAME_FORMATS[currentFormat]?.periods ?? 2}×{Math.round((parseInt(localDuration) || 90) / (GAME_FORMATS[currentFormat]?.periods ?? 2))} min)
+                ({draft.periods}×{Math.round((parseInt(localDuration) || 90) / draft.periods)} min)
               </span>
             </div>
           </div>
