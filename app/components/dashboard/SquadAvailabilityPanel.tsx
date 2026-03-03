@@ -62,19 +62,13 @@ export default function SquadAvailabilityPanel({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      {/* Header — klikbaar om uit te klappen */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between mb-3 text-left"
-      >
+      {/* Header */}
+      <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Selectie aanwezigheid</h3>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">
-            {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
-          </span>
-          <span className={`text-gray-400 text-xs transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>▼</span>
-        </div>
-      </button>
+        <span className="text-xs text-gray-500">
+          {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+        </span>
+      </div>
 
       {/* Totalen */}
       <div className="grid grid-cols-3 gap-2">
@@ -91,6 +85,15 @@ export default function SquadAvailabilityPanel({
           <span className="text-xs text-red-400 font-medium">🏥 Geblesseerd</span>
         </div>
       </div>
+
+      {/* Uitklapknop */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="mt-3 w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-200 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition touch-manipulation active:scale-95"
+      >
+        <span className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>▼</span>
+        <span>{expanded ? 'Verberg spelers' : 'Toon spelers'}</span>
+      </button>
 
       {/* Uitklapbaar: spelerlijst per positie */}
       {expanded && (
