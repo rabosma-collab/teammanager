@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult } from '../lib/types';
+import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult, MatchPlayerStats } from '../lib/types';
 import { getPositionCategory } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -11,6 +11,8 @@ import SquadAvailabilityPanel from './dashboard/SquadAvailabilityPanel';
 import VotingSection from './VotingSection';
 import SpdwResultCard from './dashboard/SpdwResultCard';
 import AnnouncementBanner from './dashboard/AnnouncementBanner';
+import SeasonChart from './dashboard/SeasonChart';
+import RecentResults from './dashboard/RecentResults';
 
 interface DashboardViewProps {
   players: Player[];
@@ -21,6 +23,7 @@ interface DashboardViewProps {
   onToggleInjury: (playerId: number) => Promise<boolean>;
   onNavigateToWedstrijd: (match: Match) => void;
   onNavigateToMatches: () => void;
+  onNavigateToUitslagen: () => void;
   // Voting (page-level currentPlayerId for manual "Wie ben jij?" override)
   votingMatches: VotingMatch[];
   isLoadingVotes: boolean;
@@ -29,6 +32,8 @@ interface DashboardViewProps {
   onVote: (matchId: number, votedForPlayerId: number) => void;
   creditBalance?: number | null;
   lastSpdwResult?: SpdwResult | null;
+  recentStatsMap?: Record<number, MatchPlayerStats[]>;
+  trackResults?: boolean;
 }
 
 export default function DashboardView({
@@ -40,6 +45,7 @@ export default function DashboardView({
   onToggleInjury,
   onNavigateToWedstrijd,
   onNavigateToMatches,
+  onNavigateToUitslagen,
   votingMatches,
   isLoadingVotes,
   votingCurrentPlayerId,
@@ -47,6 +53,8 @@ export default function DashboardView({
   onVote,
   creditBalance,
   lastSpdwResult,
+  recentStatsMap = {},
+  trackResults = true,
 }: DashboardViewProps) {
   // Use TeamContext for authoritative identity (not the voting override)
   const { currentTeam, currentPlayerId, isManager, isStaff } = useTeamContext();
@@ -195,16 +203,6 @@ export default function DashboardView({
     }
   }, [currentPlayerId, votingCurrentPlayerId, onSelectVotingPlayer]);
 
-  // Team-overzicht stats voor manager-zonder-speler
-  const regularPlayers = useMemo(() => players.filter((p: Player) => !p.is_guest), [players]);
-  const injuredCount = useMemo(() => regularPlayers.filter((p: Player) => p.injured).length, [regularPlayers]);
-  const absentCount = useMemo(() => dashboardAbsences.filter((id: number) => {
-    const p = regularPlayers.find((pl: Player) => pl.id === id);
-    return p && !p.injured;
-  }).length, [dashboardAbsences, regularPlayers]);
-  const availableCount = regularPlayers.length - injuredCount - absentCount;
-  const lineupSet = useMemo(() => fieldOccupants.some(p => p !== null), [fieldOccupants]);
-
   // Skeleton alleen bij de eerste load, niet bij re-renders
   if (!isReady && !hasLoadedOnce.current) {
     return (
@@ -236,11 +234,6 @@ export default function DashboardView({
             isStaff={isStaff}
             creditBalance={creditBalance}
             matchInstruction={playerMatchInstruction}
-            totalPlayers={regularPlayers.length}
-            availablePlayers={availableCount}
-            absentPlayers={absentCount}
-            injuredPlayers={injuredCount}
-            lineupSet={lineupSet}
           />
           <NextMatchCard
             match={dashboardMatch}
@@ -273,15 +266,36 @@ export default function DashboardView({
           />
         )}
 
-        {/* Manager: selectie aanwezigheid */}
-        {isManager && dashboardMatch && (
+        {/* Selectie aanwezigheid — zichtbaar voor iedereen */}
+        {dashboardMatch && (
           <div className="mt-4">
             <SquadAvailabilityPanel
               players={players}
               matchAbsences={dashboardAbsences}
               match={dashboardMatch}
-              isFinalized={!!isFinalized}
-              onToggleAbsence={handleToggleAbsence}
+              isManager={isManager}
+              onNavigateToWedstrijd={onNavigateToWedstrijd}
+            />
+          </div>
+        )}
+
+        {/* Seizoensgrafiek — alleen als er uitslagen zijn */}
+        {trackResults && (
+          <div className="mt-4">
+            <SeasonChart
+              matches={matches}
+              onNavigateToUitslagen={onNavigateToUitslagen}
+            />
+          </div>
+        )}
+
+        {/* Recente uitslagen */}
+        {trackResults && (
+          <div className="mt-4">
+            <RecentResults
+              matches={matches}
+              statsMap={recentStatsMap}
+              onNavigateToUitslagen={onNavigateToUitslagen}
             />
           </div>
         )}

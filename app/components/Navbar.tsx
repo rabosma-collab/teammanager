@@ -175,6 +175,7 @@ export default function Navbar({
 
         <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
         <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
+        <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Uitslagen" />
         <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
         <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon="🃏" label="Kaarten" />
       </div>
