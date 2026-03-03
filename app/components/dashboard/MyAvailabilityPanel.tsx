@@ -18,6 +18,8 @@ function formatShortDate(dateStr: string): string {
   });
 }
 
+const DEFAULT_VISIBLE = 3;
+
 export default function MyAvailabilityPanel({
   futureMatches,
   currentPlayerId,
@@ -25,6 +27,7 @@ export default function MyAvailabilityPanel({
 }: MyAvailabilityPanelProps) {
   const [absencesByMatch, setAbsencesByMatch] = useState<Record<number, boolean>>({});
   const [loadingMatchId, setLoadingMatchId] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (futureMatches.length === 0) return;
@@ -56,6 +59,9 @@ export default function MyAvailabilityPanel({
 
   if (futureMatches.length === 0) return null;
 
+  const visibleMatches = expanded ? futureMatches : futureMatches.slice(0, DEFAULT_VISIBLE);
+  const hasMore = futureMatches.length > DEFAULT_VISIBLE;
+
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
       <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
@@ -63,7 +69,7 @@ export default function MyAvailabilityPanel({
       </h3>
 
       <div className="space-y-2">
-        {futureMatches.map(match => {
+        {visibleMatches.map(match => {
           const isAbsent = absencesByMatch[match.id] ?? false;
           const isLoading = loadingMatchId === match.id;
           const isThuis = match.home_away === 'Thuis';
@@ -104,6 +110,16 @@ export default function MyAvailabilityPanel({
           );
         })}
       </div>
+
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-3 w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-200 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition touch-manipulation active:scale-95"
+        >
+          <span className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>▼</span>
+          <span>{expanded ? 'Minder tonen' : `Nog ${futureMatches.length - DEFAULT_VISIBLE} wedstrijden`}</span>
+        </button>
+      )}
     </div>
   );
 }
