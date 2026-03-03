@@ -5,6 +5,7 @@ export interface Player {
     goals: number;
     assists: number;
     wash_count: number;
+    consumption_count: number;
     yellow_cards: number;
     red_cards: number;
     min: number;
@@ -38,6 +39,7 @@ export interface Player {
     goals_against?: number | null;
     lineup_published?: boolean;
     wasbeurt_player_id?: number | null;
+    consumpties_player_id?: number | null;
   }
 
   export interface SubstitutionScheme {
@@ -45,6 +47,7 @@ export interface Player {
     name: string;
     minutes: number[];
     is_system: boolean;
+    team_id?: string | null;
   }
 
   export interface Substitution {
@@ -135,6 +138,8 @@ export interface Player {
     track_clean_sheets: boolean;
     track_spdw: boolean;
     track_results: boolean;
+    track_wasbeurt: boolean;
+    track_consumpties: boolean;
   }
 
   export interface TeamMember {

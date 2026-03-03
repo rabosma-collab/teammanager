@@ -66,6 +66,8 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
         track_clean_sheets:settings.track_clean_sheets ?? false,
         track_spdw:        settings.track_spdw         ?? true,
         track_results:     settings.track_results      ?? true,
+        track_wasbeurt:    settings.track_wasbeurt     ?? true,
+        track_consumpties: settings.track_consumpties  ?? true,
       });
     }
   }, [settings]);
@@ -336,6 +338,36 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
               >
                 {label}
               </button>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Wedstrijdtaken ── */}
+        <section className="bg-gray-800 rounded-xl p-5 space-y-3">
+          <h2 className="font-bold text-base text-gray-200">Wedstrijdtaken</h2>
+          <p className="text-sm text-gray-400">Kies welke taken bijgehouden en getoond worden.</p>
+          <div className="space-y-2">
+            {[
+              { key: 'track_wasbeurt',    label: '🧺 Wasbeurt' },
+              { key: 'track_consumpties', label: '🥤 Consumpties' },
+            ].map(({ key, label }) => (
+              <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                <span className="text-sm font-medium">{label}</span>
+                <button
+                  role="switch"
+                  aria-checked={draft[key as keyof SettingsDraft] as boolean}
+                  onClick={() => handleToggle(key as keyof SettingsDraft, !(draft[key as keyof SettingsDraft] as boolean))}
+                  className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                    draft[key as keyof SettingsDraft] ? 'bg-yellow-500' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      draft[key as keyof SettingsDraft] ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </label>
             ))}
           </div>
         </section>

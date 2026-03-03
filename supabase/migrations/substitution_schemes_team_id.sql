@@ -5,6 +5,8 @@
 ALTER TABLE substitution_schemes
   ADD COLUMN IF NOT EXISTS team_id uuid REFERENCES teams(id) ON DELETE CASCADE;
 
+ALTER TABLE substitution_schemes ENABLE ROW LEVEL SECURITY;
+
 -- RLS: iedereen mag globale schema's lezen; ingelogde gebruikers mogen hun eigen team-schema's lezen
 DROP POLICY IF EXISTS "substitution_schemes_select" ON substitution_schemes;
 CREATE POLICY "substitution_schemes_select" ON substitution_schemes

@@ -15,12 +15,14 @@ interface MatchPdfViewProps {
   gameFormat: string;
   teamName?: string;
   teamColor?: string;
+  trackWasbeurt?: boolean;
+  trackConsumpties?: boolean;
 }
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
 
 const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function MatchPdfView(
-  { match, players, fieldOccupants, substitutions, matchAbsences, positionInstructions, scheme, gameFormat, teamName, teamColor },
+  { match, players, fieldOccupants, substitutions, matchAbsences, positionInstructions, scheme, gameFormat, teamName, teamColor, trackWasbeurt = true, trackConsumpties = true },
   ref
 ) {
   const color = teamColor || '#f59e0b';
@@ -51,6 +53,15 @@ const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function Matc
     ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
     : null;
   const wasbeurtSpeler = overrideWasbeurt ?? eligibleForWash[0] ?? null;
+
+  // Consumpties: gebruik handmatige override als die beschikbaar is, anders laagste consumption_count
+  const eligibleForConsumpties = players.filter(
+    p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+  ).sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
+  const overrideConsumpties = match.consumpties_player_id
+    ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
+    : null;
+  const consumptiesSpeler = overrideConsumpties ?? eligibleForConsumpties[0] ?? null;
 
   // Wissels
   const sortedSubs = [...substitutions].sort((a, b) => a.substitution_number - b.substitution_number);
@@ -155,16 +166,26 @@ const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function Matc
         </>
       )}
 
-      {/* Wasbeurt */}
-      {wasbeurtSpeler && (
+      {/* Taken: Wasbeurt + Consumpties */}
+      {(trackWasbeurt && wasbeurtSpeler) || (trackConsumpties && consumptiesSpeler) ? (
         <>
-          <SectionHeader color={color} title="Wasbeurt" />
-          <div style={{ marginBottom: '24px', fontSize: '14px', color: '#93c5fd' }}>
-            🧺 <strong style={{ color: '#ffffff' }}>{wasbeurtSpeler.name}</strong>
-            <span style={{ color: '#6b7280', marginLeft: '8px' }}>({wasbeurtSpeler.wash_count}× gewassen)</span>
+          <SectionHeader color={color} title="Taken" />
+          <div style={{ marginBottom: '24px' }}>
+            {trackWasbeurt && wasbeurtSpeler && (
+              <div style={{ fontSize: '14px', color: '#93c5fd', marginBottom: '6px' }}>
+                🧺 <strong style={{ color: '#ffffff' }}>{wasbeurtSpeler.name}</strong>
+                <span style={{ color: '#6b7280', marginLeft: '8px' }}>({wasbeurtSpeler.wash_count}× gewassen)</span>
+              </div>
+            )}
+            {trackConsumpties && consumptiesSpeler && (
+              <div style={{ fontSize: '14px', color: '#86efac', marginBottom: '6px' }}>
+                🥤 <strong style={{ color: '#ffffff' }}>{consumptiesSpeler.name}</strong>
+                <span style={{ color: '#6b7280', marginLeft: '8px' }}>({consumptiesSpeler.consumption_count}× meegebracht)</span>
+              </div>
+            )}
           </div>
         </>
-      )}
+      ) : null}
 
       {/* Afwezigen & geblesseerden */}
       {(absentPlayers.length > 0 || injuredPlayers.length > 0) && (

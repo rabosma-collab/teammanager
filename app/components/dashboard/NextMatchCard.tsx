@@ -14,6 +14,8 @@ interface NextMatchCardProps {
   players: Player[];
   gameFormat: string;
   positionName?: string;
+  trackWasbeurt?: boolean;
+  trackConsumpties?: boolean;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
   onToggleInjury: (playerId: number) => Promise<boolean>;
   onNavigateToWedstrijd: (match: Match) => void;
@@ -49,6 +51,8 @@ export default function NextMatchCard({
   players,
   gameFormat,
   positionName,
+  trackWasbeurt = true,
+  trackConsumpties = true,
   onToggleAbsence,
   onToggleInjury,
   onNavigateToWedstrijd,
@@ -85,7 +89,7 @@ export default function NextMatchCard({
   const isInjured = currentPlayer?.injured ?? false;
   const isAbsent = currentPlayerId ? matchAbsences.includes(currentPlayerId) : false;
 
-  // Wie moet wassen: gebruik handmatige override als die beschikbaar en beschikbaar is, anders laagste wash_count
+  // Wie moet wassen: gebruik handmatige override als die beschikbaar is, anders laagste wash_count
   const wasbeurtEligible = players.filter(p =>
     !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
   ).sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
@@ -98,6 +102,20 @@ export default function NextMatchCard({
   const nextWasbeurt = (!wasbeurtOverridePlayer || wasbeurtOverrideUnavailable)
     ? wasbeurtEligible[0] ?? null
     : wasbeurtOverridePlayer;
+
+  // Wie moet consumpties meenemen
+  const consumptiesEligible = players.filter(p =>
+    !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+  ).sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
+  const consumptiesOverridePlayer = match.consumpties_player_id
+    ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest) ?? null
+    : null;
+  const consumptiesOverrideUnavailable = consumptiesOverridePlayer
+    ? (consumptiesOverridePlayer.injured || matchAbsences.includes(consumptiesOverridePlayer.id))
+    : false;
+  const nextConsumpties = (!consumptiesOverridePlayer || consumptiesOverrideUnavailable)
+    ? consumptiesEligible[0] ?? null
+    : consumptiesOverridePlayer;
 
   // Toon knoppen alleen voor spelers (niet-manager of manager met spelerrecord) bij niet-afgeronde wedstrijden
   const showPlayerButtons = !!(currentPlayerId && !isFinalized && currentPlayer);
@@ -155,15 +173,31 @@ export default function NextMatchCard({
           </div>
         )}
         <div className="text-xs text-gray-500 mt-1">{formationLabel}</div>
-        {!isFinalized && nextWasbeurt && (
-          <div className="mt-2 flex items-center gap-1.5 text-xs flex-wrap">
-            <span>🧺</span>
-            <span className="text-blue-300">Wasbeurt: <span className="font-bold text-white">{nextWasbeurt.name}</span></span>
-            <span className="text-gray-500">({nextWasbeurt.wash_count}x gewassen)</span>
-            {wasbeurtOverrideUnavailable && wasbeurtOverridePlayer && (
-              <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-1.5 py-0.5">
-                ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}, automatisch gekozen
-              </span>
+        {!isFinalized && (trackWasbeurt || trackConsumpties) && (
+          <div className="mt-2 space-y-1">
+            {trackWasbeurt && nextWasbeurt && (
+              <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                <span>🧺</span>
+                <span className="text-blue-300">Wasbeurt: <span className="font-bold text-white">{nextWasbeurt.name}</span></span>
+                <span className="text-gray-500">({nextWasbeurt.wash_count}x gewassen)</span>
+                {wasbeurtOverrideUnavailable && wasbeurtOverridePlayer && (
+                  <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-1.5 py-0.5">
+                    ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}, automatisch gekozen
+                  </span>
+                )}
+              </div>
+            )}
+            {trackConsumpties && nextConsumpties && (
+              <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                <span>🥤</span>
+                <span className="text-green-300">Consumpties: <span className="font-bold text-white">{nextConsumpties.name}</span></span>
+                <span className="text-gray-500">({nextConsumpties.consumption_count}x meegebracht)</span>
+                {consumptiesOverrideUnavailable && consumptiesOverridePlayer && (
+                  <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-1.5 py-0.5">
+                    ⚠️ {consumptiesOverridePlayer.name} is {consumptiesOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}, automatisch gekozen
+                  </span>
+                )}
+              </div>
             )}
           </div>
         )}

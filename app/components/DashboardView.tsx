@@ -13,6 +13,7 @@ import SpdwResultCard from './dashboard/SpdwResultCard';
 import AnnouncementBanner from './dashboard/AnnouncementBanner';
 import SeasonChart from './dashboard/SeasonChart';
 import RecentResults from './dashboard/RecentResults';
+import MyAvailabilityPanel from './dashboard/MyAvailabilityPanel';
 
 interface DashboardViewProps {
   players: Player[];
@@ -34,6 +35,8 @@ interface DashboardViewProps {
   lastSpdwResult?: SpdwResult | null;
   recentStatsMap?: Record<number, MatchPlayerStats[]>;
   trackResults?: boolean;
+  trackWasbeurt?: boolean;
+  trackConsumpties?: boolean;
 }
 
 export default function DashboardView({
@@ -55,6 +58,8 @@ export default function DashboardView({
   lastSpdwResult,
   recentStatsMap = {},
   trackResults = true,
+  trackWasbeurt = true,
+  trackConsumpties = true,
 }: DashboardViewProps) {
   // Use TeamContext for authoritative identity (not the voting override)
   const { currentTeam, currentPlayerId, isManager, isStaff } = useTeamContext();
@@ -74,6 +79,16 @@ export default function DashboardView({
   }, [matches]);
 
   const isFinalized = dashboardMatch?.match_status === 'afgerond';
+
+  // Alle toekomstige concept-wedstrijden na de dashboardMatch (voor beschikbaarheidspaneel)
+  const futureMatches = useMemo((): Match[] => {
+    if (!dashboardMatch) return [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return matches
+      .filter(m => m.match_status === 'concept' && new Date(m.date) >= today && m.id !== dashboardMatch.id)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [matches, dashboardMatch]);
 
   // Lokale afwezigheidslijst voor de dashboardMatch (onafhankelijk van pitch-view)
   const [dashboardAbsences, setDashboardAbsences] = useState<number[]>([]);
@@ -244,6 +259,8 @@ export default function DashboardView({
             players={players}
             gameFormat={gameFormat}
             positionName={playerMatchInstruction?.position_name || lineupPositionName}
+            trackWasbeurt={trackWasbeurt}
+            trackConsumpties={trackConsumpties}
             onToggleAbsence={handleToggleAbsence}
             onToggleInjury={handleToggleInjury}
             onNavigateToWedstrijd={onNavigateToWedstrijd}
@@ -275,6 +292,17 @@ export default function DashboardView({
               match={dashboardMatch}
               isManager={isManager}
               onNavigateToWedstrijd={onNavigateToWedstrijd}
+            />
+          </div>
+        )}
+
+        {/* Beschikbaarheid voor toekomstige wedstrijden — alleen voor spelers */}
+        {currentPlayerId && futureMatches.length > 0 && (
+          <div className="mt-4">
+            <MyAvailabilityPanel
+              futureMatches={futureMatches}
+              currentPlayerId={currentPlayerId}
+              onToggleAbsence={handleToggleAbsence}
             />
           </div>
         )}
