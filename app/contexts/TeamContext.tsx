@@ -67,8 +67,9 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   const switchTeam = useCallback(async (teamId: string) => {
+    setIsLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setIsLoading(false); return; }
 
     const { data, error } = await supabase
       .from('team_members')
@@ -80,6 +81,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
 
     if (error || !data) {
       console.error('Fout bij wisselen van team:', error);
+      setIsLoading(false);
       return;
     }
 
@@ -88,6 +90,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     setUserRole(row.role);
     setCurrentPlayerId(row.player_id ?? null);
     localStorage.setItem('selectedTeamId', teamId);
+    setIsLoading(false);
   }, [supabase]);
 
   const refreshTeam = useCallback(async () => {
