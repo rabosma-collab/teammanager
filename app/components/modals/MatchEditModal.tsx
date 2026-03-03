@@ -108,11 +108,15 @@ export default function MatchEditModal({ match, schemes, gameFormat, matchDurati
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
             >
               {schemes.map(scheme => {
-                const scaled = scheme.minutes.map(m => Math.round(m * matchDuration / 90));
+                // Globale schema's zijn ontworpen voor 90 min en worden geschaald naar de werkelijke duur.
+                // Team-specifieke schema's bevatten al de exacte minuten — niet opnieuw schalen.
+                const displayMinutes = scheme.team_id
+                  ? scheme.minutes
+                  : scheme.minutes.map(m => Math.round(m * matchDuration / 90));
                 return (
                   <option key={scheme.id} value={scheme.id}>
                     {scheme.name}
-                    {scaled.length > 0 ? ` (${scaled.join("', ")}')` : ''}
+                    {displayMinutes.length > 0 ? ` (${displayMinutes.join("', ")}')` : ''}
                   </option>
                 );
               })}

@@ -38,8 +38,8 @@ export default function BenchPanel({
   const hasUnavailable = unavailablePlayers.injured.length > 0 || unavailablePlayers.absent.length > 0;
 
   return (
-    <div className="w-full max-w-[350px] sm:max-w-[400px] lg:w-[380px] flex-shrink-0">
-      <div className="bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-3xl p-3 sm:p-4 border-4 border-amber-800">
+    <div className="w-full max-w-[350px] sm:max-w-[400px] lg:w-[380px] flex-shrink-0 lg:flex lg:flex-col">
+      <div className="bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-3xl p-3 sm:p-4 border-4 border-amber-800 lg:flex-1">
         <h3 className="text-center font-bold text-lg sm:text-xl mb-3 text-amber-200 select-none">🪑 Wissels ({benchPlayers.length})</h3>
 
         {benchPlayers.length === 0 ? (

@@ -27,6 +27,7 @@ import Sidebar from './components/Sidebar';
 import PitchView from './components/PitchView';
 import BenchPanel from './components/BenchPanel';
 import SubstitutionCards from './components/SubstitutionCards';
+import TakenBlok from './components/TakenBlok';
 import StatsView from './components/StatsView';
 import InstructionsView from './components/InstructionsView';
 import PlayersManageView from './components/PlayersManageView';
@@ -104,7 +105,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, deleteMatch
+    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, deleteMatch
   } = useMatches();
 
   const {
@@ -159,6 +160,25 @@ export default function FootballApp() {
     ? (wasbeurtOverridePlayer.injured || matchAbsences.includes(wasbeurtOverridePlayer.id))
     : false;
   const wasbeurtAllPlayers = useMemo(() =>
+    players.filter((p: Player) => !p.is_guest).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
+    [players]
+  );
+
+  // Consumpties berekening voor PitchView toolbar
+  const consumptiesEligible = useMemo(() =>
+    players.filter((p: Player) => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .sort((a: Player, b: Player) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name)),
+    [players, matchAbsences]
+  );
+  const consumptiesOverrideId = selectedMatch?.consumpties_player_id ?? null;
+  const consumptiesOverridePlayer = consumptiesOverrideId
+    ? players.find((p: Player) => p.id === consumptiesOverrideId) ?? null
+    : null;
+  const consumptiesDisplayPlayer = consumptiesOverridePlayer ?? consumptiesEligible[0] ?? null;
+  const consumptiesIsUnavailable = consumptiesOverridePlayer
+    ? (consumptiesOverridePlayer.injured || matchAbsences.includes(consumptiesOverridePlayer.id))
+    : false;
+  const consumptiesAllPlayers = useMemo(() =>
     players.filter((p: Player) => !p.is_guest).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
     [players]
   );
@@ -897,6 +917,8 @@ export default function FootballApp() {
           lastSpdwResult={lastSpdwResult}
           recentStatsMap={recentStatsMap}
           trackResults={teamSettings?.track_results ?? true}
+          trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
+          trackConsumpties={teamSettings?.track_consumpties ?? true}
         />
       ) : view === 'pitch' ? (
         <div className="flex flex-1 overflow-hidden relative">
@@ -1096,6 +1118,8 @@ export default function FootballApp() {
                       teamName: currentTeam?.name,
                       teamColor: currentTeam?.color,
                       gameFormat,
+                      trackWasbeurt: teamSettings?.track_wasbeurt ?? true,
+                      trackConsumpties: teamSettings?.track_consumpties ?? true,
                     });
                   }}
                   title="Wedstrijdrapport als PDF"
@@ -1107,7 +1131,7 @@ export default function FootballApp() {
             </div>
 
             {/* Veld + Bank */}
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-stretch justify-center mb-4 lg:mb-6">
               <PitchView
                 gameFormat={gameFormat}
                 formation={formation}
@@ -1167,33 +1191,27 @@ export default function FootballApp() {
               onDeleteExtraSub={deleteExtraSubstitution}
             />
 
-            {/* Wasbeurt */}
-            {selectedMatch && !isFinalized && wasbeurtDisplayPlayer && (
-              <div className="flex items-center justify-center gap-2 flex-wrap my-3 text-sm">
-                <span className="text-gray-400">🧺 Wasbeurt:</span>
-                {wasbeurtIsUnavailable && wasbeurtOverridePlayer ? (
-                  <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-2 py-0.5 text-xs">
-                    ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}
-                  </span>
-                ) : (
-                  <span className="font-bold text-white">{wasbeurtDisplayPlayer.name}</span>
-                )}
-                {activelyEditing && isManager && (
-                  <select
-                    value={wasbeurtOverrideId ?? ''}
-                    onChange={async (e: React.ChangeEvent<HTMLSelectElement>) => {
-                      const val = e.target.value;
-                      await updateWasbeurtPlayer(selectedMatch.id, val ? Number(val) : null);
-                    }}
-                    className="text-xs bg-gray-700 border border-gray-600 text-white rounded px-2 py-1"
-                  >
-                    <option value="">— automatisch ({wasbeurtEligible[0]?.name ?? '?'})</option>
-                    {wasbeurtAllPlayers.map((p: Player) => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.wash_count}x)</option>
-                    ))}
-                  </select>
-                )}
-              </div>
+            {/* Taken: wasbeurt + consumpties */}
+            {selectedMatch && !isFinalized && (
+              <TakenBlok
+                trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
+                wasbeurtPlayer={wasbeurtIsUnavailable ? (wasbeurtEligible[0] ?? null) : wasbeurtDisplayPlayer}
+                wasbeurtOverridePlayer={wasbeurtOverridePlayer}
+                wasbeurtIsUnavailable={wasbeurtIsUnavailable}
+                wasbeurtEligibleFirst={wasbeurtEligible[0] ?? null}
+                wasbeurtAllPlayers={wasbeurtAllPlayers}
+                wasbeurtOverrideId={wasbeurtOverrideId}
+                onWasbeurtChange={(id) => updateWasbeurtPlayer(selectedMatch.id, id)}
+                trackConsumpties={teamSettings?.track_consumpties ?? true}
+                consumptiesPlayer={consumptiesIsUnavailable ? (consumptiesEligible[0] ?? null) : consumptiesDisplayPlayer}
+                consumptiesOverridePlayer={consumptiesOverridePlayer}
+                consumptiesIsUnavailable={consumptiesIsUnavailable}
+                consumptiesEligibleFirst={consumptiesEligible[0] ?? null}
+                consumptiesAllPlayers={consumptiesAllPlayers}
+                consumptiesOverrideId={consumptiesOverrideId}
+                onConsumptiesChange={(id) => updateConsumptiesPlayer(selectedMatch.id, id)}
+                isEditing={activelyEditing && isManager}
+              />
             )}
 
             {/* Geselecteerde speler/positie indicator */}

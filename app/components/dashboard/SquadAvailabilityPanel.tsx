@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { positionEmojis, positionOrder } from '../../lib/constants';
 
@@ -42,6 +42,8 @@ export default function SquadAvailabilityPanel({
   isManager,
   onNavigateToWedstrijd,
 }: SquadAvailabilityPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+
   const regularPlayers = players.filter(p => !p.is_guest);
 
   if (regularPlayers.length === 0) return null;
@@ -69,7 +71,7 @@ export default function SquadAvailabilityPanel({
       </div>
 
       {/* Totalen */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2">
         <div className="flex flex-col items-center p-2 bg-green-900/30 rounded-lg border border-green-700/30">
           <span className="text-lg font-black text-green-300">{availableCount}</span>
           <span className="text-xs text-green-400 font-medium">✅ Beschikbaar</span>
@@ -84,34 +86,47 @@ export default function SquadAvailabilityPanel({
         </div>
       </div>
 
-      {/* Spelerlijst per positie */}
-      <div className="space-y-3">
-        {byPosition.map(({ pos, group }) => (
-          <div key={pos}>
-            <div className="text-xs font-bold text-gray-400 mb-1">
-              {positionEmojis[pos]} {pos} ({group.length})
-            </div>
-            {group.map(p => (
-              <PlayerRow
-                key={p.id}
-                player={p}
-                isAbsent={matchAbsences.includes(p.id)}
-              />
+      {/* Uitklapknop */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="mt-3 w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-200 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition touch-manipulation active:scale-95"
+      >
+        <span className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>▼</span>
+        <span>{expanded ? 'Verberg spelers' : 'Toon spelers'}</span>
+      </button>
+
+      {/* Uitklapbaar: spelerlijst per positie */}
+      {expanded && (
+        <>
+          <div className="mt-4 space-y-3">
+            {byPosition.map(({ pos, group }) => (
+              <div key={pos}>
+                <div className="text-xs font-bold text-gray-400 mb-1">
+                  {positionEmojis[pos]} {pos} ({group.length})
+                </div>
+                {group.map(p => (
+                  <PlayerRow
+                    key={p.id}
+                    player={p}
+                    isAbsent={matchAbsences.includes(p.id)}
+                  />
+                ))}
+              </div>
             ))}
           </div>
-        ))}
-      </div>
 
-      {/* Manager: knop naar wedstrijdscherm */}
-      {isManager && (
-        <button
-          onClick={() => onNavigateToWedstrijd(match)}
-          className="mt-4 w-full px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
-        >
-          <span>✏️</span>
-          <span>Wedstrijdselectie bewerken</span>
-          <span className="text-gray-400">→</span>
-        </button>
+          {/* Manager: knop naar wedstrijdscherm */}
+          {isManager && (
+            <button
+              onClick={() => onNavigateToWedstrijd(match)}
+              className="mt-4 w-full px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
+            >
+              <span>✏️</span>
+              <span>Wedstrijdselectie bewerken</span>
+              <span className="text-gray-400">→</span>
+            </button>
+          )}
+        </>
       )}
     </div>
   );

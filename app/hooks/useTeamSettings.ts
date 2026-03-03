@@ -14,6 +14,8 @@ const DEFAULT_SETTINGS: Omit<TeamSettings, 'team_id'> = {
   track_clean_sheets: false,
   track_spdw: true,
   track_results: true,
+  track_wasbeurt: true,
+  track_consumpties: true,
 };
 
 /**
