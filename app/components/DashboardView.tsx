@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult } from '../lib/types';
+import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult, MatchPlayerStats } from '../lib/types';
 import { getPositionCategory } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -11,6 +11,8 @@ import SquadAvailabilityPanel from './dashboard/SquadAvailabilityPanel';
 import VotingSection from './VotingSection';
 import SpdwResultCard from './dashboard/SpdwResultCard';
 import AnnouncementBanner from './dashboard/AnnouncementBanner';
+import SeasonChart from './dashboard/SeasonChart';
+import RecentResults from './dashboard/RecentResults';
 
 interface DashboardViewProps {
   players: Player[];
@@ -21,6 +23,7 @@ interface DashboardViewProps {
   onToggleInjury: (playerId: number) => Promise<boolean>;
   onNavigateToWedstrijd: (match: Match) => void;
   onNavigateToMatches: () => void;
+  onNavigateToUitslagen: () => void;
   // Voting (page-level currentPlayerId for manual "Wie ben jij?" override)
   votingMatches: VotingMatch[];
   isLoadingVotes: boolean;
@@ -29,6 +32,8 @@ interface DashboardViewProps {
   onVote: (matchId: number, votedForPlayerId: number) => void;
   creditBalance?: number | null;
   lastSpdwResult?: SpdwResult | null;
+  recentStatsMap?: Record<number, MatchPlayerStats[]>;
+  trackResults?: boolean;
 }
 
 export default function DashboardView({
@@ -40,6 +45,7 @@ export default function DashboardView({
   onToggleInjury,
   onNavigateToWedstrijd,
   onNavigateToMatches,
+  onNavigateToUitslagen,
   votingMatches,
   isLoadingVotes,
   votingCurrentPlayerId,
@@ -47,6 +53,8 @@ export default function DashboardView({
   onVote,
   creditBalance,
   lastSpdwResult,
+  recentStatsMap = {},
+  trackResults = true,
 }: DashboardViewProps) {
   // Use TeamContext for authoritative identity (not the voting override)
   const { currentTeam, currentPlayerId, isManager, isStaff } = useTeamContext();
@@ -267,6 +275,27 @@ export default function DashboardView({
               match={dashboardMatch}
               isManager={isManager}
               onNavigateToWedstrijd={onNavigateToWedstrijd}
+            />
+          </div>
+        )}
+
+        {/* Seizoensgrafiek — alleen als er uitslagen zijn */}
+        {trackResults && (
+          <div className="mt-4">
+            <SeasonChart
+              matches={matches}
+              onNavigateToUitslagen={onNavigateToUitslagen}
+            />
+          </div>
+        )}
+
+        {/* Recente uitslagen */}
+        {trackResults && (
+          <div className="mt-4">
+            <RecentResults
+              matches={matches}
+              statsMap={recentStatsMap}
+              onNavigateToUitslagen={onNavigateToUitslagen}
             />
           </div>
         )}

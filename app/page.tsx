@@ -7,7 +7,7 @@ import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
 import { useToast } from './contexts/ToastContext';
-import type { Player, PositionInstruction, SubstitutionScheme } from './lib/types';
+import type { Player, PositionInstruction, SubstitutionScheme, MatchPlayerStats } from './lib/types';
 
 // Hooks
 import { usePlayers } from './hooks/usePlayers';
@@ -19,6 +19,7 @@ import { useSubstitutionSchemes } from './hooks/useSubstitutionSchemes';
 import { useVoting } from './hooks/useVoting';
 import { useStatCredits } from './hooks/useStatCredits';
 import { useTeamSettings } from './hooks/useTeamSettings';
+import { useMatchStats } from './hooks/useMatchStats';
 
 // Components
 import Navbar from './components/Navbar';
@@ -32,6 +33,7 @@ import PlayersManageView from './components/PlayersManageView';
 import MatchesManageView from './components/MatchesManageView';
 import PlayerCardsView from './components/PlayerCardsView';
 import DashboardView from './components/DashboardView';
+import UitslagenView from './components/UitslagenView';
 import InvitesManageView from './components/InvitesManageView';
 import MededelingenView from './components/MededelingenView';
 import TeamSettingsView from './components/TeamSettingsView';
@@ -47,6 +49,7 @@ import GuestPlayerModal from './components/modals/GuestPlayerModal';
 import SubstitutionModal from './components/modals/SubstitutionModal';
 import PlayerCardModal from './components/modals/PlayerCardModal';
 import PositionInfoModal from './components/modals/PositionInfoModal';
+import FinalizeMatchModal from './components/modals/FinalizeMatchModal';
 
 export default function FootballApp() {
   const router = useRouter();
@@ -83,6 +86,7 @@ export default function FootballApp() {
   const [finalizeCalcMinutes, setFinalizeCalcMinutes] = useState(true);
   const [finalizeGoalsFor, setFinalizeGoalsFor] = useState<string>('');
   const [finalizeGoalsAgainst, setFinalizeGoalsAgainst] = useState<string>('');
+  const [recentStatsMap, setRecentStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
   const [showExtraSubModal, setShowExtraSubModal] = useState(false);
   const [extraSubMinute, setExtraSubMinute] = useState(45);
   const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
@@ -129,6 +133,7 @@ export default function FootballApp() {
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
   const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
+  const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
 
   const gameFormat = teamSettings?.game_format ?? DEFAULT_GAME_FORMAT;
   const matchDuration = teamSettings?.match_duration ?? 90;
@@ -304,6 +309,14 @@ export default function FootballApp() {
     }
   }, [currentTeam, awardSpdwCredits]);
 
+  // Laad stats voor recente afgeronde wedstrijden (voor dashboard en uitslagen-view)
+  useEffect(() => {
+    const finished = matches.filter(m => m.match_status === 'afgerond');
+    if (finished.length === 0) return;
+    const ids = finished.map(m => m.id);
+    fetchStatsForMatches(ids).then(data => setRecentStatsMap(data));
+  }, [matches.filter(m => m.match_status === 'afgerond').length, fetchStatsForMatches]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- HANDLERS ----
   const handleSaveStatDraft = useCallback(async (
     targetPlayerId: number,
@@ -415,47 +428,60 @@ export default function FootballApp() {
     }
   };
 
-  const handleFinalizeMatch = async (calculateMinutes: boolean) => {
+  const handleFinalizeMatch = async (params: {
+    calcMinutes: boolean;
+    goalsFor: number | null;
+    goalsAgainst: number | null;
+    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number }>;
+  }) => {
     if (!selectedMatch || !canFinalizeMatch()) return;
     setShowFinalizeModal(false);
 
     try {
-      // Één atomische database-call: alle stappen vallen of staan samen.
-      // De stored procedure (supabase/finalize_match.sql) bevat de logica.
+      // 1. Sluit de wedstrijd af (atomisch: minuten + status)
       const { data, error } = await supabase.rpc('finalize_match', {
         p_match_id:  selectedMatch.id,
-        p_calc_min:  calculateMinutes,
-        p_goals_for: finalizeGoalsFor !== '' ? parseInt(finalizeGoalsFor, 10) : null,
-        p_goals_ag:  finalizeGoalsAgainst !== '' ? parseInt(finalizeGoalsAgainst, 10) : null,
+        p_calc_min:  params.calcMinutes,
+        p_goals_for: params.goalsFor,
+        p_goals_ag:  params.goalsAgainst,
       });
 
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error ?? 'Onbekende fout');
 
+      // 2. Sla spelerstatistieken op (goals, assists, kaarten)
+      if (params.stats.length > 0 && currentTeam) {
+        await saveMatchStats(selectedMatch.id, params.stats);
+      }
+
       // Update lokale state
       const updatedMatchFields = {
         match_status: 'afgerond' as const,
-        ...(finalizeGoalsFor !== '' ? { goals_for: parseInt(finalizeGoalsFor, 10) } : {}),
-        ...(finalizeGoalsAgainst !== '' ? { goals_against: parseInt(finalizeGoalsAgainst, 10) } : {}),
+        ...(params.goalsFor != null ? { goals_for: params.goalsFor } : {}),
+        ...(params.goalsAgainst != null ? { goals_against: params.goalsAgainst } : {}),
       };
       setIsEditingLineup(false);
       setFinalizeGoalsFor('');
       setFinalizeGoalsAgainst('');
       setSelectedMatch({ ...selectedMatch, ...updatedMatchFields });
-      setMatches(matches.map(m =>
+      const updatedMatches = matches.map(m =>
         m.id === selectedMatch.id ? { ...m, ...updatedMatchFields } : m
-      ));
+      );
+      setMatches(updatedMatches);
 
-      // Herlaad spelers (wisselminuten zijn bijgewerkt in de DB)
+      // Herlaad spelers (wisselminuten + career stats bijgewerkt)
       await fetchPlayers();
 
-      // Refresh voting (nieuwe afgeronde wedstrijd kan stembaar zijn)
-      await fetchVotingMatches(
-        matches.map(m => m.id === selectedMatch.id ? { ...m, match_status: 'afgerond' as const } : m),
-        currentPlayerId
-      );
+      // Refresh stats cache voor dashboard
+      const finishedIds = updatedMatches.filter(m => m.match_status === 'afgerond').map(m => m.id);
+      if (finishedIds.length > 0) {
+        fetchStatsForMatches(finishedIds).then(data => setRecentStatsMap(data));
+      }
 
-      toast.success(calculateMinutes
+      // Refresh voting (nieuwe afgeronde wedstrijd kan stembaar zijn)
+      await fetchVotingMatches(updatedMatches, currentPlayerId);
+
+      toast.success(params.calcMinutes
         ? '✅ Wedstrijd afgesloten! Wisselminuten zijn bijgewerkt.'
         : '✅ Wedstrijd afgesloten! Speelminuten zijn niet berekend.'
       );
@@ -689,86 +715,14 @@ export default function FootballApp() {
         />
       )}
 
-      {showFinalizeModal && isManager && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowFinalizeModal(false)}>
-          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">🏁 Wedstrijd afsluiten</h3>
-              <button onClick={() => setShowFinalizeModal(false)} className="text-2xl hover:text-red-500 p-2">✕</button>
-            </div>
-
-            <div className="mb-4 p-3 bg-orange-900/30 border border-orange-700 rounded text-sm">
-              <p className="font-bold mb-2">Dit doet het volgende:</p>
-              <ul className="space-y-1 text-gray-300">
-                <li>• Maakt wedstrijd read-only</li>
-              </ul>
-            </div>
-
-            <label className="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 mb-4">
-              <input
-                type="checkbox"
-                checked={finalizeCalcMinutes}
-                onChange={(e) => setFinalizeCalcMinutes(e.target.checked)}
-                className="mt-0.5 w-4 h-4 accent-green-500 flex-shrink-0"
-              />
-              <div>
-                <div className="font-bold text-sm">Speelminuten automatisch berekenen</div>
-                <div className="text-xs text-gray-400 mt-0.5">Berekent wisselminuten (tijd op de bank) en telt deze op bij spelers. Schakel uit bij extra tijd, bijzondere situaties of handmatige invoer.</div>
-              </div>
-            </label>
-
-            {/* Score invoer */}
-            <div className="mb-4 p-3 bg-gray-700/50 rounded-lg">
-              <div className="text-sm font-bold mb-2">Uitslag (optioneel)</div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 text-center">
-                  <div className="text-xs text-gray-400 mb-1">Eigen goals</div>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    value={finalizeGoalsFor}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFinalizeGoalsFor(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-xl font-black text-center"
-                    placeholder="–"
-                  />
-                </div>
-                <div className="text-gray-400 font-bold text-lg">–</div>
-                <div className="flex-1 text-center">
-                  <div className="text-xs text-gray-400 mb-1">Tegenstander</div>
-                  <input
-                    type="number"
-                    min="0"
-                    max="99"
-                    value={finalizeGoalsAgainst}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFinalizeGoalsAgainst(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-xl font-black text-center"
-                    placeholder="–"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-4 p-2 bg-red-900/30 border border-red-700 rounded text-xs text-center text-red-300">
-              ⚠️ Dit kan NIET ongedaan gemaakt worden!
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleFinalizeMatch(finalizeCalcMinutes)}
-                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded font-bold touch-manipulation active:scale-95"
-              >
-                🏁 Afsluiten
-              </button>
-              <button
-                onClick={() => setShowFinalizeModal(false)}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded font-bold touch-manipulation active:scale-95"
-              >
-                Annuleren
-              </button>
-            </div>
-          </div>
-        </div>
+      {showFinalizeModal && isManager && selectedMatch && (
+        <FinalizeMatchModal
+          match={selectedMatch}
+          players={players}
+          teamSettings={teamSettings}
+          onFinalize={handleFinalizeMatch}
+          onClose={() => setShowFinalizeModal(false)}
+        />
       )}
 
       {showExtraSubModal && isManager && (
@@ -910,6 +864,19 @@ export default function FootballApp() {
           creditBalance={creditBalance}
           onSaveStatDraft={handleSaveStatDraft}
         />
+      ) : view === 'uitslagen' ? (
+        <UitslagenView
+          matches={matches}
+          players={players}
+          teamSettings={teamSettings}
+          onRefreshPlayers={() => {
+            selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers();
+            const finishedIds = matches.filter(m => m.match_status === 'afgerond').map(m => m.id);
+            if (finishedIds.length > 0) {
+              fetchStatsForMatches(finishedIds).then(data => setRecentStatsMap(data));
+            }
+          }}
+        />
       ) : view === 'dashboard' ? (
         <DashboardView
           players={players}
@@ -920,6 +887,7 @@ export default function FootballApp() {
           onToggleInjury={toggleInjury}
           onNavigateToWedstrijd={(match) => { setSelectedMatch(match); setView('pitch'); }}
           onNavigateToMatches={() => setView('matches-manage')}
+          onNavigateToUitslagen={() => setView('uitslagen')}
           votingMatches={votingMatches}
           isLoadingVotes={isLoadingVotes}
           votingCurrentPlayerId={currentPlayerId}
@@ -927,6 +895,8 @@ export default function FootballApp() {
           onVote={handleVote}
           creditBalance={creditBalance}
           lastSpdwResult={lastSpdwResult}
+          recentStatsMap={recentStatsMap}
+          trackResults={teamSettings?.track_results ?? true}
         />
       ) : view === 'pitch' ? (
         <div className="flex flex-1 overflow-hidden relative">

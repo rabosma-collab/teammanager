@@ -148,6 +148,24 @@ export interface Player {
     invited_by: string | null;
   }
 
+  export interface MatchPlayerStats {
+    id?: number;
+    match_id: number;
+    team_id: string;
+    player_id: number | null;
+    guest_player_id: number | null;
+    goals: number;
+    assists: number;
+    yellow_cards: number;
+    red_cards: number;
+    // Denormalized for display convenience (not in DB)
+    player_name?: string;
+  }
+
+  export interface MatchWithStats extends Match {
+    stats?: MatchPlayerStats[];
+  }
+
   export interface TeamContext {
     currentTeam: Team | null;
     userRole: TeamMember['role'] | null;
