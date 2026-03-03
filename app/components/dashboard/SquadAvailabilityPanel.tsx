@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { positionEmojis, positionOrder } from '../../lib/constants';
 
@@ -42,6 +42,8 @@ export default function SquadAvailabilityPanel({
   isManager,
   onNavigateToWedstrijd,
 }: SquadAvailabilityPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+
   const regularPlayers = players.filter(p => !p.is_guest);
 
   if (regularPlayers.length === 0) return null;
@@ -60,16 +62,22 @@ export default function SquadAvailabilityPanel({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      {/* Header */}
-      <div className="flex items-baseline justify-between mb-3">
+      {/* Header — klikbaar om uit te klappen */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between mb-3 text-left"
+      >
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Selectie aanwezigheid</h3>
-        <span className="text-xs text-gray-500">
-          {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
-        </span>
-      </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">
+            {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+          </span>
+          <span className={`text-gray-400 text-xs transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>▼</span>
+        </div>
+      </button>
 
       {/* Totalen */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2">
         <div className="flex flex-col items-center p-2 bg-green-900/30 rounded-lg border border-green-700/30">
           <span className="text-lg font-black text-green-300">{availableCount}</span>
           <span className="text-xs text-green-400 font-medium">✅ Beschikbaar</span>
@@ -84,34 +92,38 @@ export default function SquadAvailabilityPanel({
         </div>
       </div>
 
-      {/* Spelerlijst per positie */}
-      <div className="space-y-3">
-        {byPosition.map(({ pos, group }) => (
-          <div key={pos}>
-            <div className="text-xs font-bold text-gray-400 mb-1">
-              {positionEmojis[pos]} {pos} ({group.length})
-            </div>
-            {group.map(p => (
-              <PlayerRow
-                key={p.id}
-                player={p}
-                isAbsent={matchAbsences.includes(p.id)}
-              />
+      {/* Uitklapbaar: spelerlijst per positie */}
+      {expanded && (
+        <>
+          <div className="mt-4 space-y-3">
+            {byPosition.map(({ pos, group }) => (
+              <div key={pos}>
+                <div className="text-xs font-bold text-gray-400 mb-1">
+                  {positionEmojis[pos]} {pos} ({group.length})
+                </div>
+                {group.map(p => (
+                  <PlayerRow
+                    key={p.id}
+                    player={p}
+                    isAbsent={matchAbsences.includes(p.id)}
+                  />
+                ))}
+              </div>
             ))}
           </div>
-        ))}
-      </div>
 
-      {/* Manager: knop naar wedstrijdscherm */}
-      {isManager && (
-        <button
-          onClick={() => onNavigateToWedstrijd(match)}
-          className="mt-4 w-full px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
-        >
-          <span>✏️</span>
-          <span>Wedstrijdselectie bewerken</span>
-          <span className="text-gray-400">→</span>
-        </button>
+          {/* Manager: knop naar wedstrijdscherm */}
+          {isManager && (
+            <button
+              onClick={() => onNavigateToWedstrijd(match)}
+              className="mt-4 w-full px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
+            >
+              <span>✏️</span>
+              <span>Wedstrijdselectie bewerken</span>
+              <span className="text-gray-400">→</span>
+            </button>
+          )}
+        </>
       )}
     </div>
   );
