@@ -265,6 +265,15 @@ export default function FootballApp() {
     }
   }, [gameFormat, formation, selectedMatch?.id, fetchInstructions, fetchMatchInstructions, clearMatchInstructions]);
 
+  // Re-fetch absences and reload lineup when navigating to pitch view, so changes
+  // made on the dashboard (absence/injury toggle, name change) are immediately visible.
+  useEffect(() => {
+    if (view === 'pitch' && selectedMatch) {
+      fetchAbsences(selectedMatch.id);
+      if (players.length > 0) loadLineup(selectedMatch.id, players, playerCount);
+    }
+  }, [view, selectedMatch?.id, players.length, fetchAbsences, loadLineup, playerCount]);
+
   useEffect(() => {
     if (view === 'instructions') {
       fetchInstructions(gameFormat, instructionFormation);
