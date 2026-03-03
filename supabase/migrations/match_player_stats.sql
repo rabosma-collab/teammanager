@@ -42,6 +42,9 @@ CREATE INDEX IF NOT EXISTS idx_match_player_stats_team_id ON public.match_player
 ALTER TABLE public.match_player_stats ENABLE ROW LEVEL SECURITY;
 
 -- 4. RLS policies
+DROP POLICY IF EXISTS "team_members_can_read_match_stats" ON public.match_player_stats;
+DROP POLICY IF EXISTS "managers_can_write_match_stats"    ON public.match_player_stats;
+
 -- Iedereen in het team mag stats lezen
 CREATE POLICY "team_members_can_read_match_stats"
   ON public.match_player_stats FOR SELECT
