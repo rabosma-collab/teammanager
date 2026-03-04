@@ -34,6 +34,7 @@ export interface Player {
     home_away: string;
     formation: string;
     substitution_scheme_id: number;
+    sub_moments?: number | null;
     match_status: 'concept' | 'afgerond';
     goals_for?: number | null;
     goals_against?: number | null;

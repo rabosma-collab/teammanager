@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS } from './lib/constants';
+import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes } from './lib/constants';
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
 import { useToast } from './contexts/ToastContext';
-import type { Player, PositionInstruction, SubstitutionScheme, MatchPlayerStats, Substitution } from './lib/types';
+import type { Player, PositionInstruction, MatchPlayerStats, Substitution } from './lib/types';
 
 // Hooks
 import { usePlayers } from './hooks/usePlayers';
@@ -75,7 +75,7 @@ export default function FootballApp() {
   // ---- UI STATE ----
   const [view, setView] = useState('dashboard');
   const [formation, setFormation] = useState('4-3-3-aanvallend');
-  const [schemeId, setSchemeId] = useState<number>(0);
+  const [subMoments, setSubMoments] = useState<number>(1);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
   const [isEditingLineup, setIsEditingLineup] = useState(false);
   const wasPublishedBeforeEdit = useRef(false);
@@ -133,7 +133,7 @@ export default function FootballApp() {
     getInstructionForPosition, saveInstruction, saveMatchInstruction
   } = useInstructions();
 
-  const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
+  const { schemes, fetchSchemes } = useSubstitutionSchemes();
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
   const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
@@ -210,11 +210,11 @@ export default function FootballApp() {
     return '📅 Binnenkort';
   }, [selectedMatch]);
 
-  const currentScheme = useMemo(
-    () => selectedMatch ? getSchemeById(selectedMatch.substitution_scheme_id) : null,
-    [selectedMatch, getSchemeById]
+  const isFreeSubstitution = subMoments === 0;
+  const subMomentMinutes = useMemo(
+    () => computeSubMomentMinutes(subMoments, matchDuration),
+    [subMoments, matchDuration]
   );
-  const isFreeSubstitution = currentScheme?.minutes.length === 0;
 
   const benchPlayers = useMemo(() => {
     const raw = getBenchPlayers(players, matchAbsences);
@@ -260,7 +260,13 @@ export default function FootballApp() {
   useEffect(() => {
     if (selectedMatch) {
       setFormation(normalizeFormation(selectedMatch.formation, gameFormat));
-      setSchemeId(selectedMatch.substitution_scheme_id);
+      // Gebruik sub_moments als aanwezig, anders bereken default op basis van periods
+      if (selectedMatch.sub_moments !== null && selectedMatch.sub_moments !== undefined) {
+        setSubMoments(selectedMatch.sub_moments);
+      } else {
+        const defaultMoments = Math.max(0, (teamSettings?.periods ?? 2) - 1);
+        setSubMoments(defaultMoments);
+      }
       fetchAbsences(selectedMatch.id);
       fetchSubstitutions(selectedMatch.id);
       fetchPlayers(selectedMatch.id);
@@ -421,12 +427,12 @@ export default function FootballApp() {
 
   const handleSaveLineup = async (): Promise<boolean> => {
     if (!selectedMatch) return false;
-    const success = await saveLineup(selectedMatch, formation, schemeId, (updatedMatch) => {
-      // Alleen formation en substitution_scheme_id bijwerken — lineup_published NIET aanraken
+    const success = await saveLineup(selectedMatch, formation, subMoments, (updatedMatch) => {
+      // Alleen formation en sub_moments bijwerken — lineup_published NIET aanraken
       // zodat een gelijktijdige publishLineup-update niet wordt overschreven.
-      setSelectedMatch(prev => prev ? { ...prev, formation: updatedMatch.formation, substitution_scheme_id: updatedMatch.substitution_scheme_id } : prev);
+      setSelectedMatch(prev => prev ? { ...prev, formation: updatedMatch.formation, sub_moments: updatedMatch.sub_moments } : prev);
       setMatches(prev => prev.map(m => m.id === updatedMatch.id
-        ? { ...m, formation: updatedMatch.formation, substitution_scheme_id: updatedMatch.substitution_scheme_id }
+        ? { ...m, formation: updatedMatch.formation, sub_moments: updatedMatch.sub_moments }
         : m
       ));
     });
@@ -1049,20 +1055,30 @@ export default function FootballApp() {
               </select>
 
               {activelyEditing && (
-                <select
-                  value={schemeId}
-                  onChange={(e) => setSchemeId(parseInt(e.target.value))}
-                  className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm sm:text-base"
-                >
-                  {schemes.map((s: SubstitutionScheme) => {
-                    const scaled = s.minutes.map(m => Math.round(m * matchDuration / 90));
+                <div className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded px-2 py-1">
+                  <span className="text-xs text-gray-400 mr-1 hidden sm:inline">Wissels:</span>
+                  {(['Vrij', 1, 2, 3, 4] as const).map((val) => {
+                    const n = val === 'Vrij' ? 0 : val as number;
+                    const isActive = subMoments === n;
+                    const preview = n === 0
+                      ? 'Vrije wissels (kies zelf de minuut)'
+                      : `${n} wissel${n > 1 ? 'momenten' : 'moment'}: ${computeSubMomentMinutes(n, matchDuration).join("', ")}' `;
                     return (
-                      <option key={s.id} value={s.id}>
-                        {s.name}{scaled.length > 0 ? ` (${scaled.join("', ")}')` : ''}
-                      </option>
+                      <button
+                        key={n}
+                        onClick={() => setSubMoments(n)}
+                        title={preview}
+                        className={`px-2 py-0.5 rounded text-sm font-bold transition ${
+                          isActive
+                            ? 'bg-yellow-500 text-black'
+                            : 'text-gray-300 hover:text-white hover:bg-gray-600'
+                        }`}
+                      >
+                        {val}
+                      </button>
                     );
                   })}
-                </select>
+                </div>
               )}
 
               {editable && !isFinalized && !isEditingLineup && (
@@ -1161,7 +1177,8 @@ export default function FootballApp() {
                       substitutions,
                       matchAbsences,
                       positionInstructions: matchInstructions.length > 0 ? matchInstructions : positionInstructions,
-                      scheme: currentScheme,
+                      subMoments,
+                      subMomentMinutes,
                       teamName: currentTeam?.name,
                       teamColor: currentTeam?.color,
                       gameFormat,
@@ -1225,7 +1242,8 @@ export default function FootballApp() {
                   onShowPlayerCard={setShowPlayerCard}
                 />
                 <SubstitutionCards
-                  scheme={currentScheme}
+                  subMoments={subMoments}
+                  subMomentMinutes={subMomentMinutes}
                   substitutions={substitutions}
                   players={players}
                   isAdmin={isManager}

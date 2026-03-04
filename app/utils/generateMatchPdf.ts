@@ -1,4 +1,4 @@
-import type { Match, Player, Substitution, PositionInstruction, SubstitutionScheme } from '../lib/types';
+import type { Match, Player, Substitution, PositionInstruction } from '../lib/types';
 import { formationLabels, DEFAULT_GAME_FORMAT } from '../lib/constants';
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
@@ -13,7 +13,8 @@ export interface MatchPdfData {
   substitutions: Substitution[];
   matchAbsences: number[];
   positionInstructions: PositionInstruction[];
-  scheme: SubstitutionScheme | null;
+  subMoments: number;
+  subMomentMinutes: number[];
   teamName?: string;
   teamColor?: string;
   gameFormat?: string;
@@ -22,7 +23,7 @@ export interface MatchPdfData {
 }
 
 export function generateMatchPdf(data: MatchPdfData): void {
-  const { match, players, fieldOccupants, substitutions, matchAbsences, positionInstructions, scheme, teamName, teamColor, gameFormat, trackWasbeurt = true, trackConsumpties = true } = data;
+  const { match, players, fieldOccupants, substitutions, matchAbsences, positionInstructions, subMoments, subMomentMinutes, teamName, teamColor, gameFormat, trackWasbeurt = true, trackConsumpties = true } = data;
   const color = teamColor || '#f59e0b';
   const fmt = gameFormat ?? DEFAULT_GAME_FORMAT;
   const getFormationLabel = (formation: string) => formationLabels[fmt]?.[formation] ?? formation;
@@ -64,11 +65,9 @@ export function generateMatchPdf(data: MatchPdfData): void {
 
   const getMinuteForSub = (sub: Substitution): string => {
     if (sub.custom_minute != null) return `${sub.custom_minute}'`;
-    if (scheme && scheme.minutes.length > 0) {
-      const min = scheme.minutes[sub.substitution_number - 1];
-      return min != null ? `${min}'` : '–';
-    }
-    return '–';
+    if (sub.minute) return `${sub.minute}'`;
+    const schemeMin = subMomentMinutes[sub.substitution_number - 1];
+    return schemeMin != null ? `${schemeMin}'` : '–';
   };
 
   const chip = (name: string, accent: string, muted = false) =>
@@ -149,9 +148,9 @@ ${sectionHeader('Bank')}
 <div style="margin-bottom:4px">${bankPlayers.map(p => chip(p.name, '#6b7280', true)).join('')}</div>
 ` : ''}
 
-${(sortedSubs.length > 0 || scheme) ? `
+${(sortedSubs.length > 0 || subMoments > 0) ? `
 ${sectionHeader('Wissels')}
-${scheme ? `<div style="font-size:12px;color:#9ca3af;margin-bottom:8px">Schema: <strong style="color:#d1d5db">${scheme.name}</strong>${scheme.minutes.length > 0 ? ' · minuten: ' + scheme.minutes.map(m => m + "'").join(', ') : ' (vrije wissels)'}</div>` : ''}
+<div style="font-size:12px;color:#9ca3af;margin-bottom:8px">${subMoments === 0 ? 'Vrije wissels' : `${subMoments} wisselmoment${subMoments > 1 ? 'en' : ''} · ${subMomentMinutes.map(m => m + "'").join(', ')}`}</div>
 ${sortedSubs.length > 0 ? sortedSubs.map(sub => {
   const out = players.find(p => p.id === sub.player_out_id);
   const inn = players.find(p => p.id === sub.player_in_id);
