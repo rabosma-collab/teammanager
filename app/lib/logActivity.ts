@@ -44,7 +44,8 @@ export async function logActivity(options: LogActivityOptions): Promise<void> {
       const { data: existing } = await query.limit(20);
 
       const match = (existing ?? []).find(
-        (row) => (row.payload as Record<string, unknown>).stat === payload.stat
+        (row: { id: number; payload: Record<string, unknown> }) =>
+          (row.payload as Record<string, unknown>).stat === payload.stat
       );
 
       if (match) {
