@@ -105,7 +105,7 @@ export default function BenchPanel({
                       </div>
                       {minute !== null ? (
                         <span className="text-xs font-bold bg-amber-700/60 text-amber-200 rounded px-1.5 py-0.5 flex-shrink-0">
-                          {minute}'
+                          {minute}&apos;
                         </span>
                       ) : (
                         <span className="text-xs opacity-40 flex-shrink-0">
