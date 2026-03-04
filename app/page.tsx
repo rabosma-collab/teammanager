@@ -20,6 +20,7 @@ import { useVoting } from './hooks/useVoting';
 import { useStatCredits } from './hooks/useStatCredits';
 import { useTeamSettings } from './hooks/useTeamSettings';
 import { useMatchStats } from './hooks/useMatchStats';
+import { useActivityLog } from './hooks/useActivityLog';
 
 // Components
 import Navbar from './components/Navbar';
@@ -51,6 +52,8 @@ import SubstitutionModal from './components/modals/SubstitutionModal';
 import PlayerCardModal from './components/modals/PlayerCardModal';
 import PositionInfoModal from './components/modals/PositionInfoModal';
 import FinalizeMatchModal from './components/modals/FinalizeMatchModal';
+import ActivitySlideOver from './components/ActivitySlideOver';
+import { logActivity } from './lib/logActivity';
 
 export default function FootballApp() {
   const router = useRouter();
@@ -135,6 +138,8 @@ export default function FootballApp() {
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
   const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
+  const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
+  const [showActivity, setShowActivity] = useState(false);
 
   const gameFormat = teamSettings?.game_format ?? DEFAULT_GAME_FORMAT;
   const matchDuration = teamSettings?.match_duration ?? 90;
@@ -243,7 +248,8 @@ export default function FootballApp() {
   useEffect(() => {
     fetchMatches();
     fetchSchemes(currentTeam?.id);
-  }, [fetchMatches, fetchSchemes, currentTeam?.id]);
+    fetchActivities();
+  }, [fetchMatches, fetchSchemes, fetchActivities, currentTeam?.id]);
 
   useEffect(() => {
     if (currentTeam?.id) {
@@ -340,17 +346,20 @@ export default function FootballApp() {
   const handleSaveStatDraft = useCallback(async (
     targetPlayerId: number,
     finalStats: Record<string, number>,
-    totalCost: number
+    totalCost: number,
+    actorName?: string,
+    subjectName?: string,
+    prevStats?: Record<string, number>
   ): Promise<boolean> => {
     if (!teamPlayerId) return false;
-    const success = await spendCreditsForStats(teamPlayerId, targetPlayerId, finalStats, totalCost);
+    const success = await spendCreditsForStats(teamPlayerId, targetPlayerId, finalStats, totalCost, actorName, subjectName, prevStats);
     if (success) {
-      // Refresh players so the updated stats reflect everywhere
       if (selectedMatch) fetchPlayers(selectedMatch.id);
       else fetchPlayers();
+      fetchActivities();
     }
     return success;
-  }, [teamPlayerId, spendCreditsForStats, fetchPlayers, selectedMatch]);
+  }, [teamPlayerId, spendCreditsForStats, fetchPlayers, selectedMatch, fetchActivities]);
 
   const handleLogout = async () => {
     await signOut();
@@ -497,8 +506,35 @@ export default function FootballApp() {
         fetchStatsForMatches(finishedIds).then(data => setRecentStatsMap(data));
       }
 
+      // Log match_result en voting_opened
+      if (currentTeam) {
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'match_result',
+          matchId: selectedMatch.id,
+          payload: {
+            opponent: selectedMatch.opponent,
+            home_away: selectedMatch.home_away,
+            goals_for: params.goalsFor,
+            goals_against: params.goalsAgainst,
+          },
+        });
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'voting_opened',
+          matchId: selectedMatch.id,
+          payload: {
+            opponent: selectedMatch.opponent,
+            home_away: selectedMatch.home_away,
+          },
+        });
+      }
+
       // Refresh voting (nieuwe afgeronde wedstrijd kan stembaar zijn)
       await fetchVotingMatches(updatedMatches, currentPlayerId);
+
+      // Refresh activiteitenfeed
+      fetchActivities();
 
       toast.success(params.calcMinutes
         ? '✅ Wedstrijd afgesloten! Wisselminuten zijn bijgewerkt.'
@@ -611,6 +647,18 @@ export default function FootballApp() {
         isAdmin={isManager}
         onLogout={handleLogout}
         onPlayerUpdated={fetchPlayers}
+        unreadCount={unreadCount}
+        onBellClick={() => { setShowActivity(true); fetchActivities(); }}
+      />
+
+      <ActivitySlideOver
+        open={showActivity}
+        onClose={() => setShowActivity(false)}
+        activities={activities}
+        loading={activityLoading}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        unreadCount={unreadCount}
       />
 
       {/* === MODALS === */}
@@ -917,6 +965,9 @@ export default function FootballApp() {
           trackResults={teamSettings?.track_results ?? true}
           trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
           trackConsumpties={teamSettings?.track_consumpties ?? true}
+          activities={activities}
+          onActivityRead={markAsRead}
+          onOpenActivity={() => { setShowActivity(true); fetchActivities(); }}
         />
       ) : view === 'pitch' ? (
         <div className="flex flex-1 overflow-hidden relative">
@@ -1069,11 +1120,15 @@ export default function FootballApp() {
                       const ok = await handleSaveLineup();
                       if (!ok) return;
                       if (selectedMatch) {
-                        const published = await publishLineup(selectedMatch.id, true);
+                        const published = await publishLineup(selectedMatch.id, true, {
+                          opponent: selectedMatch.opponent,
+                          home_away: selectedMatch.home_away,
+                        });
                         if (!published) {
                           toast.error('❌ Kon opstelling niet definitief maken. Controleer de console voor details.');
                           return;
                         }
+                        fetchActivities();
                       }
                       toast.success('✅ Opstelling definitief gemaakt!');
                       setIsEditingLineup(false);

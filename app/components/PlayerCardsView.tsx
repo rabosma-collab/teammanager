@@ -31,7 +31,7 @@ interface PlayerCardsViewProps {
   onUpdateStat: (id: number, field: string, value: string) => void;
   currentPlayerId?: number | null;
   creditBalance?: number | null;
-  onSaveStatDraft?: (targetPlayerId: number, finalStats: Record<string, number>, totalCost: number) => Promise<boolean>;
+  onSaveStatDraft?: (targetPlayerId: number, finalStats: Record<string, number>, totalCost: number, actorName?: string, subjectName?: string, prevStats?: Record<string, number>) => Promise<boolean>;
 }
 
 export default function PlayerCardsView({
@@ -96,9 +96,17 @@ export default function PlayerCardsView({
     }, 0);
     if (cost === 0) return;
 
+    const actorPlayer = players.find(p => p.id === currentPlayerId);
     setIsSaving(true);
     try {
-      const success = await onSaveStatDraft(player.id, draftStats, cost);
+      const success = await onSaveStatDraft(
+        player.id,
+        draftStats,
+        cost,
+        actorPlayer?.name,
+        player.name,
+        originalStats
+      );
       if (success) closeCreditPanel();
     } finally {
       setIsSaving(false);

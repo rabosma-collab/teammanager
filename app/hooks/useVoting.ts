@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { Match, VotingMatch, VoteResults, SpdwResult, SpdwPodiumEntry } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
+import { logActivity } from '../lib/logActivity';
 
 const VOTING_PERIOD_DAYS = 4;
 const POINTS_BY_RANK = [5, 3, 2];

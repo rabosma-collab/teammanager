@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { logActivity } from '../lib/logActivity';
 
 export function useMatches() {
   const { currentTeam } = useTeamContext();
@@ -61,7 +62,10 @@ export function useMatches() {
 
   const toggleAbsence = useCallback(async (
     playerId: number,
-    matchId: number
+    matchId: number,
+    playerName?: string,
+    matchOpponent?: string,
+    matchHomeAway?: string
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -89,6 +93,23 @@ export function useMatches() {
         if (error) throw error;
         setMatchAbsences(prev => [...prev, playerId]);
       }
+
+      if (playerName && matchOpponent) {
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'absence_changed',
+          actorId: playerId,
+          subjectId: playerId,
+          matchId,
+          payload: {
+            actor_name: playerName,
+            available: isAbsent, // was absent, now available
+            opponent: matchOpponent,
+            home_away: matchHomeAway ?? '',
+          },
+        });
+      }
+
       return true;
     } catch (error) {
       console.error('Error toggling absence:', error);
@@ -115,6 +136,17 @@ export function useMatches() {
         .insert({ ...matchData, team_id: currentTeam.id });
 
       if (error) throw error;
+
+      logActivity({
+        teamId: currentTeam.id,
+        type: 'match_created',
+        payload: {
+          opponent: matchData.opponent,
+          home_away: matchData.home_away,
+          date: matchData.date,
+        },
+      });
+
       return true;
     } catch (error) {
       console.error('Error adding match:', error);
@@ -179,7 +211,7 @@ export function useMatches() {
     }
   }, [selectedMatch?.id, currentTeam]);
 
-  const publishLineup = useCallback(async (matchId: number, published: boolean): Promise<boolean> => {
+  const publishLineup = useCallback(async (matchId: number, published: boolean, match?: Pick<Match, 'opponent' | 'home_away'>): Promise<boolean> => {
     if (!currentTeam) return false;
 
     try {
@@ -197,6 +229,19 @@ export function useMatches() {
       if (selectedMatch?.id === matchId) {
         setSelectedMatch(prev => prev ? { ...prev, lineup_published: published } : prev);
       }
+
+      if (published && match) {
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'lineup_published',
+          matchId,
+          payload: {
+            opponent: match.opponent,
+            home_away: match.home_away,
+          },
+        });
+      }
+
       return true;
     } catch (error) {
       console.error('Error publishing lineup:', error);
