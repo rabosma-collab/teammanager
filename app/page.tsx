@@ -133,7 +133,7 @@ export default function FootballApp() {
     getInstructionForPosition, saveInstruction, saveMatchInstruction
   } = useInstructions();
 
-  const { schemes, fetchSchemes } = useSubstitutionSchemes();
+  const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
   const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
@@ -264,8 +264,12 @@ export default function FootballApp() {
       if (selectedMatch.sub_moments !== null && selectedMatch.sub_moments !== undefined) {
         setSubMoments(selectedMatch.sub_moments);
       } else {
-        const defaultMoments = Math.max(0, (teamSettings?.periods ?? 2) - 1);
-        setSubMoments(defaultMoments);
+        // Legacy match: geen sub_moments opgeslagen → herleid uit het oude schema
+        const legacyScheme = getSchemeById(selectedMatch.substitution_scheme_id);
+        const derivedMoments = legacyScheme != null
+          ? legacyScheme.minutes.length   // 0 = vrij, 1/2/3 = vaste momenten
+          : Math.max(0, (teamSettings?.periods ?? 2) - 1);
+        setSubMoments(derivedMoments);
       }
       fetchAbsences(selectedMatch.id);
       fetchSubstitutions(selectedMatch.id);
@@ -1195,7 +1199,7 @@ export default function FootballApp() {
             </div>
 
             {/* Veld + Bank + Wissels */}
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start mb-4 lg:mb-6">
               <PitchView
                 gameFormat={gameFormat}
                 formation={formation}
@@ -1231,7 +1235,7 @@ export default function FootballApp() {
                 }}
               />
 
-              <div className="flex flex-col gap-4 flex-shrink-0 w-full max-w-[400px]">
+              <div className="flex flex-col gap-4 flex-1 min-w-0">
                 <BenchPanel
                   benchPlayers={benchPlayers}
                   unavailablePlayers={unavailablePlayers}

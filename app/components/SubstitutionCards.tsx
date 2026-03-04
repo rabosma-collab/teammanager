@@ -48,13 +48,13 @@ export default function SubstitutionCards({
   });
 
   const renderExtraSubsSection = () => (
-    <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl p-3 sm:p-4 border-2 border-gray-600">
-      <div className="flex justify-between items-center mb-3">
-        <h4 className="font-bold text-sm sm:text-lg">➕ Extra wissels</h4>
+    <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl p-3 border-2 border-gray-600">
+      <div className="flex justify-between items-center mb-2 gap-2">
+        <h4 className="font-bold text-sm">➕ Extra wissels</h4>
         {isAdmin && isEditable && !isFinalized && (
           <button
             onClick={onAddExtraSub}
-            className="px-2 sm:px-3 py-1 bg-gray-500 hover:bg-gray-600 rounded text-xs sm:text-sm touch-manipulation active:scale-95"
+            className="flex-shrink-0 px-2 py-1 bg-gray-500 hover:bg-gray-600 rounded text-xs font-bold touch-manipulation active:scale-95"
           >
             + Toevoegen
           </button>
@@ -116,22 +116,22 @@ export default function SubstitutionCards({
     });
 
     return (
-      <div className="w-full max-w-[900px] mx-auto">
-        <div className="flex flex-col gap-3 sm:gap-4">
+      <div className="w-full">
+        <div className="flex flex-col gap-3">
           {sortedGroups.map(([subNumber, subs], idx) => {
             const minute = subs[0]?.custom_minute ?? subs[0]?.minute ?? 0;
             const c = colors[colorSchemes[idx % colorSchemes.length]];
 
             return (
-              <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 sm:p-4 border-2 ${c.border}`}>
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-bold text-sm sm:text-lg">🔄 Wissel {minute}&apos;</h4>
+              <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 border-2 ${c.border}`}>
+                <div className="flex justify-between items-center mb-2 gap-2">
+                  <h4 className="font-bold text-sm">🔄 Wissel <span className="text-xs font-normal opacity-75">{minute}&apos;</span></h4>
                   {isAdmin && isEditable && !isFinalized && (
                     <button
                       onClick={() => onEditSub(subNumber, minute)}
-                      className={`px-2 sm:px-3 py-1 ${c.button} rounded text-xs sm:text-sm touch-manipulation`}
+                      className={`flex-shrink-0 px-2 py-1 ${c.button} rounded text-xs font-bold touch-manipulation`}
                     >
-                      ✏️ ({subs.length})
+                      ✏️ {subs.length}
                     </button>
                   )}
                 </div>
@@ -182,23 +182,23 @@ export default function SubstitutionCards({
 
   // Vaste wisselmomenten: één kaart per moment
   return (
-    <div className="flex flex-col gap-3 sm:gap-4 w-full max-w-[900px] mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+    <div className="flex flex-col gap-3 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {subMomentMinutes.map((minute, idx) => {
           const subNumber = idx + 1;
           const subs = regularSubs.filter(s => s.substitution_number === subNumber);
           const c = colors[colorSchemes[idx % colorSchemes.length]];
 
           return (
-            <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 sm:p-4 border-2 ${c.border}`}>
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-sm sm:text-lg">🔄 Wissel {subNumber} ({minute}&apos;)</h4>
+            <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 border-2 ${c.border}`}>
+              <div className="flex justify-between items-center mb-2 gap-2">
+                <h4 className="font-bold text-sm min-w-0 truncate">🔄 Wissel {subNumber} <span className="text-xs font-normal opacity-75">({minute}&apos;)</span></h4>
                 {isAdmin && isEditable && !isFinalized && (
                   <button
                     onClick={() => onEditSub(subNumber, minute)}
-                    className={`px-2 sm:px-3 py-1 ${c.button} rounded text-xs sm:text-sm touch-manipulation`}
+                    className={`flex-shrink-0 px-2 py-1 ${c.button} rounded text-xs font-bold touch-manipulation`}
                   >
-                    {subs.length > 0 ? `✏️ (${subs.length})` : '+ Instellen'}
+                    {subs.length > 0 ? `✏️ ${subs.length}` : '+ Stel in'}
                   </button>
                 )}
               </div>
