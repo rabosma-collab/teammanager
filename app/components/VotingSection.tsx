@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { Player, VotingMatch } from '../lib/types';
 import { useToast } from '../contexts/ToastContext';
 
+const POINTS_BY_RANK = [5, 3, 2];
+
 interface VotingSectionProps {
   votingMatches: VotingMatch[];
   isLoading: boolean;
@@ -60,107 +62,160 @@ export default function VotingSection({
           </div>
         )}
 
-        {(currentPlayerId || isStaff) && votingMatches.map(vm => (
-          <div key={vm.match.id} className="bg-gray-800/50 rounded-lg p-3 sm:p-4 mb-3 last:mb-0 border border-gray-700">
-            {/* Match info */}
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-700">
-              <div>
-                <div className="font-bold text-base sm:text-lg text-white flex items-center gap-2">
-                  {vm.match.home_away === 'Thuis' ? 'Thuis' : 'Uit'} vs {vm.match.opponent}
-                  {vm.match.goals_for != null && vm.match.goals_against != null && (
-                    <span className="text-yellow-400 font-black text-base">
-                      {vm.match.goals_for} – {vm.match.goals_against}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-gray-400 mt-0.5">
-                  {new Date(vm.match.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </div>
-              </div>
-              <span className="text-xs px-2 py-1 rounded bg-yellow-900/50 border border-yellow-700/50 text-yellow-400 whitespace-nowrap">
-                Nog {vm.daysRemaining} {vm.daysRemaining === 1 ? 'dag' : 'dagen'}
-              </span>
-            </div>
+        {(currentPlayerId || isStaff) && votingMatches.map(vm => {
+          const isClosed = vm.daysRemaining === 0;
+          const topVotes = vm.votes.filter(v => v.vote_count > 0);
+          const winner = topVotes[0];
 
-            {/* Nog niet gestemd */}
-            {!vm.hasVoted && (
-              <div>
-                <p className="text-sm text-gray-300 mb-3">Stem op jouw speler van de week:</p>
-                <div className="space-y-1 mb-3">
-                  {vm.players
-                    .filter(p => p.id !== currentPlayerId)
-                    .map(player => (
-                      <label
-                        key={player.id}
-                        className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
-                          selectedVotes[vm.match.id] === player.id
-                            ? 'bg-yellow-900/40 border border-yellow-600'
-                            : 'hover:bg-gray-700/50 border border-transparent'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`vote-${vm.match.id}`}
-                          value={player.id}
-                          checked={selectedVotes[vm.match.id] === player.id}
-                          onChange={() => setSelectedVotes(prev => ({ ...prev, [vm.match.id]: player.id }))}
-                          className="mr-3 accent-yellow-500"
-                        />
-                        <span className="text-sm sm:text-base">{player.name}</span>
-                        {(vm.votes.find(v => v.player_id === player.id)?.vote_count || 0) > 0 && (
-                          <span className="text-gray-500 text-xs ml-2">
-                            ({vm.votes.find(v => v.player_id === player.id)?.vote_count} {vm.votes.find(v => v.player_id === player.id)?.vote_count === 1 ? 'stem' : 'stemmen'})
-                          </span>
-                        )}
-                      </label>
-                    ))}
-                </div>
-                <button
-                  onClick={() => {
-                    const votedFor = selectedVotes[vm.match.id];
-                    if (!votedFor) {
-                      toast.warning('Selecteer een speler om op te stemmen');
-                      return;
-                    }
-                    onVote(vm.match.id, votedFor);
-                  }}
-                  disabled={!selectedVotes[vm.match.id]}
-                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed rounded font-bold text-sm sm:text-base touch-manipulation active:scale-95"
-                >
-                  STEM
-                </button>
-              </div>
-            )}
-
-            {/* Wel gestemd */}
-            {vm.hasVoted && (
-              <div>
-                <p className="text-green-400 mb-3 text-sm font-bold">
-                  ✓ Je hebt gestemd op {vm.players.find(p => p.id === vm.votedFor)?.name}
-                </p>
-                <div className="text-sm">
-                  <p className="font-bold text-gray-300 mb-2">Huidige stand:</p>
-                  <div className="space-y-1">
-                    {vm.votes.filter(v => v.vote_count > 0).map((v, idx) => (
-                      <div key={v.player_id} className="flex justify-between items-center p-1.5 rounded bg-gray-700/30">
-                        <span className={idx === 0 ? 'text-yellow-400 font-bold' : 'text-gray-300'}>
-                          {idx === 0 && '🥇 '}{idx === 1 && '🥈 '}{idx === 2 && '🥉 '}
-                          {v.player_name}
-                        </span>
-                        <span className="text-gray-400 text-xs">
-                          {v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}
-                        </span>
-                      </div>
-                    ))}
-                    {vm.votes.filter(v => v.vote_count > 0).length === 0 && (
-                      <div className="text-gray-500 text-xs">Nog geen stemmen</div>
+          return (
+            <div key={vm.match.id} className="bg-gray-800/50 rounded-lg p-3 sm:p-4 mb-3 last:mb-0 border border-gray-700">
+              {/* Match info */}
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-gray-700">
+                <div>
+                  <div className="font-bold text-base sm:text-lg text-white flex items-center gap-2">
+                    {vm.match.home_away === 'Thuis' ? 'Thuis' : 'Uit'} vs {vm.match.opponent}
+                    {vm.match.goals_for != null && vm.match.goals_against != null && (
+                      <span className="text-yellow-400 font-black text-base">
+                        {vm.match.goals_for} – {vm.match.goals_against}
+                      </span>
                     )}
                   </div>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {new Date(vm.match.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </div>
                 </div>
+                {isClosed ? (
+                  <span className="text-xs px-2 py-1 rounded bg-gray-700/60 border border-gray-600 text-gray-400 whitespace-nowrap">
+                    Stemming gesloten
+                  </span>
+                ) : (
+                  <span className="text-xs px-2 py-1 rounded bg-yellow-900/50 border border-yellow-700/50 text-yellow-400 whitespace-nowrap">
+                    Nog {vm.daysRemaining} {vm.daysRemaining === 1 ? 'dag' : 'dagen'}
+                  </span>
+                )}
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* Stemming gesloten — winnaar announcement */}
+              {isClosed && (
+                <div>
+                  {topVotes.length === 0 ? (
+                    <p className="text-gray-500 text-sm text-center py-3">Geen stemmen uitgebracht</p>
+                  ) : (
+                    <>
+                      {/* Winnaar spotlight */}
+                      <div className="text-center py-4 px-3 mb-4 rounded-xl bg-gradient-to-b from-yellow-900/40 to-amber-950/30 border border-yellow-600/40">
+                        <div className="text-4xl mb-1">🏆</div>
+                        <div className="text-yellow-500 font-black text-lg tracking-wide uppercase mb-1">Speler van de Week!</div>
+                        <div className="text-white font-black text-2xl sm:text-3xl">{winner.player_name}</div>
+                        <div className="text-yellow-600/80 text-sm mt-1">
+                          {winner.vote_count} {winner.vote_count === 1 ? 'stem' : 'stemmen'} &middot; +{POINTS_BY_RANK[0]} credits
+                        </div>
+                      </div>
+
+                      {/* Top 3 */}
+                      {topVotes.length > 1 && (
+                        <div className="space-y-1.5">
+                          {topVotes.slice(1, 3).map((v, idx) => (
+                            <div key={v.player_id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-700/30">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">{idx === 0 ? '🥈' : '🥉'}</span>
+                                <span className="text-gray-200 text-sm font-medium">{v.player_name}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-gray-400 text-xs">{v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}</span>
+                                {POINTS_BY_RANK[idx + 1] && (
+                                  <span className="text-yellow-700 text-xs font-bold">+{POINTS_BY_RANK[idx + 1]} cr.</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Stemming open — Nog niet gestemd */}
+              {!isClosed && !vm.hasVoted && (
+                <div>
+                  <p className="text-sm text-gray-300 mb-3">Stem op jouw speler van de week:</p>
+                  <div className="space-y-1 mb-3">
+                    {vm.players
+                      .filter(p => p.id !== currentPlayerId)
+                      .map(player => (
+                        <label
+                          key={player.id}
+                          className={`flex items-center p-2 rounded cursor-pointer transition-colors ${
+                            selectedVotes[vm.match.id] === player.id
+                              ? 'bg-yellow-900/40 border border-yellow-600'
+                              : 'hover:bg-gray-700/50 border border-transparent'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`vote-${vm.match.id}`}
+                            value={player.id}
+                            checked={selectedVotes[vm.match.id] === player.id}
+                            onChange={() => setSelectedVotes(prev => ({ ...prev, [vm.match.id]: player.id }))}
+                            className="mr-3 accent-yellow-500"
+                          />
+                          <span className="text-sm sm:text-base">{player.name}</span>
+                          {(vm.votes.find(v => v.player_id === player.id)?.vote_count || 0) > 0 && (
+                            <span className="text-gray-500 text-xs ml-2">
+                              ({vm.votes.find(v => v.player_id === player.id)?.vote_count} {vm.votes.find(v => v.player_id === player.id)?.vote_count === 1 ? 'stem' : 'stemmen'})
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const votedFor = selectedVotes[vm.match.id];
+                      if (!votedFor) {
+                        toast.warning('Selecteer een speler om op te stemmen');
+                        return;
+                      }
+                      onVote(vm.match.id, votedFor);
+                    }}
+                    disabled={!selectedVotes[vm.match.id]}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed rounded font-bold text-sm sm:text-base touch-manipulation active:scale-95"
+                  >
+                    STEM
+                  </button>
+                </div>
+              )}
+
+              {/* Stemming open — Wel gestemd */}
+              {!isClosed && vm.hasVoted && (
+                <div>
+                  <p className="text-green-400 mb-3 text-sm font-bold">
+                    ✓ Je hebt gestemd op {vm.players.find(p => p.id === vm.votedFor)?.name}
+                  </p>
+                  <div className="text-sm">
+                    <p className="font-bold text-gray-300 mb-2">Huidige stand:</p>
+                    <div className="space-y-1">
+                      {vm.votes.filter(v => v.vote_count > 0).map((v, idx) => (
+                        <div key={v.player_id} className="flex justify-between items-center p-1.5 rounded bg-gray-700/30">
+                          <span className={idx === 0 ? 'text-yellow-400 font-bold' : 'text-gray-300'}>
+                            {idx === 0 && '🥇 '}{idx === 1 && '🥈 '}{idx === 2 && '🥉 '}
+                            {v.player_name}
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            {v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}
+                          </span>
+                        </div>
+                      ))}
+                      {vm.votes.filter(v => v.vote_count > 0).length === 0 && (
+                        <div className="text-gray-500 text-xs">Nog geen stemmen</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
