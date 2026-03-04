@@ -1,8 +1,9 @@
 import React from 'react';
-import type { Player, Substitution, SubstitutionScheme } from '../lib/types';
+import type { Player, Substitution } from '../lib/types';
 
 interface SubstitutionCardsProps {
-  scheme: SubstitutionScheme | null;
+  subMoments: number;           // 0 = vrij, 1-4 = vaste momenten
+  subMomentMinutes: number[];   // berekende minuten (leeg bij vrije wissels)
   substitutions: Substitution[];
   players: Player[];
   isAdmin: boolean;
@@ -18,28 +19,26 @@ const colorSchemes = ['blue', 'purple', 'emerald', 'orange', 'rose'] as const;
 type ColorScheme = typeof colorSchemes[number];
 
 const colors: Record<ColorScheme, { bg: string; border: string; button: string; inner: string }> = {
-  blue: { bg: 'from-blue-900 to-blue-950', border: 'border-blue-700', button: 'bg-blue-600 hover:bg-blue-700', inner: 'bg-blue-950/50' },
-  purple: { bg: 'from-purple-900 to-purple-950', border: 'border-purple-700', button: 'bg-purple-600 hover:bg-purple-700', inner: 'bg-purple-950/50' },
+  blue:    { bg: 'from-blue-900 to-blue-950',    border: 'border-blue-700',    button: 'bg-blue-600 hover:bg-blue-700',    inner: 'bg-blue-950/50' },
+  purple:  { bg: 'from-purple-900 to-purple-950', border: 'border-purple-700',  button: 'bg-purple-600 hover:bg-purple-700', inner: 'bg-purple-950/50' },
   emerald: { bg: 'from-emerald-900 to-emerald-950', border: 'border-emerald-700', button: 'bg-emerald-600 hover:bg-emerald-700', inner: 'bg-emerald-950/50' },
-  orange: { bg: 'from-orange-900 to-orange-950', border: 'border-orange-700', button: 'bg-orange-600 hover:bg-orange-700', inner: 'bg-orange-950/50' },
-  rose: { bg: 'from-rose-900 to-rose-950', border: 'border-rose-700', button: 'bg-rose-600 hover:bg-rose-700', inner: 'bg-rose-950/50' },
+  orange:  { bg: 'from-orange-900 to-orange-950', border: 'border-orange-700',  button: 'bg-orange-600 hover:bg-orange-700', inner: 'bg-orange-950/50' },
+  rose:    { bg: 'from-rose-900 to-rose-950',    border: 'border-rose-700',    button: 'bg-rose-600 hover:bg-rose-700',    inner: 'bg-rose-950/50' },
 };
 
 export default function SubstitutionCards({
-  scheme,
+  subMoments,
+  subMomentMinutes,
   substitutions,
   players,
   isAdmin,
   isEditable,
   isFinalized,
-  matchDuration,
   onEditSub,
   onAddExtraSub,
-  onDeleteExtraSub
+  onDeleteExtraSub,
 }: SubstitutionCardsProps) {
-  // Scale 90-min reference minutes to actual match duration
-  const scaleMinute = (m: number) => Math.round(m * matchDuration / 90);
-  if (!scheme) return null;
+  const isFreeSubstitution = subMoments === 0;
 
   const regularSubs = substitutions.filter(s => !s.is_extra);
   const extraSubs = substitutions.filter(s => s.is_extra).sort((a, b) => {
@@ -48,16 +47,14 @@ export default function SubstitutionCards({
     return minA - minB;
   });
 
-  const isFreeSubstitution = scheme.minutes.length === 0;
-
   const renderExtraSubsSection = () => (
-    <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl p-3 sm:p-4 border-2 border-gray-600">
-      <div className="flex justify-between items-center mb-3">
-        <h4 className="font-bold text-sm sm:text-lg">➕ Extra wissels</h4>
+    <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl p-3 border-2 border-gray-600">
+      <div className="flex justify-between items-center mb-2 gap-2">
+        <h4 className="font-bold text-sm">➕ Extra wissels</h4>
         {isAdmin && isEditable && !isFinalized && (
           <button
             onClick={onAddExtraSub}
-            className="px-2 sm:px-3 py-1 bg-gray-500 hover:bg-gray-600 rounded text-xs sm:text-sm touch-manipulation active:scale-95"
+            className="flex-shrink-0 px-2 py-1 bg-gray-500 hover:bg-gray-600 rounded text-xs font-bold touch-manipulation active:scale-95"
           >
             + Toevoegen
           </button>
@@ -72,7 +69,7 @@ export default function SubstitutionCards({
         <div className="space-y-2">
           {extraSubs.map(sub => {
             const playerOut = players.find(p => p.id === sub.player_out_id);
-            const playerIn = players.find(p => p.id === sub.player_in_id);
+            const playerIn  = players.find(p => p.id === sub.player_in_id);
             return (
               <div key={sub.id} className="bg-gray-800/50 rounded p-2 text-xs sm:text-sm flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -97,15 +94,14 @@ export default function SubstitutionCards({
     </div>
   );
 
+  // Vrije wissels: groepeer opgeslagen wissels op substitution_number
   if (isFreeSubstitution) {
-    // Group all regular substitutions (they use custom_minute)
     const freeSubs = [...regularSubs].sort((a, b) => {
       const minA = a.custom_minute ?? a.minute;
       const minB = b.custom_minute ?? b.minute;
       return minA - minB;
     });
 
-    // Group by substitution_number
     const groups = new Map<number, Substitution[]>();
     for (const sub of freeSubs) {
       const existing = groups.get(sub.substitution_number) || [];
@@ -120,29 +116,29 @@ export default function SubstitutionCards({
     });
 
     return (
-      <div className="w-full max-w-[900px] mx-auto">
-        <div className="flex flex-col gap-3 sm:gap-4">
+      <div className="w-full">
+        <div className="flex flex-col gap-3">
           {sortedGroups.map(([subNumber, subs], idx) => {
             const minute = subs[0]?.custom_minute ?? subs[0]?.minute ?? 0;
             const c = colors[colorSchemes[idx % colorSchemes.length]];
 
             return (
-              <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 sm:p-4 border-2 ${c.border}`}>
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-bold text-sm sm:text-lg">🔄 Wissel {minute}&apos;</h4>
+              <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 border-2 ${c.border}`}>
+                <div className="flex justify-between items-center mb-2 gap-2">
+                  <h4 className="font-bold text-sm">🔄 Wissel <span className="text-xs font-normal opacity-75">{minute}&apos;</span></h4>
                   {isAdmin && isEditable && !isFinalized && (
                     <button
                       onClick={() => onEditSub(subNumber, minute)}
-                      className={`px-2 sm:px-3 py-1 ${c.button} rounded text-xs sm:text-sm touch-manipulation`}
+                      className={`flex-shrink-0 px-2 py-1 ${c.button} rounded text-xs font-bold touch-manipulation`}
                     >
-                      ✏️ ({subs.length})
+                      ✏️ {subs.length}
                     </button>
                   )}
                 </div>
                 <div className="space-y-2">
                   {subs.map(sub => {
                     const playerOut = players.find(p => p.id === sub.player_out_id);
-                    const playerIn = players.find(p => p.id === sub.player_in_id);
+                    const playerIn  = players.find(p => p.id === sub.player_in_id);
                     return (
                       <div key={sub.id} className={`${c.inner} rounded p-2 text-xs sm:text-sm`}>
                         <div className="flex items-center gap-2">
@@ -161,7 +157,6 @@ export default function SubstitutionCards({
           {isAdmin && isEditable && !isFinalized && (
             <button
               onClick={() => {
-                // Use next available substitution_number
                 const maxNum = sortedGroups.length > 0
                   ? Math.max(...sortedGroups.map(([n]) => n))
                   : 0;
@@ -173,7 +168,6 @@ export default function SubstitutionCards({
             </button>
           )}
 
-          {/* Extra wissels sectie */}
           {isAdmin && renderExtraSubsSection()}
         </div>
 
@@ -186,26 +180,25 @@ export default function SubstitutionCards({
     );
   }
 
-  // Fixed scheme: render one card per minute
+  // Vaste wisselmomenten: één kaart per moment
   return (
-    <div className="flex flex-col gap-3 sm:gap-4 w-full max-w-[900px] mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-        {scheme.minutes.map((storedMinute, idx) => {
-          const minute = scaleMinute(storedMinute);
+    <div className="flex flex-col gap-3 w-full">
+      <div className="flex flex-col gap-3">
+        {subMomentMinutes.map((minute, idx) => {
           const subNumber = idx + 1;
           const subs = regularSubs.filter(s => s.substitution_number === subNumber);
           const c = colors[colorSchemes[idx % colorSchemes.length]];
 
           return (
-            <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 sm:p-4 border-2 ${c.border}`}>
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-sm sm:text-lg">🔄 Wissel {subNumber} ({minute}&apos;)</h4>
+            <div key={subNumber} className={`bg-gradient-to-br ${c.bg} rounded-xl p-3 border-2 ${c.border}`}>
+              <div className="flex justify-between items-center mb-2 gap-2">
+                <h4 className="font-bold text-sm min-w-0 truncate">🔄 Wissel {subNumber} <span className="text-xs font-normal opacity-75">({minute}&apos;)</span></h4>
                 {isAdmin && isEditable && !isFinalized && (
                   <button
                     onClick={() => onEditSub(subNumber, minute)}
-                    className={`px-2 sm:px-3 py-1 ${c.button} rounded text-xs sm:text-sm touch-manipulation`}
+                    className={`flex-shrink-0 px-2 py-1 ${c.button} rounded text-xs font-bold touch-manipulation`}
                   >
-                    {subs.length > 0 ? `✏️ (${subs.length})` : '+ Instellen'}
+                    {subs.length > 0 ? `✏️ ${subs.length}` : '+ Stel in'}
                   </button>
                 )}
               </div>
@@ -218,7 +211,7 @@ export default function SubstitutionCards({
                 <div className="space-y-2">
                   {subs.map(sub => {
                     const playerOut = players.find(p => p.id === sub.player_out_id);
-                    const playerIn = players.find(p => p.id === sub.player_in_id);
+                    const playerIn  = players.find(p => p.id === sub.player_in_id);
                     return (
                       <div key={sub.id} className={`${c.inner} rounded p-2 text-xs sm:text-sm`}>
                         <div className="flex items-center gap-2">
@@ -236,7 +229,6 @@ export default function SubstitutionCards({
         })}
       </div>
 
-      {/* Extra wissels sectie */}
       {isAdmin && renderExtraSubsSection()}
     </div>
   );

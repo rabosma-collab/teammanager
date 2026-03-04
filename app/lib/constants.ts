@@ -10,6 +10,18 @@ export const GAME_FORMATS: Record<string, { players: number; periods: number; ma
 
 export const DEFAULT_GAME_FORMAT = '11v11';
 
+/**
+ * Bereken de wisselmomenten (in minuten) voor N wisselmomenten in een wedstrijd van matchDuration minuten.
+ * N momenten → verdeeld over N+1 gelijke stukken.
+ * Voorbeeld: 3 momenten, 60 min → [15, 30, 45]
+ */
+export function computeSubMomentMinutes(n: number, matchDuration: number): number[] {
+  if (n <= 0) return [];
+  return Array.from({ length: n }, (_, i) =>
+    Math.round(matchDuration * (i + 1) / (n + 1))
+  );
+}
+
 export const DEFAULT_FORMATIONS: Record<string, string> = {
   '4v4':   '2-2',
   '5v5':   '2-2',

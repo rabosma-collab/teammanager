@@ -5,6 +5,7 @@ import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult, Match
 import { getPositionCategory } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
+import { logActivity } from '../lib/logActivity';
 import PersonalCard from './dashboard/PersonalCard';
 import NextMatchCard from './dashboard/NextMatchCard';
 import SquadAvailabilityPanel from './dashboard/SquadAvailabilityPanel';
@@ -14,6 +15,8 @@ import AnnouncementBanner from './dashboard/AnnouncementBanner';
 import SeasonChart from './dashboard/SeasonChart';
 import RecentResults from './dashboard/RecentResults';
 import MyAvailabilityPanel from './dashboard/MyAvailabilityPanel';
+import ActivityItem from './ActivityItem';
+import type { ActivityLogItem } from '../hooks/useActivityLog';
 
 interface DashboardViewProps {
   players: Player[];
@@ -37,6 +40,9 @@ interface DashboardViewProps {
   trackResults?: boolean;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
+  activities?: ActivityLogItem[];
+  onActivityRead?: (id: number) => void;
+  onOpenActivity?: () => void;
 }
 
 export default function DashboardView({
@@ -60,6 +66,9 @@ export default function DashboardView({
   trackResults = true,
   trackWasbeurt = true,
   trackConsumpties = true,
+  activities = [],
+  onActivityRead,
+  onOpenActivity,
 }: DashboardViewProps) {
   // Use TeamContext for authoritative identity (not the voting override)
   const { currentTeam, currentPlayerId, isManager, isStaff } = useTeamContext();
@@ -164,10 +173,29 @@ export default function DashboardView({
   }, [dashboardMatch?.id]);
 
   const handleToggleAbsence = useCallback(async (playerId: number, matchId: number): Promise<boolean> => {
+    const wasAbsent = dashboardAbsences.includes(playerId);
     const success = await onToggleAbsence(playerId, matchId);
-    if (success) await refreshAbsences();
+    if (success) {
+      await refreshAbsences();
+      if (currentTeam && dashboardMatch) {
+        const player = players.find(p => p.id === playerId);
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'absence_changed',
+          actorId: playerId,
+          subjectId: playerId,
+          matchId,
+          payload: {
+            actor_name: player?.name ?? 'Onbekend',
+            available: wasAbsent, // was absent, now available (or vice versa)
+            opponent: dashboardMatch.opponent,
+            home_away: dashboardMatch.home_away,
+          },
+        });
+      }
+    }
     return success;
-  }, [onToggleAbsence, refreshAbsences]);
+  }, [onToggleAbsence, refreshAbsences, dashboardAbsences, players, currentTeam, dashboardMatch]);
 
   const handleToggleInjury = useCallback(async (playerId: number): Promise<boolean> => {
     return onToggleInjury(playerId);
@@ -325,6 +353,32 @@ export default function DashboardView({
               statsMap={recentStatsMap}
               onNavigateToUitslagen={onNavigateToUitslagen}
             />
+          </div>
+        )}
+
+        {/* Activiteitenfeed (preview — max 5 items) */}
+        {activities.length > 0 && (
+          <div className="mt-4 bg-gray-800 rounded-xl overflow-hidden border border-gray-700/50">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+              <h3 className="font-bold text-sm text-gray-200">Recente activiteit</h3>
+              {onOpenActivity && (
+                <button
+                  onClick={onOpenActivity}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Alles zien →
+                </button>
+              )}
+            </div>
+            <div className="divide-y divide-gray-700/30">
+              {activities.slice(0, 5).map((item) => (
+                <ActivityItem
+                  key={item.id}
+                  item={item}
+                  onRead={onActivityRead ?? (() => {})}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>

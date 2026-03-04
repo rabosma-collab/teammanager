@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
+import { logActivity } from '../lib/logActivity';
 
 const VOTING_PERIOD_DAYS = 4;
 const INITIAL_BALANCE = 10;
@@ -117,6 +118,7 @@ export function useStatCredits() {
         }
 
         // Credit each qualifying player
+        let winnerLogged = false;
         for (const [pid, pts] of Object.entries(creditMap)) {
           const playerId = parseInt(pid);
           const currentBal = await ensureBalance(playerId);
@@ -135,6 +137,28 @@ export function useStatCredits() {
             reason: 'spdw',
             match_id: match.id,
           });
+
+          // Log de winnaar (hoogste pts = rang 1)
+          if (!winnerLogged && pts === POINTS_BY_RANK[0]) {
+            const { data: playerData } = await supabase
+              .from('players')
+              .select('name')
+              .eq('id', playerId)
+              .single();
+
+            logActivity({
+              teamId: currentTeam.id,
+              type: 'spdw_winner',
+              subjectId: playerId,
+              matchId: match.id,
+              payload: {
+                subject_name: playerData?.name ?? 'Onbekend',
+                opponent: match.opponent ?? '',
+                home_away: match.home_away ?? '',
+              },
+            });
+            winnerLogged = true;
+          }
         }
       }
     } catch (e) {
@@ -147,7 +171,10 @@ export function useStatCredits() {
     spenderId: number,
     targetPlayerId: number,
     finalStats: Record<string, number>,
-    totalCost: number
+    totalCost: number,
+    actorName?: string,
+    subjectName?: string,
+    prevStats?: Record<string, number>
   ): Promise<boolean> => {
     if (!currentTeam || balance === null || balance < totalCost || totalCost <= 0) return false;
 
@@ -175,6 +202,28 @@ export function useStatCredits() {
         balance_change: -totalCost,
         reason: 'stat_change',
       });
+
+      // Log elke gewijzigde stat als activiteit
+      if (prevStats) {
+        for (const [stat, newVal] of Object.entries(finalStats)) {
+          const oldVal = prevStats[stat];
+          if (oldVal !== undefined && oldVal !== newVal) {
+            logActivity({
+              teamId: currentTeam.id,
+              type: 'stat_changed',
+              actorId: spenderId,
+              subjectId: targetPlayerId,
+              payload: {
+                stat,
+                from: oldVal,
+                to: newVal,
+                actor_name: actorName ?? 'Onbekend',
+                subject_name: subjectName ?? 'Onbekend',
+              },
+            });
+          }
+        }
+      }
 
       setBalance(newBalance);
       return true;
