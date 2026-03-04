@@ -383,9 +383,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
               { key: 'track_assists',      label: '🎯 Assists' },
               { key: 'track_minutes',      label: '⏱️ Speeltijd (bankminuten)' },
               { key: 'track_spdw',         label: '🏆 SPDW (speler van de week)' },
-              { key: 'track_results',      label: '📊 Wedstrijduitslagen' },
               { key: 'track_cards',        label: '🟨 Kaarten (geel/rood)' },
-              { key: 'track_clean_sheets', label: '🧤 Clean sheets (keeper)' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
                 <span className="text-sm font-medium">{label}</span>

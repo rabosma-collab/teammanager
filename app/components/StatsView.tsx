@@ -8,7 +8,7 @@ interface StatsViewProps {
   onUpdateStat: (id: number, field: string, value: string) => void;
 }
 
-type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'yellow_cards' | 'red_cards' | 'min';
+type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'consumption_count' | 'yellow_cards' | 'red_cards' | 'min';
 type SortDir = 'asc' | 'desc';
 type PositionFilter = 'all' | 'Keeper' | 'Verdediger' | 'Middenvelder' | 'Aanvaller';
 
@@ -31,6 +31,7 @@ const STAT_LABELS: Record<string, string> = {
   goals: '⚽ Goals',
   assists: '🅰️ Assists',
   wash_count: '🧼 Wasbeurten',
+  consumption_count: '🥤 Consumpties',
   yellow_cards: '🟨 Gele kaarten',
   red_cards: '🟥 Rode kaarten',
   min: '🔄 Wissels',
@@ -113,6 +114,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
     { key: 'goals', label: 'Goals' },
     { key: 'assists', label: 'Assists' },
     { key: 'wash_count', label: '🧼 Was' },
+    { key: 'consumption_count', label: '🥤 Cons.' },
     { key: 'yellow_cards', label: '🟨 Geel' },
     { key: 'red_cards', label: '🟥 Rood' },
     { key: 'min', label: 'Wissel' },
@@ -187,7 +189,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
                       : <span className="text-green-500">✓</span>
                     }
                   </td>
-                  {(['goals', 'assists', 'wash_count', 'yellow_cards', 'red_cards', 'min'] as const).map(field => (
+                  {(['goals', 'assists', 'wash_count', 'consumption_count', 'yellow_cards', 'red_cards', 'min'] as const).map(field => (
                     <StatCell
                       key={field}
                       isEditing={isEditing}

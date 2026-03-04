@@ -7,7 +7,7 @@ import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
 import { useToast } from './contexts/ToastContext';
-import type { Player, PositionInstruction, SubstitutionScheme, MatchPlayerStats } from './lib/types';
+import type { Player, PositionInstruction, SubstitutionScheme, MatchPlayerStats, Substitution } from './lib/types';
 
 // Hooks
 import { usePlayers } from './hooks/usePlayers';
@@ -23,7 +23,6 @@ import { useMatchStats } from './hooks/useMatchStats';
 
 // Components
 import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
 import PitchView from './components/PitchView';
 import BenchPanel from './components/BenchPanel';
 import SubstitutionCards from './components/SubstitutionCards';
@@ -43,9 +42,10 @@ import TeamSettingsView from './components/TeamSettingsView';
 import { generateMatchPdf } from './utils/generateMatchPdf';
 
 // Modals
+import MatchSelectionModal from './components/modals/MatchSelectionModal';
 import TooltipModal from './components/modals/TooltipModal';
 import InstructionEditModal from './components/modals/InstructionEditModal';
-import PlayerMenuModal from './components/modals/PlayerMenuModal';
+
 import GuestPlayerModal from './components/modals/GuestPlayerModal';
 import SubstitutionModal from './components/modals/SubstitutionModal';
 import PlayerCardModal from './components/modals/PlayerCardModal';
@@ -73,12 +73,12 @@ export default function FootballApp() {
   const [view, setView] = useState('dashboard');
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [schemeId, setSchemeId] = useState<number>(0);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSelectionModal, setShowSelectionModal] = useState(false);
   const [isEditingLineup, setIsEditingLineup] = useState(false);
   const wasPublishedBeforeEdit = useRef(false);
   const [isEditingMatchInstruction, setIsEditingMatchInstruction] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
-  const [showPlayerMenu, setShowPlayerMenu] = useState<number | null>(null);
+
   const [showTooltip, setShowTooltip] = useState<number | null>(null);
   const [instructionFormation, setInstructionFormation] = useState('4-3-3-aanvallend');
   const [showPlayerCard, setShowPlayerCard] = useState<Player | null>(null);
@@ -96,7 +96,7 @@ export default function FootballApp() {
 
   // ---- HOOKS ----
   const {
-    players, fetchPlayers, getGroupedPlayers,
+    players, fetchPlayers,
     toggleInjury, addGuestPlayer, removeGuestPlayer, updateStat,
     addPlayer, updatePlayer, deletePlayer
   } = usePlayers();
@@ -211,7 +211,6 @@ export default function FootballApp() {
   );
   const isFreeSubstitution = currentScheme?.minutes.length === 0;
 
-  const groupedPlayers = useMemo(() => getGroupedPlayers(), [getGroupedPlayers]);
   const benchPlayers = useMemo(() => {
     const raw = getBenchPlayers(players, matchAbsences);
     // Final dedup safety: by player id
@@ -611,7 +610,6 @@ export default function FootballApp() {
         setView={setView}
         isAdmin={isManager}
         onLogout={handleLogout}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         onPlayerUpdated={fetchPlayers}
       />
 
@@ -643,44 +641,40 @@ export default function FootballApp() {
         />
       )}
 
-      {showPlayerMenu !== null && isManager && (() => {
-        const player = players.find(p => p.id === showPlayerMenu);
-        if (!player) return null;
-        return (
-          <PlayerMenuModal
-            player={player}
-            matchAbsences={matchAbsences}
-            onToggleInjury={async () => {
-              const success = await toggleInjury(showPlayerMenu);
-              if (success) {
-                const p = players.find(p => p.id === showPlayerMenu);
-                toast.info(p?.injured ? '✅ Speler hersteld' : '🏥 Speler geblesseerd');
-              }
-              setShowPlayerMenu(null);
-            }}
-            onToggleAbsence={async () => {
-              if (selectedMatch) {
-                await toggleAbsence(showPlayerMenu, selectedMatch.id);
-              }
-              setShowPlayerMenu(null);
-            }}
-            onRemoveGuest={async () => {
-              const success = await removeGuestPlayer(showPlayerMenu);
-              if (success) {
-                setShowPlayerMenu(null);
-                if (selectedMatch) await fetchPlayers(selectedMatch.id);
-                toast.success('✅ Gastspeler verwijderd');
-              } else {
-                toast.error('❌ Kon gastspeler niet verwijderen');
-              }
-            }}
-            onClose={() => setShowPlayerMenu(null)}
-          />
-        );
-      })()}
-
       {showGuestModal && isManager && (
         <GuestPlayerModal onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
+      )}
+
+      {showSelectionModal && (
+        <MatchSelectionModal
+          players={players}
+          matchAbsences={matchAbsences}
+          fieldOccupants={fieldOccupants}
+          selectedMatch={selectedMatch}
+          isManager={isManager}
+          substitutions={substitutions}
+          onToggleInjury={async (playerId) => {
+            const success = await toggleInjury(playerId);
+            if (success) {
+              const p = players.find((pl: Player) => pl.id === playerId);
+              toast.info(p?.injured ? '✅ Speler hersteld' : '🏥 Speler geblesseerd');
+            }
+          }}
+          onToggleAbsence={async (playerId) => {
+            if (selectedMatch) await toggleAbsence(playerId, selectedMatch.id);
+          }}
+          onRemoveGuest={async (playerId) => {
+            const success = await removeGuestPlayer(playerId);
+            if (success) {
+              if (selectedMatch) await fetchPlayers(selectedMatch.id);
+              toast.success('✅ Gastspeler verwijderd');
+            } else {
+              toast.error('❌ Kon gastspeler niet verwijderen');
+            }
+          }}
+          onAddGuest={() => { setShowSelectionModal(false); setShowGuestModal(true); }}
+          onClose={() => setShowSelectionModal(false)}
+        />
       )}
 
       {showPlayerCard && (
@@ -695,6 +689,10 @@ export default function FootballApp() {
           player={showPositionInfo.player}
           instruction={getInstructionForPosition(showPositionInfo.positionIndex)}
           isManagerEdit={isManager && !!selectedMatch && !isFinalized}
+          subMinuteOut={(() => {
+            const s = substitutions.find((sub: Substitution) => sub.player_out_id === showPositionInfo.player.id);
+            return s ? (s.custom_minute ?? s.minute) : null;
+          })()}
           onEditInstruction={() => {
             const positionIndex = showPositionInfo.positionIndex;
             const matchInstr = matchInstructions.find((m: PositionInstruction) => m.position_index === positionIndex);
@@ -922,24 +920,6 @@ export default function FootballApp() {
         />
       ) : view === 'pitch' ? (
         <div className="flex flex-1 overflow-hidden relative">
-          <Sidebar
-            isOpen={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-            players={players}
-            groupedPlayers={groupedPlayers}
-            matchAbsences={matchAbsences}
-            selectedPlayer={selectedPlayer}
-            isAdmin={isManager}
-            canEdit={editable}
-            isEditable={activelyEditing}
-            isPlayerOnField={isPlayerOnField}
-            isPlayerAvailable={isPlayerAvailable}
-            onSelectPlayer={handleSelectPlayer}
-            onPlayerMenu={setShowPlayerMenu}
-            onAddGuest={() => setShowGuestModal(true)}
-            onShowPlayerCard={setShowPlayerCard}
-          />
-
           <div className="flex-1 flex flex-col p-2 sm:p-4 lg:p-8 overflow-y-auto">
             {/* Wedstrijd status badge */}
             {selectedMatch && canFinalizeMatch() ? (
@@ -970,6 +950,18 @@ export default function FootballApp() {
                   : getMatchStatusBadge()}
               </div>
             ) : null}
+
+            {/* Wedstrijdselectie knop — prominent boven de toolbar */}
+            {isManager && selectedMatch && (
+              <div className="flex justify-center mb-3">
+                <button
+                  onClick={() => setShowSelectionModal(true)}
+                  className="px-5 py-2.5 rounded-xl font-bold bg-blue-700 hover:bg-blue-600 text-sm flex items-center gap-2 shadow-lg shadow-blue-900/40"
+                >
+                  👥 Wedstrijdselectie
+                </button>
+              </div>
+            )}
 
             {/* Wedstrijd & formatie selectors */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6 justify-center">
@@ -1130,8 +1122,8 @@ export default function FootballApp() {
               )}
             </div>
 
-            {/* Veld + Bank */}
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-stretch justify-center mb-4 lg:mb-6">
+            {/* Veld + Bank + Wissels */}
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
               <PitchView
                 gameFormat={gameFormat}
                 formation={formation}
@@ -1167,32 +1159,34 @@ export default function FootballApp() {
                 }}
               />
 
-              <BenchPanel
-                benchPlayers={benchPlayers}
-                unavailablePlayers={unavailablePlayers}
-                selectedPlayer={selectedPlayer}
-                isEditable={activelyEditing}
-                onSelectPlayer={handleSelectPlayer}
-                onShowPlayerCard={setShowPlayerCard}
-              />
+              <div className="flex flex-col gap-4 flex-shrink-0 w-full max-w-[400px]">
+                <BenchPanel
+                  benchPlayers={benchPlayers}
+                  unavailablePlayers={unavailablePlayers}
+                  selectedPlayer={selectedPlayer}
+                  isEditable={activelyEditing}
+                  substitutions={substitutions}
+                  onSelectPlayer={handleSelectPlayer}
+                  onShowPlayerCard={setShowPlayerCard}
+                />
+                <SubstitutionCards
+                  scheme={currentScheme}
+                  substitutions={substitutions}
+                  players={players}
+                  isAdmin={isManager}
+                  isEditable={activelyEditing}
+                  isFinalized={!!isFinalized}
+                  matchDuration={matchDuration}
+                  onEditSub={handleEditSub}
+                  onAddExtraSub={() => setShowExtraSubModal(true)}
+                  onDeleteExtraSub={deleteExtraSubstitution}
+                />
+              </div>
             </div>
-
-            {/* Wissels */}
-            <SubstitutionCards
-              scheme={currentScheme}
-              substitutions={substitutions}
-              players={players}
-              isAdmin={isManager}
-              isEditable={activelyEditing}
-              isFinalized={!!isFinalized}
-              matchDuration={matchDuration}
-              onEditSub={handleEditSub}
-              onAddExtraSub={() => setShowExtraSubModal(true)}
-              onDeleteExtraSub={deleteExtraSubstitution}
-            />
 
             {/* Taken: wasbeurt + consumpties */}
             {selectedMatch && !isFinalized && (
+              <div className="max-w-4xl mx-auto w-full">
               <TakenBlok
                 trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
                 wasbeurtPlayer={wasbeurtIsUnavailable ? (wasbeurtEligible[0] ?? null) : wasbeurtDisplayPlayer}
@@ -1212,6 +1206,7 @@ export default function FootballApp() {
                 onConsumptiesChange={(id) => updateConsumptiesPlayer(selectedMatch.id, id)}
                 isEditing={activelyEditing && isManager}
               />
+              </div>
             )}
 
             {/* Geselecteerde speler/positie indicator */}

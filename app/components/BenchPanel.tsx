@@ -1,5 +1,6 @@
 import React from 'react';
-import type { Player } from '../lib/types';
+import { positionOrder, positionEmojis } from '../lib/constants';
+import type { Player, Substitution } from '../lib/types';
 
 interface BenchPanelProps {
   benchPlayers: Player[];
@@ -9,6 +10,7 @@ interface BenchPanelProps {
   };
   selectedPlayer: Player | null;
   isEditable: boolean;
+  substitutions?: Substitution[];
   onSelectPlayer: (player: Player | null) => void;
   onShowPlayerCard?: (player: Player) => void;
 }
@@ -18,6 +20,7 @@ export default function BenchPanel({
   unavailablePlayers,
   selectedPlayer,
   isEditable,
+  substitutions = [],
   onSelectPlayer,
   onShowPlayerCard
 }: BenchPanelProps) {
@@ -35,46 +38,82 @@ export default function BenchPanel({
     return result;
   }, [rawBenchPlayers]);
 
+  // Groepeer per positiecategorie, gesorteerd op wisselminuut
+  const grouped = React.useMemo(() => {
+    return positionOrder.map(pos => {
+      const inPos = benchPlayers.filter(p => p.position === pos);
+      const withMinute: { player: Player; minute: number | null }[] = inPos
+        .map((p: Player) => {
+          const sub = substitutions.find(s => s.player_in_id === p.id);
+          return { player: p, minute: sub ? (sub.custom_minute ?? sub.minute) : null };
+        })
+        .sort((a: { player: Player; minute: number | null }, b: { player: Player; minute: number | null }) => {
+          if (a.minute !== null && b.minute !== null) return b.minute - a.minute;
+          if (a.minute !== null) return -1;
+          if (b.minute !== null) return 1;
+          return a.player.name.localeCompare(b.player.name);
+        });
+      return { pos, players: withMinute };
+    }).filter(g => g.players.length > 0);
+  }, [benchPlayers, substitutions]);
+
   const hasUnavailable = unavailablePlayers.injured.length > 0 || unavailablePlayers.absent.length > 0;
 
   return (
     <div className="w-full max-w-[350px] sm:max-w-[400px] lg:w-[380px] flex-shrink-0 lg:flex lg:flex-col">
       <div className="bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-3xl p-3 sm:p-4 border-4 border-amber-800 lg:flex-1">
-        <h3 className="text-center font-bold text-lg sm:text-xl mb-3 text-amber-200 select-none">🪑 Wissels ({benchPlayers.length})</h3>
+        <h3 className="text-center font-bold text-lg sm:text-xl mb-3 text-amber-200 select-none">
+          🪑 Wissels ({benchPlayers.length})
+        </h3>
 
         {benchPlayers.length === 0 ? (
           <div className="text-center py-6 sm:py-8 text-gray-400 text-sm select-none">
             Geen wisselspelers
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            {benchPlayers.map(player => (
-              <div
-                key={`bench-${player.id}`}
-                onClick={() => {
-                  if (!isEditable) {
-                    onShowPlayerCard?.(player);
-                    return;
-                  }
-                  // Toggle: deselect if already selected
-                  if (selectedPlayer?.id === player.id) {
-                    onSelectPlayer(null);
-                  } else {
-                    onSelectPlayer(player);
-                  }
-                }}
-                className={`bg-amber-950/50 border-2 ${
-                  selectedPlayer?.id === player.id
-                    ? 'border-yellow-400'
-                    : 'border-amber-700'
-                } rounded-lg p-2 sm:p-3 text-center cursor-pointer hover:bg-amber-900/50 transition active:scale-95 touch-manipulation select-none`}
-              >
-                <div className="font-bold text-xs sm:text-sm">
-                  {player.name}
-                  {player.is_guest && <div className="text-purple-400 text-xs">(Gast)</div>}
+          <div className="flex flex-col gap-3">
+            {grouped.map(({ pos, players }) => (
+              <div key={pos}>
+                <div className="flex items-center gap-1.5 mb-1.5 text-xs font-bold text-amber-400/80 uppercase tracking-wide select-none">
+                  <span>{positionEmojis[pos]}</span>
+                  <span>{pos}</span>
                 </div>
-                <div className="text-xs opacity-70 mt-1">
-                  {player.goals}⚽ {player.assists}🎯
+                <div className="flex flex-col gap-1.5">
+                  {players.map(({ player, minute }) => (
+                    <div
+                      key={`bench-${player.id}`}
+                      onClick={() => {
+                        if (!isEditable) {
+                          onShowPlayerCard?.(player);
+                          return;
+                        }
+                        if (selectedPlayer?.id === player.id) {
+                          onSelectPlayer(null);
+                        } else {
+                          onSelectPlayer(player);
+                        }
+                      }}
+                      className={`flex items-center justify-between bg-amber-950/50 border-2 ${
+                        selectedPlayer?.id === player.id
+                          ? 'border-yellow-400'
+                          : 'border-amber-700'
+                      } rounded-lg px-3 py-2 cursor-pointer hover:bg-amber-900/50 transition active:scale-95 touch-manipulation select-none`}
+                    >
+                      <div className="font-bold text-sm">
+                        {player.name}
+                        {player.is_guest && <span className="text-purple-400 text-xs ml-1">(Gast)</span>}
+                      </div>
+                      {minute !== null ? (
+                        <span className="text-xs font-bold bg-amber-700/60 text-amber-200 rounded px-1.5 py-0.5 flex-shrink-0">
+                          {minute}&apos;
+                        </span>
+                      ) : (
+                        <span className="text-xs opacity-40 flex-shrink-0">
+                          {player.goals}⚽ {player.assists}🎯
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}

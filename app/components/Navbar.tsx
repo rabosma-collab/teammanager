@@ -11,7 +11,6 @@ interface NavbarProps {
   setView: (view: string) => void;
   isAdmin: boolean;
   onLogout: () => void;
-  onToggleSidebar: () => void;
   onPlayerUpdated?: () => void;
 }
 
@@ -22,7 +21,6 @@ export default function Navbar({
   setView,
   isAdmin,
   onLogout,
-  onToggleSidebar,
   onPlayerUpdated
 }: NavbarProps) {
   const router = useRouter();
@@ -161,18 +159,6 @@ export default function Navbar({
 
       {/* Scrollable left side */}
       <div className="flex items-center gap-1.5 sm:gap-3 p-2 sm:p-4 overflow-x-auto flex-1 min-w-0">
-        {view === 'pitch' && (
-          <button
-            onClick={onToggleSidebar}
-            className="lg:hidden p-2 hover:bg-gray-700 rounded flex-shrink-0"
-            aria-label="Toggle menu"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        )}
-
         <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
         <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
         <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Uitslagen" />

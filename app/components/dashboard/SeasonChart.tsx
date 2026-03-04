@@ -53,6 +53,7 @@ export default function SeasonChart({ matches, onNavigateToUitslagen }: SeasonCh
   const losses = matchData.filter(d => d.result === 'V').length;
   const goalsFor     = finished.reduce((s, m) => s + (m.goals_for ?? 0), 0);
   const goalsAgainst = finished.reduce((s, m) => s + (m.goals_against ?? 0), 0);
+  const cleanSheets  = finished.filter(m => m.goals_against === 0).length;
 
   if (finished.length === 0) return null;
 
@@ -163,14 +164,17 @@ export default function SeasonChart({ matches, onNavigateToUitslagen }: SeasonCh
         </div>
       )}
 
-      {/* Goals samenvatting */}
+      {/* Goals samenvatting + clean sheets */}
       {(goalsFor > 0 || goalsAgainst > 0) && (
-        <div className="flex justify-center gap-4 mt-2 text-xs text-gray-400">
+        <div className="flex flex-wrap justify-center gap-3 mt-2 text-xs text-gray-400">
           <span><span className="text-green-400 font-bold">{goalsFor}</span> goals voor</span>
           <span><span className="text-red-400 font-bold">{goalsAgainst}</span> goals tegen</span>
           <span>doelsaldo: <span className={goalsFor >= goalsAgainst ? 'text-green-400' : 'text-red-400'}>
             {goalsFor - goalsAgainst > 0 ? '+' : ''}{goalsFor - goalsAgainst}
           </span></span>
+          {cleanSheets > 0 && (
+            <span>🧤 <span className="text-blue-400 font-bold">{cleanSheets}</span> clean sheet{cleanSheets !== 1 ? 's' : ''}</span>
+          )}
         </div>
       )}
     </div>
