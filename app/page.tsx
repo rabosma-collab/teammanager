@@ -1237,7 +1237,7 @@ export default function FootballApp() {
               />
               </div>
 
-              <div className="flex flex-col gap-4 flex-1 min-w-0 w-full">
+              <div className="flex flex-col gap-4 w-full lg:w-[580px] flex-shrink-0">
                 <BenchPanel
                   benchPlayers={benchPlayers}
                   unavailablePlayers={unavailablePlayers}

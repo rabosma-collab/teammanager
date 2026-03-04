@@ -183,7 +183,7 @@ export default function SubstitutionCards({
   // Vaste wisselmomenten: één kaart per moment
   return (
     <div className="flex flex-col gap-3 w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="flex flex-col gap-3">
         {subMomentMinutes.map((minute, idx) => {
           const subNumber = idx + 1;
           const subs = regularSubs.filter(s => s.substitution_number === subNumber);
