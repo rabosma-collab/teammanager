@@ -7,6 +7,7 @@ interface PositionInfoModalProps {
   player: Player;
   instruction: PositionInstruction | null;
   isManagerEdit: boolean;
+  subMinuteOut?: number | null;
   onEditInstruction: () => void;
   onClose: () => void;
 }
@@ -15,6 +16,7 @@ export default function PositionInfoModal({
   player,
   instruction,
   isManagerEdit,
+  subMinuteOut,
   onEditInstruction,
   onClose,
 }: PositionInfoModalProps) {
@@ -23,8 +25,30 @@ export default function PositionInfoModal({
       <div className="overflow-y-auto max-h-[calc(90vh-2.5rem)]">
 
         {/* Spelerskaart */}
-        <div className="flex justify-center pt-4 pb-4 px-4">
+        <div className="flex justify-center pt-4 pb-2 px-4">
           <PlayerCard player={player} />
+        </div>
+
+        {/* Wedstrijdstats */}
+        <div className="flex items-center justify-center gap-4 pb-4 px-4 text-sm">
+          <span className="flex items-center gap-1 text-gray-300">
+            <span>⚽</span>
+            <span className="font-bold">{player.goals}</span>
+          </span>
+          <span className="flex items-center gap-1 text-gray-300">
+            <span>🎯</span>
+            <span className="font-bold">{player.assists}</span>
+          </span>
+          <span className="flex items-center gap-1 text-gray-300">
+            <span>⏱️</span>
+            <span className="font-bold">{player.min} min</span>
+          </span>
+          {subMinuteOut != null && (
+            <span className="flex items-center gap-1 text-amber-300">
+              <span>🔄</span>
+              <span className="font-bold">{subMinuteOut}&apos;</span>
+            </span>
+          )}
         </div>
 
         {/* Instructie sectie */}

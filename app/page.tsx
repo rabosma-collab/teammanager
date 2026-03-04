@@ -7,7 +7,7 @@ import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
 import { useToast } from './contexts/ToastContext';
-import type { Player, PositionInstruction, SubstitutionScheme, MatchPlayerStats } from './lib/types';
+import type { Player, PositionInstruction, SubstitutionScheme, MatchPlayerStats, Substitution } from './lib/types';
 
 // Hooks
 import { usePlayers } from './hooks/usePlayers';
@@ -652,6 +652,7 @@ export default function FootballApp() {
           fieldOccupants={fieldOccupants}
           selectedMatch={selectedMatch}
           isManager={isManager}
+          substitutions={substitutions}
           onToggleInjury={async (playerId) => {
             const success = await toggleInjury(playerId);
             if (success) {
@@ -688,6 +689,10 @@ export default function FootballApp() {
           player={showPositionInfo.player}
           instruction={getInstructionForPosition(showPositionInfo.positionIndex)}
           isManagerEdit={isManager && !!selectedMatch && !isFinalized}
+          subMinuteOut={(() => {
+            const s = substitutions.find((sub: Substitution) => sub.player_out_id === showPositionInfo.player.id);
+            return s ? (s.custom_minute ?? s.minute) : null;
+          })()}
           onEditInstruction={() => {
             const positionIndex = showPositionInfo.positionIndex;
             const matchInstr = matchInstructions.find((m: PositionInstruction) => m.position_index === positionIndex);
@@ -946,6 +951,18 @@ export default function FootballApp() {
               </div>
             ) : null}
 
+            {/* Wedstrijdselectie knop — prominent boven de toolbar */}
+            {isManager && selectedMatch && (
+              <div className="flex justify-center mb-3">
+                <button
+                  onClick={() => setShowSelectionModal(true)}
+                  className="px-5 py-2.5 rounded-xl font-bold bg-blue-700 hover:bg-blue-600 text-sm flex items-center gap-2 shadow-lg shadow-blue-900/40"
+                >
+                  👥 Wedstrijdselectie
+                </button>
+              </div>
+            )}
+
             {/* Wedstrijd & formatie selectors */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6 justify-center">
               <select
@@ -968,16 +985,6 @@ export default function FootballApp() {
                   );
                 })}
               </select>
-
-              {isManager && selectedMatch && (
-                <button
-                  onClick={() => setShowSelectionModal(true)}
-                  className="px-3 sm:px-4 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm sm:text-base flex-shrink-0"
-                  title="Wedstrijdselectie bewerken"
-                >
-                  👥 Selectie
-                </button>
-              )}
 
               <select
                 value={formation}
@@ -1115,8 +1122,8 @@ export default function FootballApp() {
               )}
             </div>
 
-            {/* Veld + Bank */}
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-stretch justify-center mb-4 lg:mb-6">
+            {/* Veld + Bank + Wissels */}
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
               <PitchView
                 gameFormat={gameFormat}
                 formation={formation}
@@ -1152,33 +1159,34 @@ export default function FootballApp() {
                 }}
               />
 
-              <BenchPanel
-                benchPlayers={benchPlayers}
-                unavailablePlayers={unavailablePlayers}
-                selectedPlayer={selectedPlayer}
-                isEditable={activelyEditing}
-                substitutions={substitutions}
-                onSelectPlayer={handleSelectPlayer}
-                onShowPlayerCard={setShowPlayerCard}
-              />
+              <div className="flex flex-col gap-4 flex-shrink-0 w-full max-w-[400px]">
+                <BenchPanel
+                  benchPlayers={benchPlayers}
+                  unavailablePlayers={unavailablePlayers}
+                  selectedPlayer={selectedPlayer}
+                  isEditable={activelyEditing}
+                  substitutions={substitutions}
+                  onSelectPlayer={handleSelectPlayer}
+                  onShowPlayerCard={setShowPlayerCard}
+                />
+                <SubstitutionCards
+                  scheme={currentScheme}
+                  substitutions={substitutions}
+                  players={players}
+                  isAdmin={isManager}
+                  isEditable={activelyEditing}
+                  isFinalized={!!isFinalized}
+                  matchDuration={matchDuration}
+                  onEditSub={handleEditSub}
+                  onAddExtraSub={() => setShowExtraSubModal(true)}
+                  onDeleteExtraSub={deleteExtraSubstitution}
+                />
+              </div>
             </div>
-
-            {/* Wissels */}
-            <SubstitutionCards
-              scheme={currentScheme}
-              substitutions={substitutions}
-              players={players}
-              isAdmin={isManager}
-              isEditable={activelyEditing}
-              isFinalized={!!isFinalized}
-              matchDuration={matchDuration}
-              onEditSub={handleEditSub}
-              onAddExtraSub={() => setShowExtraSubModal(true)}
-              onDeleteExtraSub={deleteExtraSubstitution}
-            />
 
             {/* Taken: wasbeurt + consumpties */}
             {selectedMatch && !isFinalized && (
+              <div className="max-w-4xl mx-auto w-full">
               <TakenBlok
                 trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
                 wasbeurtPlayer={wasbeurtIsUnavailable ? (wasbeurtEligible[0] ?? null) : wasbeurtDisplayPlayer}
@@ -1198,6 +1206,7 @@ export default function FootballApp() {
                 onConsumptiesChange={(id) => updateConsumptiesPlayer(selectedMatch.id, id)}
                 isEditing={activelyEditing && isManager}
               />
+              </div>
             )}
 
             {/* Geselecteerde speler/positie indicator */}

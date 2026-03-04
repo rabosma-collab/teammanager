@@ -48,7 +48,7 @@ export default function BenchPanel({
           return { player: p, minute: sub ? (sub.custom_minute ?? sub.minute) : null };
         })
         .sort((a: { player: Player; minute: number | null }, b: { player: Player; minute: number | null }) => {
-          if (a.minute !== null && b.minute !== null) return a.minute - b.minute;
+          if (a.minute !== null && b.minute !== null) return b.minute - a.minute;
           if (a.minute !== null) return -1;
           if (b.minute !== null) return 1;
           return a.player.name.localeCompare(b.player.name);

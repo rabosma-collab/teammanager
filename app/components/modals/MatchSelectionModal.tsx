@@ -1,6 +1,6 @@
 import React from 'react';
 import { positionOrder, positionEmojis } from '../../lib/constants';
-import type { Player, Match } from '../../lib/types';
+import type { Player, Match, Substitution } from '../../lib/types';
 
 interface MatchSelectionModalProps {
   players: Player[];
@@ -8,6 +8,7 @@ interface MatchSelectionModalProps {
   fieldOccupants: (Player | null)[];
   selectedMatch: Match | null;
   isManager: boolean;
+  substitutions?: Substitution[];
   onToggleInjury: (playerId: number) => Promise<void>;
   onToggleAbsence: (playerId: number) => Promise<void>;
   onRemoveGuest: (playerId: number) => Promise<void>;
@@ -21,6 +22,7 @@ export default function MatchSelectionModal({
   fieldOccupants,
   selectedMatch,
   isManager,
+  substitutions = [],
   onToggleInjury,
   onToggleAbsence,
   onRemoveGuest,
@@ -35,23 +37,39 @@ export default function MatchSelectionModal({
     return ids;
   }, [fieldOccupants]);
 
+  // Bereken wisselminuut per speler (in of uit)
+  const minuteMap = React.useMemo(() => {
+    const map = new Map<number, number>();
+    for (const s of substitutions) {
+      const min = s.custom_minute ?? s.minute;
+      if (s.player_out_id) map.set(s.player_out_id, min);
+      if (s.player_in_id) map.set(s.player_in_id, min);
+    }
+    return map;
+  }, [substitutions]);
+
   const grouped = React.useMemo(() => {
     return positionOrder.map(pos => ({
       pos,
       players: players
-        .filter(p => p.position === pos)
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .filter((p: Player) => p.position === pos)
+        .sort((a: Player, b: Player) => {
+          const ma = minuteMap.get(a.id) ?? null;
+          const mb = minuteMap.get(b.id) ?? null;
+          if (ma !== null && mb !== null) return mb - ma;
+          if (ma !== null) return -1;
+          if (mb !== null) return 1;
+          return a.name.localeCompare(b.name);
+        }),
     })).filter(g => g.players.length > 0);
-  }, [players]);
+  }, [players, minuteMap]);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-gray-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl border border-gray-700 flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
-          <h2 className="font-bold text-lg text-white">
-            👥 Wedstrijdselectie
-          </h2>
+          <h2 className="font-bold text-lg text-white">👥 Wedstrijdselectie</h2>
           <div className="flex items-center gap-2">
             {isManager && selectedMatch && (
               <button
@@ -84,16 +102,17 @@ export default function MatchSelectionModal({
                 <span>{pos}</span>
               </div>
               <div className="flex flex-col gap-1.5">
-                {posPlayers.map(player => {
+                {posPlayers.map((player: Player) => {
                   const isInjured = player.injured;
                   const isAbsent = matchAbsences.includes(player.id);
                   const isOnField = onFieldIds.has(player.id);
                   const unavailable = isInjured || isAbsent;
+                  const minute = minuteMap.get(player.id) ?? null;
 
                   return (
                     <div
                       key={player.id}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
                         isInjured
                           ? 'bg-red-900/30 border border-red-800'
                           : isAbsent
@@ -105,7 +124,7 @@ export default function MatchSelectionModal({
                           : 'bg-gray-700/40 border border-transparent'
                       }`}
                     >
-                      {/* Naam + badges */}
+                      {/* Naam */}
                       <div className="flex-1 min-w-0">
                         <span className={`font-bold text-sm ${unavailable ? 'opacity-60' : ''}`}>
                           {player.name}
@@ -115,8 +134,17 @@ export default function MatchSelectionModal({
                         )}
                       </div>
 
+                      {/* Stats */}
+                      <div className="flex items-center gap-2 text-xs text-gray-400 flex-shrink-0">
+                        <span>{player.goals}⚽</span>
+                        <span>{player.assists}🎯</span>
+                        {minute !== null && (
+                          <span className="text-amber-300 font-bold">{minute}&apos;</span>
+                        )}
+                      </div>
+
                       {/* Status icons */}
-                      <div className="flex items-center gap-1 text-sm flex-shrink-0">
+                      <div className="flex items-center gap-0.5 text-sm flex-shrink-0">
                         {isOnField && <span title="Op het veld">🟢</span>}
                         {isInjured && <span title="Geblesseerd">🏥</span>}
                         {isAbsent && <span title="Afwezig">❌</span>}
