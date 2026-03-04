@@ -1199,7 +1199,7 @@ export default function FootballApp() {
             </div>
 
             {/* Veld + Bank + Wissels */}
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start mb-4 lg:mb-6">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
               <div className="flex-shrink-0 w-full lg:w-[580px]">
               <PitchView
                 gameFormat={gameFormat}
