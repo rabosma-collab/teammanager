@@ -160,10 +160,11 @@ export function useLineup() {
         (p.is_guest || !matchAbsences.includes(p.id));
     });
 
-    // Final deduplication safety net: deduplicate by name
+    // Final deduplication safety net: deduplicate within same type by name.
+    // Guest and regular players with the same name are allowed to coexist.
     const seen = new Set<string>();
     return bench.filter(p => {
-      const key = p.name.toLowerCase().trim();
+      const key = `${p.is_guest ? 'g' : 'r'}_${p.name.toLowerCase().trim()}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
