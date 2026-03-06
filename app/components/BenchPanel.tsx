@@ -103,15 +103,16 @@ export default function BenchPanel({
                         {player.name}
                         {player.is_guest && <span className="text-purple-400 text-xs ml-1">(Gast)</span>}
                       </div>
-                      {minute !== null ? (
-                        <span className="text-xs font-bold bg-amber-700/60 text-amber-200 rounded px-1.5 py-0.5 flex-shrink-0">
-                          {minute}&apos;
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-xs opacity-50">
+                          {player.assists}🎯 {player.goals}⚽
                         </span>
-                      ) : (
-                        <span className="text-xs opacity-40 flex-shrink-0">
-                          {player.goals}⚽ {player.assists}🎯
-                        </span>
-                      )}
+                        {minute !== null && (
+                          <span className="text-xs font-bold bg-amber-700/60 text-amber-200 rounded px-1.5 py-0.5">
+                            {minute}&apos;
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

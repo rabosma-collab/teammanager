@@ -71,10 +71,11 @@ export function usePlayers() {
         }
       }
 
-      // Final safety: deduplicate by name (case-insensitive, trimmed)
+      // Final safety: deduplicate within same type (regular vs guest) by name.
+      // A guest and a regular player with the same name are intentionally allowed to coexist.
       const finalSeen = new Set<string>();
       allPlayers = allPlayers.filter(p => {
-        const key = p.name.toLowerCase().trim();
+        const key = `${p.is_guest ? 'g' : 'r'}_${p.name.toLowerCase().trim()}`;
         if (finalSeen.has(key)) return false;
         finalSeen.add(key);
         return true;
