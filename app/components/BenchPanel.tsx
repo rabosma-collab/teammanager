@@ -15,6 +15,15 @@ interface BenchPanelProps {
   onShowPlayerCard?: (player: Player) => void;
 }
 
+function playerKey(p: Player): string {
+  return `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+}
+
+function isSamePlayer(a: Player | null, b: Player | null): boolean {
+  if (!a || !b) return false;
+  return a.id === b.id && Boolean(a.is_guest) === Boolean(b.is_guest);
+}
+
 export default function BenchPanel({
   benchPlayers: rawBenchPlayers,
   unavailablePlayers,
@@ -25,10 +34,12 @@ export default function BenchPanel({
   onShowPlayerCard
 }: BenchPanelProps) {
   // NUCLEAR dedup: absolute last line of defense against duplicates
+  // Uses composite key (guest vs regular) to avoid ID collision between tables
   const benchPlayers = React.useMemo(() => {
-    const seen = new Map<number, typeof rawBenchPlayers[0]>();
+    const seen = new Map<string, typeof rawBenchPlayers[0]>();
     for (const p of rawBenchPlayers) {
-      if (!seen.has(p.id)) seen.set(p.id, p);
+      const key = playerKey(p);
+      if (!seen.has(key)) seen.set(key, p);
     }
     const result = Array.from(seen.values());
     if (result.length !== rawBenchPlayers.length) {
@@ -79,22 +90,22 @@ export default function BenchPanel({
                   <span>{pos}</span>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  {players.map(({ player, minute }) => (
+                  {players.map(({ player }) => (
                     <div
-                      key={`bench-${player.id}`}
+                      key={`bench-${playerKey(player)}`}
                       onClick={() => {
                         if (!isEditable) {
                           onShowPlayerCard?.(player);
                           return;
                         }
-                        if (selectedPlayer?.id === player.id) {
+                        if (isSamePlayer(selectedPlayer, player)) {
                           onSelectPlayer(null);
                         } else {
                           onSelectPlayer(player);
                         }
                       }}
                       className={`flex items-center justify-between bg-amber-950/50 border-2 ${
-                        selectedPlayer?.id === player.id
+                        isSamePlayer(selectedPlayer, player)
                           ? 'border-yellow-400'
                           : 'border-amber-700'
                       } rounded-lg px-3 py-2 cursor-pointer hover:bg-amber-900/50 transition active:scale-95 touch-manipulation select-none`}
@@ -107,9 +118,9 @@ export default function BenchPanel({
                         <span className="text-xs opacity-50">
                           {player.assists}🎯 {player.goals}⚽
                         </span>
-                        {minute !== null && (
+                        {player.min > 0 && (
                           <span className="text-xs font-bold bg-amber-700/60 text-amber-200 rounded px-1.5 py-0.5">
-                            {minute}&apos;
+                            {player.min}&apos;
                           </span>
                         )}
                       </div>
