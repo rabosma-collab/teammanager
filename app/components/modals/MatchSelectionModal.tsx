@@ -22,7 +22,6 @@ export default function MatchSelectionModal({
   fieldOccupants,
   selectedMatch,
   isManager,
-  substitutions = [],
   onToggleInjury,
   onToggleAbsence,
   onRemoveGuest,
@@ -37,32 +36,17 @@ export default function MatchSelectionModal({
     return ids;
   }, [fieldOccupants]);
 
-  // Bereken wisselminuut per speler (in of uit)
-  const minuteMap = React.useMemo(() => {
-    const map = new Map<number, number>();
-    for (const s of substitutions) {
-      const min = s.custom_minute ?? s.minute;
-      if (s.player_out_id) map.set(s.player_out_id, min);
-      if (s.player_in_id) map.set(s.player_in_id, min);
-    }
-    return map;
-  }, [substitutions]);
-
   const grouped = React.useMemo(() => {
     return positionOrder.map(pos => ({
       pos,
       players: players
         .filter((p: Player) => p.position === pos)
         .sort((a: Player, b: Player) => {
-          const ma = minuteMap.get(a.id) ?? null;
-          const mb = minuteMap.get(b.id) ?? null;
-          if (ma !== null && mb !== null) return mb - ma;
-          if (ma !== null) return -1;
-          if (mb !== null) return 1;
+          if (b.min !== a.min) return b.min - a.min;
           return a.name.localeCompare(b.name);
         }),
     })).filter(g => g.players.length > 0);
-  }, [players, minuteMap]);
+  }, [players]);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -107,8 +91,6 @@ export default function MatchSelectionModal({
                   const isAbsent = matchAbsences.includes(player.id);
                   const isOnField = onFieldIds.has(player.id);
                   const unavailable = isInjured || isAbsent;
-                  const minute = minuteMap.get(player.id) ?? null;
-
                   return (
                     <div
                       key={player.id}
@@ -138,8 +120,8 @@ export default function MatchSelectionModal({
                       <div className="flex items-center gap-2 text-xs text-gray-400 flex-shrink-0">
                         <span>{player.goals}⚽</span>
                         <span>{player.assists}🎯</span>
-                        {minute !== null && (
-                          <span className="text-amber-300 font-bold">{minute}&apos;</span>
+                        {player.min > 0 && (
+                          <span className="text-amber-300 font-bold">{player.min}&apos;</span>
                         )}
                       </div>
 
