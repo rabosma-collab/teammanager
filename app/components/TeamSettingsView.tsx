@@ -124,7 +124,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
       // Verwijder avatars uit Storage vóór de database-records
       const avatarPaths = (playerRows ?? [])
         .map((p: { avatar_url?: string | null }) => p.avatar_url?.match(/\/avatars\/(.+?)(\?|$)/)?.[1])
-        .filter((path): path is string => Boolean(path));
+        .filter((path: string | undefined): path is string => Boolean(path));
       if (avatarPaths.length > 0) {
         await supabase.storage.from('avatars').remove(avatarPaths);
       }
