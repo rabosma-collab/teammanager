@@ -1,21 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-import { createServerClient } from '@supabase/ssr';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST() {
   const cookieStore = cookies();
 
-  // Haal de ingelogde user op via de sessie-cookie (anon key is veilig hier)
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll() { /* read-only in deze route */ },
-      },
-    }
+  // Haal de ingelogde user op via de sessie-cookie
+  const supabaseUser = createRouteHandlerClient(
+    { cookies: () => cookieStore }
   );
 
   const { data: { user } } = await supabaseUser.auth.getUser();
