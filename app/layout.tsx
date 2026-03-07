@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { TeamProvider } from './contexts/TeamContext';
 import { ToastProvider } from './contexts/ToastContext';
+import CookieBanner from './components/CookieBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -44,6 +45,7 @@ export default function RootLayout({
         <ToastProvider>
           <TeamProvider>{children}</TeamProvider>
         </ToastProvider>
+        <CookieBanner />
       </body>
     </html>
   );

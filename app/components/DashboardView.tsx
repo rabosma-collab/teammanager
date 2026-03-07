@@ -163,22 +163,25 @@ export default function DashboardView({
       });
   }, [dashboardMatch?.id]);
 
-  const refreshAbsences = useCallback(async () => {
-    if (!dashboardMatch) return;
+  const refreshAbsences = useCallback(async (): Promise<number[]> => {
+    if (!dashboardMatch) return [];
     const { data } = await supabase
       .from('match_absences')
       .select('player_id')
       .eq('match_id', dashboardMatch.id);
-    setDashboardAbsences(data?.map((a: { player_id: number }) => a.player_id) || []);
+    const newAbsences = data?.map((a: { player_id: number }) => a.player_id) || [];
+    setDashboardAbsences(newAbsences);
+    return newAbsences;
   }, [dashboardMatch?.id]);
 
   const handleToggleAbsence = useCallback(async (playerId: number, matchId: number): Promise<boolean> => {
-    const wasAbsent = dashboardAbsences.includes(playerId);
     const success = await onToggleAbsence(playerId, matchId);
     if (success) {
-      await refreshAbsences();
-      if (currentTeam && dashboardMatch) {
+      const freshAbsences = await refreshAbsences();
+      // Log alleen voor de dashboardMatch (alleen daar hebben we accurate afwezigheidsdata)
+      if (currentTeam && dashboardMatch && matchId === dashboardMatch.id) {
         const player = players.find(p => p.id === playerId);
+        const nowAbsent = freshAbsences.includes(playerId);
         logActivity({
           teamId: currentTeam.id,
           type: 'absence_changed',
@@ -187,7 +190,7 @@ export default function DashboardView({
           matchId,
           payload: {
             actor_name: player?.name ?? 'Onbekend',
-            available: wasAbsent, // was absent, now available (or vice versa)
+            available: !nowAbsent, // post-toggle staat bepaalt de melding correct
             opponent: dashboardMatch.opponent,
             home_away: dashboardMatch.home_away,
           },
@@ -195,7 +198,7 @@ export default function DashboardView({
       }
     }
     return success;
-  }, [onToggleAbsence, refreshAbsences, dashboardAbsences, players, currentTeam, dashboardMatch]);
+  }, [onToggleAbsence, refreshAbsences, players, currentTeam, dashboardMatch]);
 
   const handleToggleInjury = useCallback(async (playerId: number): Promise<boolean> => {
     return onToggleInjury(playerId);
@@ -357,7 +360,7 @@ export default function DashboardView({
         )}
 
         {/* Activiteitenfeed (preview — max 5 items) */}
-        {activities.length > 0 && (
+        {activities.filter(a => !a.is_read).length > 0 && (
           <div className="mt-4 bg-gray-800 rounded-xl overflow-hidden border border-gray-700/50">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
               <h3 className="font-bold text-sm text-gray-200">Recente activiteit</h3>
@@ -371,7 +374,7 @@ export default function DashboardView({
               )}
             </div>
             <div className="divide-y divide-gray-700/30">
-              {activities.slice(0, 5).map((item) => (
+              {activities.filter(a => !a.is_read).slice(0, 5).map((item) => (
                 <ActivityItem
                   key={item.id}
                   item={item}

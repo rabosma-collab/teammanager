@@ -4,13 +4,15 @@ import React from 'react';
 import type { ActivityLogItem } from '../hooks/useActivityLog';
 
 const TYPE_ICON: Record<string, string> = {
-  stat_changed:      '🃏',
-  lineup_published:  '📋',
-  match_created:     '📅',
-  match_result:      '⚽',
-  voting_opened:     '🗳️',
-  spdw_winner:       '🏆',
-  absence_changed:   '👤',
+  stat_changed:         '🃏',
+  lineup_published:     '📋',
+  lineup_unpublished:   '📋',
+  match_created:        '📅',
+  match_result:         '⚽',
+  voting_opened:        '🗳️',
+  spdw_winner:          '🏆',
+  absence_changed:      '👤',
+  announcement_posted:  '📣',
 };
 
 function relativeTime(iso: string): string {
@@ -43,6 +45,15 @@ function buildText(type: string, payload: Record<string, unknown>): string {
       const opp = p.opponent as string ?? 'onbekend';
       const ha = (p.home_away as string) === 'thuis' ? 'thuis' : 'uit';
       return `Opstelling voor ${opp} (${ha}) is bekendgemaakt`;
+    }
+    case 'lineup_unpublished': {
+      const opp = p.opponent as string ?? 'onbekend';
+      const ha = (p.home_away as string) === 'thuis' ? 'thuis' : 'uit';
+      return `Opstelling voor ${opp} (${ha}) is ingetrokken`;
+    }
+    case 'announcement_posted': {
+      const preview = p.preview as string ?? '';
+      return preview ? `Nieuwe mededeling: "${preview}"` : 'Nieuwe mededeling geplaatst';
     }
     case 'match_created': {
       const opp = p.opponent as string ?? 'onbekend';

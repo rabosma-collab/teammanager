@@ -3,11 +3,13 @@ import { supabase } from './supabase';
 export type ActivityType =
   | 'stat_changed'
   | 'lineup_published'
+  | 'lineup_unpublished'
   | 'match_created'
   | 'match_result'
   | 'voting_opened'
   | 'spdw_winner'
-  | 'absence_changed';
+  | 'absence_changed'
+  | 'announcement_posted';
 
 interface LogActivityOptions {
   teamId: string;
@@ -21,6 +23,8 @@ interface LogActivityOptions {
 /**
  * Schrijft een activiteit naar de activity_log tabel.
  * Voor stat_changed: samenvoegt wijzigingen van dezelfde actor+subject+stat binnen 5 minuten.
+ * Voor absence_changed: samenvoegt binnen 60 seconden voor zelfde actor+match.
+ * Voor lineup_published/unpublished: samenvoegt binnen 5 minuten voor zelfde match.
  * Fire-and-forget: await niet verplicht op de kritieke pad.
  */
 export async function logActivity(options: LogActivityOptions): Promise<void> {
@@ -54,6 +58,45 @@ export async function logActivity(options: LogActivityOptions): Promise<void> {
           .from('activity_log')
           .update({ payload: { ...match.payload, to: payload.to } })
           .eq('id', match.id);
+        return;
+      }
+    }
+
+    if (type === 'absence_changed' && actorId && matchId) {
+      const sixtySecAgo = new Date(Date.now() - 60_000).toISOString();
+      const { data: recent } = await supabase
+        .from('activity_log')
+        .select('id')
+        .eq('team_id', teamId)
+        .eq('type', 'absence_changed')
+        .eq('actor_id', actorId)
+        .eq('match_id', matchId)
+        .gte('created_at', sixtySecAgo)
+        .limit(1);
+      if (recent?.[0]) {
+        await supabase
+          .from('activity_log')
+          .update({ payload })
+          .eq('id', recent[0].id);
+        return;
+      }
+    }
+
+    if ((type === 'lineup_published' || type === 'lineup_unpublished') && matchId) {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const { data: recent } = await supabase
+        .from('activity_log')
+        .select('id')
+        .eq('team_id', teamId)
+        .in('type', ['lineup_published', 'lineup_unpublished'])
+        .eq('match_id', matchId)
+        .gte('created_at', fiveMinAgo)
+        .limit(1);
+      if (recent?.[0]) {
+        await supabase
+          .from('activity_log')
+          .update({ type, payload })
+          .eq('id', recent[0].id);
         return;
       }
     }

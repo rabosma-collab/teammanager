@@ -279,6 +279,20 @@ export function usePlayers() {
     if (!currentTeam) return false;
 
     try {
+      // Verwijder avatar uit Storage vóór de database-cascade
+      const { data: playerData } = await supabase
+        .from('players')
+        .select('avatar_url')
+        .eq('id', playerId)
+        .single();
+
+      if (playerData?.avatar_url) {
+        const match = playerData.avatar_url.match(/\/avatars\/(.+?)(\?|$)/);
+        if (match?.[1]) {
+          await supabase.storage.from('avatars').remove([match[1]]);
+        }
+      }
+
       const { error } = await supabase.rpc('delete_player_cascade', {
         p_player_id: playerId,
         p_team_id: currentTeam.id,

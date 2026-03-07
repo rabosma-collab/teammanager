@@ -230,10 +230,10 @@ export function useMatches() {
         setSelectedMatch(prev => prev ? { ...prev, lineup_published: published } : prev);
       }
 
-      if (published && match) {
+      if (match) {
         logActivity({
           teamId: currentTeam.id,
-          type: 'lineup_published',
+          type: published ? 'lineup_published' : 'lineup_unpublished',
           matchId,
           payload: {
             opponent: match.opponent,

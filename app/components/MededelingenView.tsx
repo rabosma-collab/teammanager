@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
+import { logActivity } from '../lib/logActivity';
 
 const MAX_CHARS = 300;
 const EXPIRY_DAYS = 7;
@@ -59,6 +60,16 @@ export default function MededelingenView() {
       });
 
       if (error) throw error;
+
+      const trimmed = message.trim();
+      logActivity({
+        teamId: currentTeam.id,
+        type: 'announcement_posted',
+        payload: {
+          preview: trimmed.length > 60 ? trimmed.slice(0, 57) + '…' : trimmed,
+        },
+      });
+
       setMessage('');
       await fetchCurrent();
     } catch (err) {

@@ -118,8 +118,16 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
       const { data: matchRows } = await supabase.from('matches').select('id').eq('team_id', teamId);
       const matchIds = (matchRows ?? []).map((m: { id: number }) => m.id);
 
-      const { data: playerRows } = await supabase.from('players').select('id').eq('team_id', teamId);
+      const { data: playerRows } = await supabase.from('players').select('id, avatar_url').eq('team_id', teamId);
       const playerIds = (playerRows ?? []).map((p: { id: number }) => p.id);
+
+      // Verwijder avatars uit Storage vóór de database-records
+      const avatarPaths = (playerRows ?? [])
+        .map((p: { avatar_url?: string | null }) => p.avatar_url?.match(/\/avatars\/(.+?)(\?|$)/)?.[1])
+        .filter((path): path is string => Boolean(path));
+      if (avatarPaths.length > 0) {
+        await supabase.storage.from('avatars').remove(avatarPaths);
+      }
 
       if (matchIds.length > 0) {
         await supabase.from('lineups').delete().in('match_id', matchIds);

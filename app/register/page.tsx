@@ -223,6 +223,13 @@ export default function RegisterPage() {
               Log hier in
             </Link>
           </p>
+
+          <p className="mt-3 text-center text-xs text-gray-600">
+            Door een account aan te maken ga je akkoord met onze{' '}
+            <Link href="/privacy" className="text-gray-500 hover:text-gray-400 underline">
+              privacyverklaring
+            </Link>.
+          </p>
         </div>
       </div>
     </div>
