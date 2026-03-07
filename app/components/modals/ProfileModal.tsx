@@ -221,7 +221,12 @@ export default function ProfileModal({ onClose, onPlayerUpdated, onLogout, welco
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
     try {
-      const res = await fetch('/api/delete-account', { method: 'POST' });
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: session?.access_token }),
+      });
       if (!res.ok) throw new Error('Verwijderen mislukt');
       await supabase.auth.signOut();
       window.location.href = '/login';

@@ -1,26 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST() {
-  const cookieStore = cookies();
-
-  // Haal de ingelogde user op via de sessie-cookie
-  const supabaseUser = createRouteHandlerClient(
-    { cookies: () => cookieStore }
-  );
-
-  const { data: { user } } = await supabaseUser.auth.getUser();
-  if (!user) {
+export async function POST(req: NextRequest) {
+  const { access_token } = await req.json();
+  if (!access_token) {
     return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 });
   }
 
-  // Service-role client voor admin-operaties (verwijdert auth-account)
+  // Service-role client — ook gebruikt om token te verifiëren
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(access_token);
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 });
+  }
 
   // 1. Anonimiseer spelerdata + verwijder team_members via RPC
   //    (RPC controleert zelf dat auth.uid() == p_user_id)
