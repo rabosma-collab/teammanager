@@ -24,6 +24,8 @@ export default function ProfileModal({ onClose, onPlayerUpdated, onLogout, welco
   const [isGoogle, setIsGoogle] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -216,6 +218,25 @@ export default function ProfileModal({ onClose, onPlayerUpdated, onLogout, welco
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: session?.access_token }),
+      });
+      if (!res.ok) throw new Error('Verwijderen mislukt');
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+    } catch {
+      setMessage({ text: 'Fout bij verwijderen van account. Probeer het opnieuw.', error: true });
+      setDeletingAccount(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const displayUrl = previewUrl ?? avatarUrl;
   const initials = name ? name.substring(0, 2).toUpperCase() : '?';
 
@@ -343,6 +364,44 @@ export default function ProfileModal({ onClose, onPlayerUpdated, onLogout, welco
               </button>
             </div>
           )}
+
+          {/* Verwijder account */}
+          <div className="pt-3">
+            {!showDeleteConfirm ? (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full text-xs text-gray-600 hover:text-red-500 transition-colors py-1"
+              >
+                Verwijder mijn account
+              </button>
+            ) : (
+              <div className="bg-red-900/20 border border-red-800 rounded p-3 space-y-3">
+                <p className="text-red-300 text-sm font-semibold">Weet je het zeker?</p>
+                <p className="text-red-400 text-xs leading-relaxed">
+                  Je account wordt permanent verwijderd. Je naam in teamstatistieken wordt
+                  geanonimiseerd. Dit kan niet ongedaan worden gemaakt.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={deletingAccount}
+                    className="flex-1 py-2 bg-red-700 hover:bg-red-600 disabled:opacity-50 rounded text-sm font-bold"
+                  >
+                    {deletingAccount ? 'Verwijderen...' : 'Ja, verwijder account'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm font-bold"
+                  >
+                    Annuleren
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </DraggableModal>

@@ -29,7 +29,6 @@ export default function BenchPanel({
   unavailablePlayers,
   selectedPlayer,
   isEditable,
-  substitutions = [],
   onSelectPlayer,
   onShowPlayerCard
 }: BenchPanelProps) {
@@ -49,24 +48,19 @@ export default function BenchPanel({
     return result;
   }, [rawBenchPlayers]);
 
-  // Groepeer per positiecategorie, gesorteerd op wisselminuut
+  // Groepeer per positiecategorie, gesorteerd op totaal speelminuten
   const grouped = React.useMemo(() => {
     return positionOrder.map(pos => {
       const inPos = benchPlayers.filter(p => p.position === pos);
-      const withMinute: { player: Player; minute: number | null }[] = inPos
-        .map((p: Player) => {
-          const sub = substitutions.find(s => s.player_in_id === p.id);
-          return { player: p, minute: sub ? (sub.custom_minute ?? sub.minute) : null };
-        })
-        .sort((a: { player: Player; minute: number | null }, b: { player: Player; minute: number | null }) => {
-          if (a.minute !== null && b.minute !== null) return b.minute - a.minute;
-          if (a.minute !== null) return -1;
-          if (b.minute !== null) return 1;
+      const sorted = inPos
+        .map((p: Player) => ({ player: p }))
+        .sort((a: { player: Player }, b: { player: Player }) => {
+          if (b.player.min !== a.player.min) return b.player.min - a.player.min;
           return a.player.name.localeCompare(b.player.name);
         });
-      return { pos, players: withMinute };
+      return { pos, players: sorted };
     }).filter(g => g.players.length > 0);
-  }, [benchPlayers, substitutions]);
+  }, [benchPlayers]);
 
   const hasUnavailable = unavailablePlayers.injured.length > 0 || unavailablePlayers.absent.length > 0;
 
