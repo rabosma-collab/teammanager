@@ -7,8 +7,21 @@ import {
   MouseSensor, TouchSensor,
   useSensors, useSensor,
   closestCenter,
-  type DragStartEvent, type DragEndEvent,
+  type DragStartEvent, type DragEndEvent, type Modifier,
 } from '@dnd-kit/core';
+
+// Centreert de DragOverlay onder de vinger bij touch — alleen voor bankspelers
+const snapBenchCenterToCursor: Modifier = ({ activatorEvent, active, activeNodeRect, transform }) => {
+  if (!activatorEvent || active?.data?.current?.type !== 'bench' || !activeNodeRect) return transform;
+  if (typeof TouchEvent === 'undefined' || !(activatorEvent instanceof TouchEvent)) return transform;
+  const touch = activatorEvent.touches[0] ?? activatorEvent.changedTouches[0];
+  if (!touch) return transform;
+  return {
+    ...transform,
+    x: transform.x + (activeNodeRect.left + activeNodeRect.width / 2 - touch.clientX),
+    y: transform.y + (activeNodeRect.top + activeNodeRect.height / 2 - touch.clientY),
+  };
+};
 import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes } from './lib/constants';
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
@@ -1319,6 +1332,7 @@ export default function FootballApp() {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              modifiers={[snapBenchCenterToCursor]}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
