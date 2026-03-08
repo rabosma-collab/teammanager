@@ -63,21 +63,21 @@ export async function logActivity(options: LogActivityOptions): Promise<void> {
     }
 
     if (type === 'absence_changed' && actorId && matchId) {
-      const sixtySecAgo = new Date(Date.now() - 60_000).toISOString();
-      const { data: recent } = await supabase
+      // Altijd maximaal één entry per speler per wedstrijd — geen tijdslimiet.
+      // Bij update ook gelezen-status resetten zodat het bericht opnieuw verschijnt.
+      const { data: existing } = await supabase
         .from('activity_log')
         .select('id')
         .eq('team_id', teamId)
         .eq('type', 'absence_changed')
         .eq('actor_id', actorId)
         .eq('match_id', matchId)
-        .gte('created_at', sixtySecAgo)
         .limit(1);
-      if (recent?.[0]) {
-        await supabase
-          .from('activity_log')
-          .update({ payload })
-          .eq('id', recent[0].id);
+      if (existing?.[0]) {
+        await Promise.all([
+          supabase.from('activity_log').update({ payload }).eq('id', existing[0].id),
+          supabase.from('activity_log_reads').delete().eq('activity_id', existing[0].id),
+        ]);
         return;
       }
     }

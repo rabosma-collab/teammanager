@@ -32,7 +32,6 @@ export default function ActivitySlideOver({
   }, [open, onClose]);
 
   const unread = activities.filter(a => !a.is_read);
-  const read = activities.filter(a => a.is_read);
 
   return (
     <>
@@ -88,48 +87,19 @@ export default function ActivitySlideOver({
             </div>
           )}
 
-          {!loading && activities.length === 0 && (
+          {!loading && unread.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-gray-500 gap-2">
               <span className="text-3xl">📭</span>
-              <p className="text-sm">Nog geen activiteit</p>
+              <p className="text-sm">Geen ongelezen berichten</p>
             </div>
           )}
 
-          {!loading && activities.length > 0 && (
-            <>
-              {/* Ongelezen sectie */}
-              {unread.length > 0 ? (
-                <div>
-                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-800/50">
-                    Ongelezen
-                  </div>
-                  <div className="divide-y divide-gray-700/50">
-                    {unread.map((item) => (
-                      <ActivityItem key={item.id} item={item} onRead={onMarkAsRead} />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-gray-500 gap-1.5">
-                  <span className="text-2xl">✅</span>
-                  <p className="text-sm">Alles gelezen</p>
-                </div>
-              )}
-
-              {/* Eerder sectie */}
-              {read.length > 0 && (
-                <div>
-                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-800/50">
-                    Eerder
-                  </div>
-                  <div className="divide-y divide-gray-700/50">
-                    {read.map((item) => (
-                      <ActivityItem key={item.id} item={item} onRead={onMarkAsRead} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
+          {!loading && unread.length > 0 && (
+            <div className="divide-y divide-gray-700/50">
+              {unread.map((item) => (
+                <ActivityItem key={item.id} item={item} onRead={onMarkAsRead} />
+              ))}
+            </div>
           )}
         </div>
       </div>

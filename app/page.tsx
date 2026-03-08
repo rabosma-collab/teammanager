@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  DndContext, DragOverlay,
+  MouseSensor, TouchSensor,
+  useSensors, useSensor,
+  closestCenter,
+  type DragStartEvent, type DragEndEvent,
+} from '@dnd-kit/core';
 import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes } from './lib/constants';
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
@@ -96,6 +103,7 @@ export default function FootballApp() {
   const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
   const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
+  const [activeDragPlayer, setActiveDragPlayer] = useState<Player | null>(null);
 
   // ---- HOOKS ----
   const {
@@ -352,6 +360,12 @@ export default function FootballApp() {
     fetchStatsForMatches(ids).then(data => setRecentStatsMap(data));
   }, [matches.filter(m => m.match_status === 'afgerond').length, fetchStatsForMatches]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---- DND-KIT SENSORS ----
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
+
   // ---- HANDLERS ----
   const handleSaveStatDraft = useCallback(async (
     targetPlayerId: number,
@@ -400,21 +414,36 @@ export default function FootballApp() {
     }
 
     if (selectedPlayer) {
-      // Mode A: player was selected first → place at this position
-      placePlayerAtPosition(selectedPlayer, index);
-    } else if (fieldOccupants[index]) {
-      // Click occupied position → remove player
-      const newField = [...fieldOccupants];
-      newField[index] = null;
-      setFieldOccupants(newField);
-      setSelectedPosition(null);
-    } else {
-      // Mode B: click empty position first → highlight it, then pick a player
-      if (selectedPosition === index) {
-        setSelectedPosition(null); // toggle off
+      const targetOccupant = fieldOccupants[index];
+
+      if (targetOccupant && selectedPosition !== null) {
+        // Feature 2: echte swap — opgetilde veldspeler ↔ bezette doelpositie
+        setFieldOccupants(prev => {
+          const newField = [...prev];
+          newField[index] = selectedPlayer;
+          newField[selectedPosition] = targetOccupant;
+          return newField;
+        });
+        setSelectedPlayer(null);
+        setSelectedPosition(null);
       } else {
-        setSelectedPosition(index);
+        // Normaal plaatsen: bankspeler → elke positie, of opgetilde speler → lege positie
+        // Als de doelpositie bezet is (bench-speler erop): oude speler gaat automatisch terug naar bank
+        placePlayerAtPosition(selectedPlayer, index);
       }
+    } else if (fieldOccupants[index]) {
+      // Feature 2: veldspeler "optillen" — verwijder tijdelijk van veld en selecteer
+      const liftedPlayer = fieldOccupants[index]!;
+      setFieldOccupants(prev => {
+        const newField = [...prev];
+        newField[index] = null;
+        return newField;
+      });
+      setSelectedPlayer(liftedPlayer);
+      setSelectedPosition(index); // onthoud bronpositie voor eventuele swap
+    } else {
+      // Mode B: lege positie highlighten, dan bankspeler kiezen
+      setSelectedPosition(selectedPosition === index ? null : index);
     }
   };
 
@@ -428,6 +457,84 @@ export default function FootballApp() {
       setSelectedPosition(null);
     }
   }, [selectedPosition, activelyEditing, placePlayerAtPosition, setSelectedPlayer, setSelectedPosition]);
+
+  // Feature 3: drag & drop handlers
+  const handleDragStart = useCallback(({ active }: DragStartEvent) => {
+    const data = active.data.current as { player?: Player } | undefined;
+    setActiveDragPlayer(data?.player ?? null);
+    // Wis klik-selectie zodat drag en click niet conflicteren
+    setSelectedPlayer(null);
+    setSelectedPosition(null);
+  }, [setSelectedPlayer, setSelectedPosition]);
+
+  const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
+    setActiveDragPlayer(null);
+    if (!over || !activelyEditing) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    if (activeId === overId) return;
+
+    const activeData = active.data.current as { type: 'field' | 'bench'; positionIndex?: number; player: Player };
+
+    if (overId.startsWith('pos-')) {
+      const targetPos = parseInt(overId.replace('pos-', ''));
+      if (activeData.type === 'field') {
+        // Veldspeler → andere veldpositie: swap
+        const sourcePos = activeData.positionIndex!;
+        if (sourcePos === targetPos) return;
+        setFieldOccupants(prev => {
+          const newField = [...prev];
+          const temp = newField[sourcePos];
+          newField[sourcePos] = newField[targetPos];
+          newField[targetPos] = temp;
+          return newField;
+        });
+      } else if (activeData.type === 'bench') {
+        // Bankspeler → veldpositie: plaatsen
+        placePlayerAtPosition(activeData.player, targetPos);
+      }
+    } else if (overId === 'bench-zone' && activeData.type === 'field') {
+      // Veldspeler → bank: terugzetten
+      const sourcePos = activeData.positionIndex!;
+      setFieldOccupants(prev => {
+        const newField = [...prev];
+        newField[sourcePos] = null;
+        return newField;
+      });
+    }
+  }, [activelyEditing, setFieldOccupants, placePlayerAtPosition]);
+
+  // Feature 5: laad opstelling van de vorige wedstrijd
+  const handleLoadPreviousLineup = useCallback(async () => {
+    if (!selectedMatch || !currentTeam) return;
+
+    const previousMatches = [...matches]
+      .filter(m => m.id !== selectedMatch.id)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (previousMatches.length === 0) {
+      toast.warning('Geen eerdere wedstrijd gevonden');
+      return;
+    }
+
+    for (const match of previousMatches) {
+      const { data } = await supabase
+        .from('lineups')
+        .select('position, player_id')
+        .eq('match_id', match.id)
+        .limit(1);
+
+      if (data && data.length > 0) {
+        await loadLineup(match.id, players, playerCount);
+        const dateStr = new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+        toast.success(`📋 Opstelling van ${dateStr} - ${match.opponent} geladen`);
+        return;
+      }
+    }
+
+    toast.warning('Geen eerdere opstelling gevonden');
+  }, [selectedMatch, matches, currentTeam, players, playerCount, loadLineup]);
 
   const handleSaveLineup = async (): Promise<boolean> => {
     if (!selectedMatch) return false;
@@ -1170,6 +1277,16 @@ export default function FootballApp() {
                 </button>
               )}
 
+              {activelyEditing && (
+                <button
+                  onClick={handleLoadPreviousLineup}
+                  title="Laad de opstelling van de vorige wedstrijd"
+                  className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm flex items-center gap-1.5"
+                >
+                  📋 <span className="hidden sm:inline">Vorige</span>
+                </button>
+              )}
+
               {isManager && activelyEditing && (
                 <button
                   onClick={() => {
@@ -1199,6 +1316,12 @@ export default function FootballApp() {
             </div>
 
             {/* Veld + Bank + Wissels */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center lg:items-start justify-center mb-4 lg:mb-6">
               <div className="flex-shrink-0 w-full lg:w-[580px]">
               <PitchView
@@ -1206,6 +1329,7 @@ export default function FootballApp() {
                 formation={formation}
                 fieldOccupants={fieldOccupants}
                 selectedPosition={selectedPosition}
+                selectedPlayer={selectedPlayer}
                 isEditable={activelyEditing}
                 isManagerEdit={isManager && !!selectedMatch && !isFinalized}
                 matchAbsences={matchAbsences}
@@ -1243,7 +1367,6 @@ export default function FootballApp() {
                   unavailablePlayers={unavailablePlayers}
                   selectedPlayer={selectedPlayer}
                   isEditable={activelyEditing}
-                  substitutions={substitutions}
                   onSelectPlayer={handleSelectPlayer}
                   onShowPlayerCard={setShowPlayerCard}
                 />
@@ -1262,6 +1385,24 @@ export default function FootballApp() {
                 />
               </div>
             </div>
+
+              {/* Feature 3: DragOverlay — zwevend icoontje tijdens slepen */}
+              <DragOverlay dropAnimation={null}>
+                {activeDragPlayer ? (
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-yellow-500 border-2 border-white flex items-center justify-center font-bold text-sm text-black shadow-xl opacity-90 cursor-grabbing">
+                    {activeDragPlayer.avatar_url ? (
+                      <img
+                        src={activeDragPlayer.avatar_url}
+                        alt={activeDragPlayer.name}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    ) : (
+                      activeDragPlayer.name.substring(0, 2).toUpperCase()
+                    )}
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
 
             {/* Taken: wasbeurt + consumpties */}
             {selectedMatch && !isFinalized && (

@@ -1,5 +1,6 @@
 import React from 'react';
-import { formations } from '../lib/constants';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { formations, getPositionCategory } from '../lib/constants';
 import type { Player, PositionInstruction } from '../lib/types';
 
 interface PitchViewProps {
@@ -7,6 +8,7 @@ interface PitchViewProps {
   formation: string;
   fieldOccupants: (Player | null)[];
   selectedPosition: number | null;
+  selectedPlayer: Player | null;
   isEditable: boolean;
   isManagerEdit: boolean;
   matchAbsences: number[];
@@ -17,11 +19,146 @@ interface PitchViewProps {
   onShowPositionInfo: (player: Player, positionIndex: number) => void;
 }
 
+interface PositionSlotProps {
+  index: number;
+  pos: { t: number; l: number };
+  player: Player | null;
+  isEditable: boolean;
+  isManagerEdit: boolean;
+  isSelected: boolean;
+  showWarning: boolean;
+  instruction: PositionInstruction | null;
+  showInstructionButton: boolean;
+  positionCategory: string;
+  selectedPlayer: Player | null;
+  onPositionClick: (index: number) => void;
+  onShowTooltip: (index: number) => void;
+  onShowPositionInfo: (player: Player, positionIndex: number) => void;
+}
+
+function PositionSlot({
+  index, pos, player, isEditable, isManagerEdit, isSelected, showWarning,
+  instruction, showInstructionButton, positionCategory, selectedPlayer,
+  onPositionClick, onShowTooltip, onShowPositionInfo,
+}: PositionSlotProps) {
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `pos-${index}`,
+    disabled: !isEditable,
+  });
+
+  const { setNodeRef: setDragRef, listeners, attributes, isDragging } = useDraggable({
+    id: `field-${index}`,
+    disabled: !player || !isEditable,
+    data: { type: 'field', positionIndex: index, player },
+  });
+
+  // Combine drop + drag ref onto the same element
+  const setRef = (node: HTMLDivElement | null) => {
+    setDropRef(node);
+    if (player && isEditable) setDragRef(node);
+  };
+
+  // Feature 1: Highlight lege posities die matchen met de positiecategorie van de geselecteerde speler
+  const isMatchingPosition =
+    isEditable &&
+    selectedPlayer !== null &&
+    !player &&
+    positionCategory === selectedPlayer.position;
+
+  const handleClick = () => {
+    if (isEditable) {
+      onPositionClick(index);
+    } else if (player) {
+      onShowPositionInfo(player, index);
+    }
+  };
+
+  return (
+    <div
+      className={`absolute transform -translate-x-1/2 -translate-y-1/2 touch-manipulation select-none ${
+        isEditable ? 'cursor-pointer' : player ? 'cursor-pointer' : 'cursor-default'
+      } ${isDragging ? 'opacity-20 pointer-events-none' : ''}`}
+      style={{
+        top: `${pos.t}%`,
+        left: `${pos.l}%`,
+        // Feature 4: Formatie-animatie — posities bewegen vloeiend bij fortatiewisseling
+        transition: 'top 0.35s ease, left 0.35s ease',
+      }}
+    >
+      {player && (
+        <div
+          onClick={!isEditable ? handleClick : undefined}
+          className={`text-xs font-bold text-center mb-1 text-white block ${!isEditable ? 'cursor-pointer hover:text-yellow-300' : ''}`}
+          style={{ textShadow: '1px 1px 2px black' }}
+        >
+          {player.name}
+        </div>
+      )}
+      <div
+        ref={setRef}
+        onClick={!isDragging ? handleClick : undefined}
+        {...(player && isEditable ? listeners : {})}
+        {...(player && isEditable ? attributes : {})}
+        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base relative transition-all active:scale-95 ${
+          showInstructionButton ? 'mb-6' : ''
+        } ${isOver ? 'scale-110' : ''} ${
+          player
+            ? showWarning
+              ? 'bg-yellow-500 text-black border-red-500'
+              : isOver
+              ? 'bg-yellow-400 text-black border-white'
+              : 'bg-yellow-500 text-black border-white'
+            : isSelected
+            ? 'bg-yellow-500/40 text-white border-yellow-400 animate-pulse'
+            : isOver
+            ? 'bg-green-500/50 text-white border-green-300'
+            : isMatchingPosition
+            ? 'bg-green-500/20 text-white border-green-400 ring-1 ring-green-400/60'
+            : 'bg-white/20 text-white border-white'
+        }`}
+      >
+        {player ? (
+          player.avatar_url ? (
+            <img
+              src={player.avatar_url}
+              alt={player.name}
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            player.name.substring(0, 2).toUpperCase()
+          )
+        ) : (
+          isMatchingPosition ? '✓' : '+'
+        )}
+        {showWarning && (
+          <span className="absolute -top-1 -right-1 text-red-500 text-base sm:text-lg">⚠️</span>
+        )}
+        {showInstructionButton && (
+          <button
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              onShowTooltip(index);
+            }}
+            className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${
+              instruction ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-500 hover:bg-gray-400'
+            }`}
+            style={{ zIndex: 10 }}
+            title={instruction ? 'Wedstrijdinstructie bewerken' : 'Wedstrijdinstructie toevoegen'}
+          >
+            i
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const PitchView = React.memo(function PitchView({
   gameFormat,
   formation,
   fieldOccupants,
   selectedPosition,
+  selectedPlayer,
   isEditable,
   isManagerEdit,
   matchAbsences,
@@ -31,9 +168,10 @@ const PitchView = React.memo(function PitchView({
   onShowTooltip,
   onShowPositionInfo,
 }: PitchViewProps) {
+  const positionsList = formations[gameFormat]?.[formation] ?? [];
+
   return (
     <div className="flex flex-col items-center w-full">
-      {/* Hint voor view mode */}
       {!isEditable && (
         <p className="text-center text-gray-500 text-xs mb-2">
           Tik op een speler voor info &amp; instructies
@@ -45,93 +183,35 @@ const PitchView = React.memo(function PitchView({
           backgroundImage: 'repeating-linear-gradient(0deg, #2d5f2e, #2d5f2e 40px, #246824 40px, #246824 80px)'
         }}
       >
-        {(formations[gameFormat]?.[formation] ?? []).map((pos, i) => {
+        {positionsList.map((pos, i) => {
           const player = fieldOccupants[i];
           const showWarning = player && !isPlayerAvailable(player, matchAbsences);
           const instruction = getInstructionForPosition(i);
           const isSelected = selectedPosition === i;
-
-          // "i" knop alleen tonen voor lege posities in manager-edit modus
           const showInstructionButton = !player && isManagerEdit;
-
-          const handleClick = () => {
-            if (isEditable) {
-              onPositionClick(i);
-            } else if (player) {
-              onShowPositionInfo(player, i);
-            }
-          };
+          const positionCategory = getPositionCategory(gameFormat, formation, i);
 
           return (
-            <div
+            <PositionSlot
               key={i}
-              className={`absolute transform -translate-x-1/2 -translate-y-1/2 touch-manipulation select-none ${
-                isEditable
-                  ? 'cursor-pointer active:scale-95'
-                  : player
-                  ? 'cursor-pointer'
-                  : 'cursor-default'
-              }`}
-              style={{ top: `${pos.t}%`, left: `${pos.l}%` }}
-            >
-              {player && (
-                <div
-                  onClick={!isEditable ? handleClick : undefined}
-                  className={`text-xs font-bold text-center mb-1 text-white block ${!isEditable ? 'cursor-pointer hover:text-yellow-300' : ''}`}
-                  style={{ textShadow: '1px 1px 2px black' }}
-                >
-                  {player.name}
-                </div>
-              )}
-              <div
-                onClick={handleClick}
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base relative transition-all ${showInstructionButton ? 'mb-6' : ''} ${
-                  player
-                    ? showWarning
-                      ? 'bg-yellow-500 text-black border-red-500'
-                      : 'bg-yellow-500 text-black border-white'
-                    : isSelected
-                    ? 'bg-yellow-500/40 text-white border-yellow-400 animate-pulse'
-                    : 'bg-white/20 text-white border-white'
-                }`}
-              >
-                {player ? (
-                  player.avatar_url ? (
-                    <img
-                      src={player.avatar_url}
-                      alt={player.name}
-                      className="w-full h-full object-cover rounded-full"
-                    />
-                  ) : (
-                    player.name.substring(0, 2).toUpperCase()
-                  )
-                ) : '+'}
-                {showWarning && (
-                  <span className="absolute -top-1 -right-1 text-red-500 text-base sm:text-lg">⚠️</span>
-                )}
-                {/* "i" knop alleen voor lege posities in manager-edit */}
-                {showInstructionButton && (
-                  <button
-                    onClick={(e: React.MouseEvent) => {
-                      e.stopPropagation();
-                      onShowTooltip(i);
-                    }}
-                    className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg ${
-                      instruction ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-500 hover:bg-gray-400'
-                    }`}
-                    style={{ zIndex: 10 }}
-                    title={instruction ? 'Wedstrijdinstructie bewerken' : 'Wedstrijdinstructie toevoegen'}
-                  >
-                    i
-                  </button>
-                )}
-              </div>
-
-            </div>
+              index={i}
+              pos={pos}
+              player={player}
+              isEditable={isEditable}
+              isManagerEdit={isManagerEdit}
+              isSelected={isSelected}
+              showWarning={!!showWarning}
+              instruction={instruction}
+              showInstructionButton={showInstructionButton}
+              positionCategory={positionCategory}
+              selectedPlayer={selectedPlayer}
+              onPositionClick={onPositionClick}
+              onShowTooltip={onShowTooltip}
+              onShowPositionInfo={onShowPositionInfo}
+            />
           );
         })}
       </div>
-
     </div>
   );
 });

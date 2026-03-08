@@ -77,8 +77,17 @@ export default function MyAvailabilityPanel({
           return (
             <div
               key={match.id}
-              className="flex items-center gap-3 py-2 border-b border-gray-700/40 last:border-0"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 ${
+                isAbsent
+                  ? 'bg-red-900/10 border-red-500'
+                  : 'bg-green-900/10 border-green-500'
+              }`}
             >
+              {/* Status icoon */}
+              <span className="text-base flex-shrink-0">
+                {isAbsent ? '❌' : '✅'}
+              </span>
+
               {/* Datum + tegenstander */}
               <div className="flex-1 min-w-0">
                 <div className="text-xs text-gray-500 capitalize">{formatShortDate(match.date)}</div>
@@ -94,17 +103,17 @@ export default function MyAvailabilityPanel({
                 </div>
               </div>
 
-              {/* Toggle knop */}
+              {/* Actieknop */}
               <button
                 onClick={() => handleToggle(match.id)}
                 disabled={isLoading}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs transition touch-manipulation active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition touch-manipulation active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isAbsent
-                    ? 'bg-green-700 hover:bg-green-600 text-white'
-                    : 'bg-orange-700 hover:bg-orange-600 text-white'
+                    ? 'bg-gray-700 hover:bg-green-800 text-gray-300 hover:text-white'
+                    : 'bg-gray-700 hover:bg-red-900/60 text-gray-300 hover:text-white'
                 }`}
               >
-                {isLoading ? '...' : isAbsent ? '✅ Aanwezig' : '❌ Afwezig'}
+                {isLoading ? '...' : isAbsent ? 'Toch aanwezig' : 'Meld afwezig'}
               </button>
             </div>
           );
