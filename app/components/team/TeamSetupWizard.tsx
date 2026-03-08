@@ -368,6 +368,7 @@ export default function TeamSetupWizard() {
           {step === 5 && teamId && (
             <StepPlayers
               teamId={teamId}
+              currentUserId={currentUserId}
               onNext={() => setStep(6)}
               onSkip={handleSkip}
               onPlayersImported={(count) => setPlayersImported(count)}

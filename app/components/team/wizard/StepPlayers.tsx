@@ -109,12 +109,13 @@ type Mode = 'choice' | 'manual' | 'csv';
 
 interface Props {
   teamId: string;
+  currentUserId: string | null;
   onNext: () => void;
   onSkip: () => void;
   onPlayersImported: (count: number) => void;
 }
 
-export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported }: Props) {
+export default function StepPlayers({ teamId, currentUserId, onNext, onSkip, onPlayersImported }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>('choice');
 
@@ -122,6 +123,7 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
   const [manualName, setManualName] = useState('');
   const [manualPosition, setManualPosition] = useState<typeof POSITIONS[number]>('Aanvaller');
   const [manualList, setManualList] = useState<{ name: string; position: string }[]>([]);
+  const [selfIndex, setSelfIndex] = useState<number | null>(null);
   const [manualImporting, setManualImporting] = useState(false);
   const [manualImported, setManualImported] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
@@ -153,9 +155,22 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
     if (!manualList.length) return true;
     setManualImporting(true);
     setManualError(null);
-    const { error } = await supabase.from('players').insert(buildRows(manualList, teamId));
+    const { data, error } = await supabase.from('players').insert(buildRows(manualList, teamId)).select('id, name');
     setManualImporting(false);
     if (error) { setManualError('Fout bij opslaan: ' + error.message); return false; }
+
+    // Koppel de manager aan zijn eigen spelersrecord
+    if (selfIndex !== null && currentUserId && data) {
+      const selfPlayer = data[selfIndex] as { id: number; name: string } | undefined;
+      if (selfPlayer) {
+        await supabase
+          .from('team_members')
+          .update({ player_id: selfPlayer.id })
+          .eq('team_id', teamId)
+          .eq('user_id', currentUserId);
+      }
+    }
+
     setManualImported(true);
     onPlayersImported(manualList.length);
     return true;
@@ -347,12 +362,27 @@ export default function StepPlayers({ teamId, onNext, onSkip, onPlayersImported 
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {manualList.map((p, i) => (
-                  <div key={`${p.name}-${i}`} className="flex items-center justify-between px-3 py-2 bg-gray-700/50 rounded-lg text-sm">
-                    <span className="font-medium">{p.name}</span>
-                    <div className="flex items-center gap-3">
+                  <div key={`${p.name}-${i}`} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${selfIndex === i ? 'bg-yellow-900/30 border border-yellow-700/50' : 'bg-gray-700/50'}`}>
+                    <span className="font-medium">{p.name}{selfIndex === i && <span className="ml-2 text-xs text-yellow-400">(jij)</span>}</span>
+                    <div className="flex items-center gap-2">
                       <span className="text-gray-400">{p.position}</span>
                       {!manualImported && (
-                        <button onClick={() => setManualList(prev => prev.filter((_, j) => j !== i))} className="text-gray-600 hover:text-red-400 transition">✕</button>
+                        <>
+                          <button
+                            onClick={() => setSelfIndex(selfIndex === i ? null : i)}
+                            className={`text-xs px-2 py-0.5 rounded transition ${selfIndex === i ? 'bg-yellow-600 text-white' : 'text-gray-500 hover:text-yellow-400 border border-gray-600 hover:border-yellow-600'}`}
+                          >
+                            {selfIndex === i ? '★ ik' : '☆ ik'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setManualList(prev => prev.filter((_, j) => j !== i));
+                              if (selfIndex === i) setSelfIndex(null);
+                              else if (selfIndex !== null && selfIndex > i) setSelfIndex(selfIndex - 1);
+                            }}
+                            className="text-gray-600 hover:text-red-400 transition"
+                          >✕</button>
+                        </>
                       )}
                     </div>
                   </div>
