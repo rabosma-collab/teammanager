@@ -123,6 +123,8 @@ function PositionSlot({
               src={player.avatar_url}
               alt={player.name}
               className="w-full h-full object-cover rounded-full"
+              draggable={false}
+              onDragStart={e => e.preventDefault()}
             />
           ) : (
             player.name.substring(0, 2).toUpperCase()

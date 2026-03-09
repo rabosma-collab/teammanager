@@ -7,6 +7,7 @@ export type ActivityType =
   | 'match_created'
   | 'match_result'
   | 'voting_opened'
+  | 'vote_cast'
   | 'spdw_winner'
   | 'absence_changed'
   | 'announcement_posted';
