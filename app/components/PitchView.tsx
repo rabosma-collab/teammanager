@@ -88,7 +88,7 @@ function PositionSlot({
       {player && (
         <div
           onClick={!isEditable ? handleClick : undefined}
-          className={`text-xs font-bold text-center mb-1 text-white block ${!isEditable ? 'cursor-pointer hover:text-yellow-300' : ''}`}
+          className={`font-display font-semibold text-xs text-center mb-1 text-white block ${!isEditable ? 'cursor-pointer hover:text-yellow-300' : ''}`}
           style={{ textShadow: '1px 1px 2px black' }}
         >
           {player.name}

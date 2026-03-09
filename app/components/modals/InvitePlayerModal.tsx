@@ -118,7 +118,7 @@ export default function InvitePlayerModal({ player, onClose, onInviteCreated }: 
             </div>
             <button
               onClick={generateInvite}
-              className="w-full p-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-700"
+              className="w-full p-3 rounded-lg font-display font-bold bg-yellow-500 hover:bg-yellow-400 text-gray-900 uppercase tracking-wide"
             >
               Opnieuw proberen
             </button>
@@ -140,7 +140,7 @@ export default function InvitePlayerModal({ player, onClose, onInviteCreated }: 
               className={`w-full p-3 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-colors ${
                 copied
                   ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-yellow-500 hover:bg-yellow-400 text-gray-900'
               }`}
             >
               {copied ? (

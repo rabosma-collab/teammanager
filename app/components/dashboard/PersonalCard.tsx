@@ -77,7 +77,7 @@ export default function PersonalCard({
       )}
       {matchInstruction && (
         <div className="mt-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
-          <div className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">📋 Instructie volgende wedstrijd</div>
+          <div className="font-display font-semibold text-xs uppercase tracking-widest text-blue-500 mb-2">Instructie</div>
           {matchInstruction.general_tips.length > 0 && (
             <div className="mb-1.5">
               <div className="text-xs font-bold text-yellow-500 mb-1">💡 Tips</div>

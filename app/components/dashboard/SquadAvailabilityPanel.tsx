@@ -64,7 +64,7 @@ export default function SquadAvailabilityPanel({
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
       {/* Header */}
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Selectie aanwezigheid</h3>
+        <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Selectie aanwezigheid</h3>
         <span className="text-xs text-gray-500">
           {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
         </span>
@@ -73,15 +73,15 @@ export default function SquadAvailabilityPanel({
       {/* Totalen */}
       <div className="grid grid-cols-3 gap-2">
         <div className="flex flex-col items-center p-2 bg-green-900/30 rounded-lg border border-green-700/30">
-          <span className="text-lg font-black text-green-300">{availableCount}</span>
+          <span className="font-display font-bold text-xl text-green-300 leading-none">{availableCount}</span>
           <span className="text-xs text-green-400 font-medium">✅ Beschikbaar</span>
         </div>
         <div className="flex flex-col items-center p-2 bg-orange-900/30 rounded-lg border border-orange-700/30">
-          <span className="text-lg font-black text-orange-300">{absentCount}</span>
+          <span className="font-display font-bold text-xl text-orange-300 leading-none">{absentCount}</span>
           <span className="text-xs text-orange-400 font-medium">❌ Afwezig</span>
         </div>
         <div className="flex flex-col items-center p-2 bg-red-900/30 rounded-lg border border-red-700/30">
-          <span className="text-lg font-black text-red-300">{injuredCount}</span>
+          <span className="font-display font-bold text-xl text-red-300 leading-none">{injuredCount}</span>
           <span className="text-xs text-red-400 font-medium">🏥 Geblesseerd</span>
         </div>
       </div>

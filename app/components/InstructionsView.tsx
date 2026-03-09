@@ -68,7 +68,7 @@ export default function InstructionsView({
                       });
                     }
                   }}
-                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs flex-shrink-0"
+                  className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs flex-shrink-0"
                 >
                   {instruction ? '✏️ Bewerken' : '+ Toevoegen'}
                 </button>

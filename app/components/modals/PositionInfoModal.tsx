@@ -72,7 +72,7 @@ export default function PositionInfoModal({
           <div className="px-5 pb-5 pt-2">
             <button
               onClick={onEditInstruction}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-bold text-sm transition"
+              className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm transition"
             >
               ✏️ {instruction ? 'Instructie bewerken' : 'Instructie toevoegen'}
             </button>

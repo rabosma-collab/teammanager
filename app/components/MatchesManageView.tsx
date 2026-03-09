@@ -212,7 +212,7 @@ export default function MatchesManageView({
                     <>
                       <button
                         onClick={() => setEditingMatch(match)}
-                        className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-xs sm:text-sm font-bold"
+                        className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold"
                       >
                         ✏️
                       </button>

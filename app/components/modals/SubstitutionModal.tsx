@@ -192,7 +192,7 @@ export default function SubstitutionModal({
 
         <button
           onClick={onAddSub}
-          className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded font-bold mb-4 text-sm sm:text-base"
+          className="w-full px-4 py-3 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded font-display font-bold mb-4 text-sm sm:text-base uppercase tracking-wide"
         >
           + Voeg wissel toe
         </button>

@@ -95,7 +95,7 @@ export default function MededelingenView() {
 
         {/* Actieve mededeling */}
         <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 mb-6">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Huidige mededeling</h3>
+          <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 mb-3">Huidige mededeling</h3>
           {current ? (
             <div>
               <div className="bg-blue-900/40 border border-blue-700/60 rounded-lg p-3 mb-3">
@@ -120,7 +120,7 @@ export default function MededelingenView() {
 
         {/* Nieuwe mededeling */}
         <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
+          <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 mb-3">
             {current ? 'Vervang mededeling' : 'Nieuwe mededeling'}
           </h3>
           <textarea
@@ -137,7 +137,7 @@ export default function MededelingenView() {
             <button
               onClick={handlePost}
               disabled={loading || !message.trim()}
-              className="px-5 py-2 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-bold text-sm transition touch-manipulation active:scale-95"
+              className="px-5 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-display font-bold text-sm uppercase tracking-wide transition touch-manipulation active:scale-95"
             >
               {loading ? 'Bezig...' : '📣 Plaatsen'}
             </button>

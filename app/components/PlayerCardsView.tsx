@@ -208,7 +208,7 @@ export default function PlayerCardsView({
         {isAdmin && (
           <button
             onClick={() => setEditingPlayer(player)}
-            className="absolute top-1 right-1 w-7 h-7 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
+            className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
           >
             ✏️
           </button>

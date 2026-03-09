@@ -114,7 +114,7 @@ export default function TakenBlok({
 
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 px-4 py-3 my-3 space-y-3">
-      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Taken</div>
+      <div className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Taken</div>
       {trackWasbeurt && (
         <TaakRij
           emoji="🧺"

@@ -101,7 +101,7 @@ export default function RegisterPage() {
             </p>
             <Link
               href="/login"
-              className="inline-block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold text-base transition active:scale-[0.98]"
+              className="inline-block w-full py-3 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-gray-900 font-display font-bold text-base uppercase tracking-wide transition active:scale-[0.98]"
             >
               Naar inloggen
             </Link>
@@ -210,7 +210,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-bold text-base transition active:scale-[0.98]"
+              className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-gray-900 font-display font-bold text-base uppercase tracking-wide transition active:scale-[0.98]"
             >
               {loading ? 'Account aanmaken...' : 'Account aanmaken'}
             </button>

@@ -1141,7 +1141,7 @@ export default function FootballApp() {
               <div className="flex justify-center mb-3">
                 <button
                   onClick={() => setShowSelectionModal(true)}
-                  className="px-5 py-2.5 rounded-xl font-bold bg-blue-700 hover:bg-blue-600 text-sm flex items-center gap-2 shadow-lg shadow-blue-900/40"
+                  className="px-5 py-2.5 rounded-xl font-display font-bold bg-yellow-500 hover:bg-yellow-400 text-gray-900 text-sm uppercase tracking-wide flex items-center gap-2"
                 >
                   👥 Wedstrijdselectie
                 </button>
@@ -1219,7 +1219,7 @@ export default function FootballApp() {
                       publishLineup(selectedMatch.id, false);
                     }
                   }}
-                  className="px-3 sm:px-4 py-2 rounded font-bold bg-blue-600 hover:bg-blue-700 text-sm sm:text-base"
+                  className="px-3 sm:px-4 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm sm:text-base"
                 >
                   {isLineupPublished ? '✏️ Herzien' : '✏️ Aanpassen'}
                 </button>
@@ -1255,9 +1255,9 @@ export default function FootballApp() {
                       setIsEditingLineup(false);
                     }}
                     disabled={savingLineup}
-                    className="px-3 sm:px-4 py-2 rounded font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-sm sm:text-base"
+                    className="px-3 sm:px-4 py-2 rounded font-display font-bold bg-yellow-500 hover:bg-yellow-400 text-gray-900 disabled:opacity-50 text-sm sm:text-base uppercase tracking-wide"
                   >
-                    {savingLineup ? '💾 Bezig...' : '💾 Opslaan'}
+                    {savingLineup ? 'Bezig...' : 'Opslaan'}
                   </button>
                   <button
                     onClick={async () => {
