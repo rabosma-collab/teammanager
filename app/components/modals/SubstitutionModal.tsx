@@ -112,14 +112,19 @@ export default function SubstitutionModal({
         {isFreeSubstitution && (
           <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
             <label className="block text-sm font-bold text-yellow-400 mb-2">Minuut</label>
-            <input
-              type="number"
-              value={customMinute}
-              onChange={(e) => setCustomMinute(Math.max(1, Math.min(matchDuration, parseInt(e.target.value) || 1)))}
-              className="w-24 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-lg font-bold text-center"
-              min="1"
-              max={matchDuration}
-            />
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setCustomMinute(v => Math.max(1, v - 1))}
+                disabled={customMinute <= 1}
+                className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-2xl font-bold transition flex items-center justify-center"
+              >−</button>
+              <span className="text-3xl font-black w-14 text-center tabular-nums">{customMinute}&apos;</span>
+              <button
+                onClick={() => setCustomMinute(v => Math.min(matchDuration, v + 1))}
+                disabled={customMinute >= matchDuration}
+                className="w-11 h-11 rounded-full bg-green-600 hover:bg-green-700 disabled:opacity-30 text-white text-2xl font-bold transition flex items-center justify-center"
+              >+</button>
+            </div>
           </div>
         )}
 

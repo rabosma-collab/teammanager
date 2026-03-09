@@ -11,15 +11,18 @@ import {
 } from '@dnd-kit/core';
 
 // Centreert de DragOverlay onder de vinger bij touch — alleen voor bankspelers
-const snapBenchCenterToCursor: Modifier = ({ activatorEvent, active, activeNodeRect, transform }) => {
+const snapBenchCenterToCursor: Modifier = ({ activatorEvent, active, activeNodeRect, overlayNodeRect, transform }) => {
   if (!activatorEvent || active?.data?.current?.type !== 'bench' || !activeNodeRect) return transform;
   if (typeof TouchEvent === 'undefined' || !(activatorEvent instanceof TouchEvent)) return transform;
   const touch = activatorEvent.touches[0] ?? activatorEvent.changedTouches[0];
   if (!touch) return transform;
+  // Verschuif zodat het MIDDEN van de overlay (kleine cirkel) precies onder de vinger zit
+  const overlayW = overlayNodeRect?.width ?? 48;
+  const overlayH = overlayNodeRect?.height ?? 48;
   return {
     ...transform,
-    x: transform.x + (activeNodeRect.left + activeNodeRect.width / 2 - touch.clientX),
-    y: transform.y + (activeNodeRect.top + activeNodeRect.height / 2 - touch.clientY),
+    x: transform.x + (touch.clientX - activeNodeRect.left - overlayW / 2),
+    y: transform.y + (touch.clientY - activeNodeRect.top - overlayH / 2),
   };
 };
 import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes } from './lib/constants';
@@ -916,6 +919,7 @@ export default function FootballApp() {
           match={selectedMatch}
           players={players}
           teamSettings={teamSettings}
+          teamName={currentTeam?.name ?? 'Wij'}
           onFinalize={handleFinalizeMatch}
           onClose={() => setShowFinalizeModal(false)}
         />
@@ -1409,6 +1413,8 @@ export default function FootballApp() {
                         src={activeDragPlayer.avatar_url}
                         alt={activeDragPlayer.name}
                         className="w-full h-full object-cover rounded-full"
+                        draggable={false}
+                        onDragStart={e => e.preventDefault()}
                       />
                     ) : (
                       activeDragPlayer.name.substring(0, 2).toUpperCase()

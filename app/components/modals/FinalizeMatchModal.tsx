@@ -17,6 +17,7 @@ interface FinalizeMatchModalProps {
   match: Match;
   players: Player[]; // alle spelers incl. gasten
   teamSettings: TeamSettings | null;
+  teamName: string;
   onFinalize: (params: {
     calcMinutes: boolean;
     goalsFor: number | null;
@@ -32,6 +33,7 @@ export default function FinalizeMatchModal({
   match,
   players,
   teamSettings,
+  teamName,
   onFinalize,
   onClose,
 }: FinalizeMatchModalProps) {
@@ -52,8 +54,8 @@ export default function FinalizeMatchModal({
 
   // Step 1 — Uitslag
   const [calcMinutes, setCalcMinutes] = useState(true);
-  const [goalsFor, setGoalsFor] = useState<string>('');
-  const [goalsAgainst, setGoalsAgainst] = useState<string>('');
+  const [goalsFor, setGoalsFor] = useState<number | null>(null);
+  const [goalsAgainst, setGoalsAgainst] = useState<number | null>(null);
 
   // Step 2 — Doelpunten
   const [goals, setGoals] = useState<GoalEntry[]>([{ scorer_id: null, assist_id: null }]);
@@ -68,8 +70,6 @@ export default function FinalizeMatchModal({
     () => players.filter(p => !p.is_guest).sort((a, b) => a.name.localeCompare(b.name)),
     [players]
   );
-
-  const goalsForNum = goalsFor !== '' ? parseInt(goalsFor, 10) : null;
 
   // Berekend overzicht van stats per speler voor bevestig-stap
   const computedStats = useMemo(() => {
@@ -105,8 +105,8 @@ export default function FinalizeMatchModal({
     setSaving(true);
     await onFinalize({
       calcMinutes,
-      goalsFor:     goalsForNum,
-      goalsAgainst: goalsAgainst !== '' ? parseInt(goalsAgainst, 10) : null,
+      goalsFor:     goalsFor,
+      goalsAgainst: goalsAgainst,
       stats:        computedStats,
     });
     setSaving(false);
@@ -186,31 +186,45 @@ export default function FinalizeMatchModal({
                 <div className="text-sm font-bold mb-2">Uitslag</div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 text-center">
-                    <div className="text-xs text-gray-400 mb-1">Eigen goals</div>
-                    <input
-                      type="number" min="0" max="99"
-                      value={goalsFor}
-                      onChange={e => setGoalsFor(e.target.value)}
-                      className="w-full px-3 py-3 bg-gray-700 border border-gray-600 rounded text-white text-2xl font-black text-center"
-                      placeholder="–"
-                    />
+                    <div className="text-xs text-gray-400 mb-2">{teamName}</div>
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        onClick={() => setGoalsFor(v => v === null || v === 0 ? null : v - 1)}
+                        className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-2xl font-bold transition flex items-center justify-center"
+                        disabled={goalsFor === null}
+                      >−</button>
+                      <span className="text-4xl font-black w-10 text-center tabular-nums">
+                        {goalsFor ?? '–'}
+                      </span>
+                      <button
+                        onClick={() => setGoalsFor(v => (v ?? -1) + 1)}
+                        className="w-11 h-11 rounded-full bg-green-600 hover:bg-green-700 text-white text-2xl font-bold transition flex items-center justify-center"
+                      >+</button>
+                    </div>
                   </div>
                   <div className="text-gray-400 font-black text-xl">–</div>
                   <div className="flex-1 text-center">
-                    <div className="text-xs text-gray-400 mb-1">Tegenstander</div>
-                    <input
-                      type="number" min="0" max="99"
-                      value={goalsAgainst}
-                      onChange={e => setGoalsAgainst(e.target.value)}
-                      className="w-full px-3 py-3 bg-gray-700 border border-gray-600 rounded text-white text-2xl font-black text-center"
-                      placeholder="–"
-                    />
+                    <div className="text-xs text-gray-400 mb-2">Tegenstander</div>
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        onClick={() => setGoalsAgainst(v => v === null || v === 0 ? null : v - 1)}
+                        className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-2xl font-bold transition flex items-center justify-center"
+                        disabled={goalsAgainst === null}
+                      >−</button>
+                      <span className="text-4xl font-black w-10 text-center tabular-nums">
+                        {goalsAgainst ?? '–'}
+                      </span>
+                      <button
+                        onClick={() => setGoalsAgainst(v => (v ?? -1) + 1)}
+                        className="w-11 h-11 rounded-full bg-green-600 hover:bg-green-700 text-white text-2xl font-bold transition flex items-center justify-center"
+                      >+</button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Waarschuwing als doelpunten-stap volgt maar geen uitslag is ingevuld */}
-              {trackGoals && goalsFor === '' && (
+              {trackGoals && goalsFor === null && (
                 <p className="text-xs text-amber-400">
                   Tip: vul eigen goals in voor de doelpunten-stap.
                 </p>
@@ -223,9 +237,9 @@ export default function FinalizeMatchModal({
             <div className="space-y-3 pt-1">
               <div className="text-sm text-gray-400">
                 Voeg per doelpunt de schutter toe, en optioneel de aangever.
-                {goalsForNum !== null && (
+                {goalsFor !== null && (
                   <span className="ml-1 text-yellow-400 font-bold">
-                    ({goals.filter(g => g.scorer_id).length}/{goalsForNum} doelpunten ingevuld)
+                    ({goals.filter(g => g.scorer_id).length}/{goalsFor} doelpunten ingevuld)
                   </span>
                 )}
               </div>
@@ -286,9 +300,9 @@ export default function FinalizeMatchModal({
                 + Doelpunt toevoegen
               </button>
 
-              {goalsForNum !== null && goals.filter(g => g.scorer_id).length !== goalsForNum && (
+              {goalsFor !== null && goals.filter(g => g.scorer_id).length !== goalsFor && (
                 <p className="text-xs text-amber-400">
-                  Let op: je hebt {goals.filter(g => g.scorer_id).length} schutter(s) ingevuld, maar de score is {goalsForNum}.
+                  Let op: je hebt {goals.filter(g => g.scorer_id).length} schutter(s) ingevuld, maar de score is {goalsFor}.
                 </p>
               )}
             </div>
@@ -354,13 +368,13 @@ export default function FinalizeMatchModal({
               {/* Score samenvatting */}
               <div className="p-3 bg-gray-700/50 rounded-lg text-center">
                 <div className="text-xs text-gray-400 mb-1">{match.opponent}</div>
-                {goalsFor !== '' && goalsAgainst !== '' ? (
+                {goalsFor !== null && goalsAgainst !== null ? (
                   <div className="text-3xl font-black">
-                    <span className={parseInt(goalsFor) > parseInt(goalsAgainst) ? 'text-green-400' : parseInt(goalsFor) < parseInt(goalsAgainst) ? 'text-red-400' : 'text-yellow-400'}>
+                    <span className={goalsFor > goalsAgainst ? 'text-green-400' : goalsFor < goalsAgainst ? 'text-red-400' : 'text-yellow-400'}>
                       {goalsFor}
                     </span>
                     <span className="text-gray-500 mx-2">–</span>
-                    <span className={parseInt(goalsAgainst) > parseInt(goalsFor) ? 'text-red-400' : parseInt(goalsFor) > parseInt(goalsAgainst) ? 'text-green-400' : 'text-yellow-400'}>
+                    <span className={goalsAgainst > goalsFor ? 'text-red-400' : goalsFor > goalsAgainst ? 'text-green-400' : 'text-yellow-400'}>
                       {goalsAgainst}
                     </span>
                   </div>

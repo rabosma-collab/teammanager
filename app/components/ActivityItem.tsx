@@ -10,6 +10,7 @@ const TYPE_ICON: Record<string, string> = {
   match_created:        '📅',
   match_result:         '⚽',
   voting_opened:        '🗳️',
+  vote_cast:            '🗳️',
   spdw_winner:          '🏆',
   absence_changed:      '👤',
   announcement_posted:  '📣',
@@ -72,6 +73,13 @@ function buildText(type: string, payload: Record<string, unknown>): string {
       const opp = p.opponent as string ?? 'onbekend';
       const ha = (p.home_away as string) === 'thuis' ? 'thuis' : 'uit';
       return `Stem op de SPDW van ${opp} (${ha})`;
+    }
+    case 'vote_cast': {
+      const actor = p.actor_name as string ?? 'Iemand';
+      const votedFor = p.voted_for_name as string ?? 'een speler';
+      const opp = p.opponent as string ?? 'onbekend';
+      const ha = (p.home_away as string) === 'thuis' ? 'thuis' : 'uit';
+      return `${actor} stemde op ${votedFor} als SPDW (${opp} ${ha})`;
     }
     case 'spdw_winner': {
       const name = p.subject_name as string ?? 'Onbekend';

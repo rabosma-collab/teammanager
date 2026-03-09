@@ -325,6 +325,29 @@ export function useVoting() {
 
       if (error) throw error;
 
+      // Log de stem in het berichtencentrum — namen ophalen voor leesbare tekst
+      const matchForLog = allMatches.find(m => m.id === matchId);
+      const playerIdsToFetch = [votedForPlayerId, ...(currentPlayerId ? [currentPlayerId] : [])];
+      const { data: nameData } = await supabase
+        .from('players')
+        .select('id, name')
+        .in('id', playerIdsToFetch);
+      const nameMap = new Map((nameData ?? []).map((p: { id: number; name: string }) => [p.id, p.name]));
+
+      logActivity({
+        teamId: currentTeam.id,
+        type: 'vote_cast',
+        actorId: currentPlayerId ?? null,
+        subjectId: votedForPlayerId,
+        matchId,
+        payload: {
+          actor_name: currentPlayerId ? (nameMap.get(currentPlayerId) ?? 'Iemand') : 'Iemand',
+          voted_for_name: nameMap.get(votedForPlayerId) ?? `Speler ${votedForPlayerId}`,
+          opponent: matchForLog?.opponent ?? 'onbekend',
+          home_away: matchForLog?.home_away ?? 'thuis',
+        },
+      });
+
       toast.success('✅ Succesvol gestemd!');
       await fetchVotingMatches(allMatches, currentPlayerId);
       return true;

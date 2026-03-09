@@ -118,32 +118,36 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
           <div>
             <h4 className="text-sm font-bold text-gray-400 mb-2">Wedstrijd stats</h4>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Goals</label>
-                <input type="number" value={goals} onChange={(e) => setGoals(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm" min="0" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Assists</label>
-                <input type="number" value={assists} onChange={(e) => setAssists(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm" min="0" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">🧺 Wasbeurt</label>
-                <input type="number" value={washCount} onChange={(e) => setWashCount(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm" min="0" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Minuten</label>
-                <input type="number" value={min} onChange={(e) => setMin(parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm" min="0" />
-              </div>
+              {([
+                { label: 'Goals', value: goals, set: setGoals },
+                { label: 'Assists', value: assists, set: setAssists },
+                { label: '🧺 Wasbeurt', value: washCount, set: setWashCount },
+                { label: 'Minuten', value: min, set: setMin, step: 10 },
+              ] as { label: string; value: number; set: (v: number) => void; step?: number }[]).map(({ label, value, set, step = 1 }) => (
+                <div key={label}>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">{label}</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => set(Math.max(0, value - step))}
+                      disabled={value <= 0}
+                      className="w-9 h-9 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-xl font-bold transition flex items-center justify-center flex-shrink-0"
+                    >−</button>
+                    <span className="flex-1 text-center text-lg font-black tabular-nums">{value}</span>
+                    <button
+                      type="button"
+                      onClick={() => set(value + step)}
+                      className="w-9 h-9 rounded-full bg-green-600 hover:bg-green-700 text-white text-xl font-bold transition flex items-center justify-center flex-shrink-0"
+                    >+</button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           <div>
             <h4 className="text-sm font-bold text-yellow-400 mb-2">🃏 FIFA Stats</h4>
-            <div className={`grid gap-2 ${position === 'Keeper' ? 'grid-cols-6' : 'grid-cols-5'}`}>
+            <div className="grid grid-cols-2 gap-2">
               {(position === 'Keeper'
                 ? [
                     { label: 'DIV', value: div, setter: setDiv },
@@ -161,16 +165,21 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
                     { label: 'DEF', value: def, setter: setDef },
                   ]
               ).map(({ label, value, setter }) => (
-                <div key={label} className="text-center">
-                  <label className="block text-[10px] font-bold text-yellow-400/70 mb-1">{label}</label>
-                  <input
-                    type="number"
-                    value={value}
-                    onChange={(e) => setter(Math.max(0, Math.min(99, parseInt(e.target.value) || 0)))}
-                    className="w-full px-1 py-1.5 bg-gray-700 border border-gray-600 rounded text-white text-sm text-center font-bold"
-                    min="0"
-                    max="99"
-                  />
+                <div key={label} className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-yellow-400/70 w-8 flex-shrink-0">{label}</span>
+                  <button
+                    type="button"
+                    onClick={() => setter(Math.max(0, value - 1))}
+                    disabled={value <= 0}
+                    className="w-7 h-7 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-base font-bold transition flex items-center justify-center flex-shrink-0"
+                  >−</button>
+                  <span className="flex-1 text-center text-sm font-black tabular-nums">{value}</span>
+                  <button
+                    type="button"
+                    onClick={() => setter(Math.min(99, value + 1))}
+                    disabled={value >= 99}
+                    className="w-7 h-7 rounded-full bg-green-600 hover:bg-green-700 disabled:opacity-30 text-white text-base font-bold transition flex items-center justify-center flex-shrink-0"
+                  >+</button>
                 </div>
               ))}
             </div>
