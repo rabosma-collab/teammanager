@@ -15,6 +15,7 @@ export interface Player {
     pas: number;
     dri: number;
     def: number;
+    phy?: number;
     div?: number;
     han?: number;
     kic?: number;

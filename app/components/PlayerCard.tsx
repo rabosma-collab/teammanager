@@ -26,16 +26,16 @@ function calcRating(player: Player): number {
     const { div = 50, han = 50, kic = 50, ref = 50, spe = 50, pos = 50 } = player;
     return Math.round((div * 0.25) + (ref * 0.25) + (pos * 0.20) + (han * 0.15) + (spe * 0.10) + (kic * 0.05));
   }
-  const { pac = 50, sho = 50, pas = 50, dri = 50, def: d = 50 } = player;
+  const { pac = 50, sho = 50, pas = 50, dri = 50, def: d = 50, phy = 70 } = player;
   switch (player.position) {
     case 'Verdediger':
-      return Math.round((pac * 0.15) + (sho * 0.05) + (pas * 0.15) + (dri * 0.10) + (d * 0.55));
+      return Math.round((d * 0.45) + (phy * 0.15) + (pac * 0.15) + (pas * 0.10) + (dri * 0.10) + (sho * 0.05));
     case 'Middenvelder':
-      return Math.round((pac * 0.15) + (sho * 0.15) + (pas * 0.30) + (dri * 0.25) + (d * 0.15));
+      return Math.round((pas * 0.25) + (dri * 0.20) + (pac * 0.15) + (sho * 0.15) + (phy * 0.15) + (d * 0.10));
     case 'Aanvaller':
-      return Math.round((pac * 0.20) + (sho * 0.35) + (pas * 0.15) + (dri * 0.25) + (d * 0.05));
+      return Math.round((sho * 0.30) + (dri * 0.25) + (pac * 0.20) + (phy * 0.15) + (pas * 0.05) + (d * 0.05));
     default:
-      return Math.round((pac + sho + pas + dri + d) / 5);
+      return Math.round((pac + sho + pas + dri + d + phy) / 6);
   }
 }
 
@@ -63,6 +63,7 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
         { label: 'PAS', value: player.pas || 0 },
         { label: 'DRI', value: player.dri || 0 },
         { label: 'DEF', value: player.def || 0 },
+        { label: 'PHY', value: player.phy ?? 70 },
       ];
 
   return (
