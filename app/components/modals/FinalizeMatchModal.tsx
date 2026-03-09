@@ -71,8 +71,6 @@ export default function FinalizeMatchModal({
     [players]
   );
 
-  const goalsFor = goalsFor;
-
   // Berekend overzicht van stats per speler voor bevestig-stap
   const computedStats = useMemo(() => {
     const map = new Map<number, { player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number }>();
