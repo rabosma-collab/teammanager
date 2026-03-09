@@ -326,7 +326,7 @@ export function useVoting() {
       if (error) throw error;
 
       // Log de stem in het berichtencentrum — namen ophalen voor leesbare tekst
-      const match = allMatches.find(m => m.id === matchId);
+      const matchForLog = allMatches.find(m => m.id === matchId);
       const playerIdsToFetch = [votedForPlayerId, ...(currentPlayerId ? [currentPlayerId] : [])];
       const { data: nameData } = await supabase
         .from('players')
@@ -343,8 +343,8 @@ export function useVoting() {
         payload: {
           actor_name: currentPlayerId ? (nameMap.get(currentPlayerId) ?? 'Iemand') : 'Iemand',
           voted_for_name: nameMap.get(votedForPlayerId) ?? `Speler ${votedForPlayerId}`,
-          opponent: match?.opponent ?? 'onbekend',
-          home_away: match?.home_away ?? 'thuis',
+          opponent: matchForLog?.opponent ?? 'onbekend',
+          home_away: matchForLog?.home_away ?? 'thuis',
         },
       });
 

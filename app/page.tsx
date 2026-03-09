@@ -919,6 +919,7 @@ export default function FootballApp() {
           match={selectedMatch}
           players={players}
           teamSettings={teamSettings}
+          teamName={currentTeam?.name ?? 'Wij'}
           onFinalize={handleFinalizeMatch}
           onClose={() => setShowFinalizeModal(false)}
         />
