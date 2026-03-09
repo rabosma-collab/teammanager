@@ -3,27 +3,27 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
+  /* Brand colors */
+  --color-brand: oklch(78% 0.18 85);          /* warm golden yellow */
+  --color-brand-dark: oklch(60% 0.16 80);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  /* Warm-tinted dark neutrals (subtle amber undertone) */
+  --color-bg:             oklch(11% 0.012 80); /* body background */
+  --color-surface:        oklch(16% 0.012 80); /* cards */
+  --color-surface-raised: oklch(20% 0.012 80); /* raised elements, dropdowns */
+  --color-border:         oklch(26% 0.010 80); /* card borders */
+  --color-border-subtle:  oklch(22% 0.008 80); /* section dividers */
+
+  /* Text */
+  --color-text:        oklch(94% 0.008 80);   /* primary */
+  --color-text-muted:  oklch(62% 0.012 80);   /* secondary */
+  --color-text-faint:  oklch(45% 0.010 80);   /* labels */
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
 /* Animation for card modal */

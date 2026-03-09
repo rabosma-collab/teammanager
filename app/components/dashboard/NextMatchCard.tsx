@@ -142,13 +142,13 @@ export default function NextMatchCard({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col gap-4">
-      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{getMatchCardTitle(match)}</h3>
+      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">{getMatchCardTitle(match)}</h3>
 
       {/* Match info */}
       <div>
-        <div className="text-xs text-gray-400 capitalize mb-1">{formatDate(match.date)}</div>
+        <div className="text-xs text-gray-500 capitalize mb-1">{formatDate(match.date)}</div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xl font-black text-white">{match.opponent}</span>
+          <span className="font-display font-bold text-2xl sm:text-3xl text-white uppercase leading-none">{match.opponent}</span>
           <span className={`text-xs px-2 py-1 rounded font-bold ${
             isThuis ? 'bg-green-900/60 text-green-300 border border-green-700/50' : 'bg-blue-900/60 text-blue-300 border border-blue-700/50'
           }`}>
@@ -168,7 +168,7 @@ export default function NextMatchCard({
           )}
         </div>
         {isFinalized && match.goals_for != null && match.goals_against != null && (
-          <div className="text-3xl font-black text-yellow-400 mt-1">
+          <div className="font-display font-bold text-4xl text-yellow-400 mt-1 leading-none">
             {match.goals_for} – {match.goals_against}
           </div>
         )}
@@ -254,11 +254,10 @@ export default function NextMatchCard({
       {/* Bekijk opstelling knop */}
       <button
         onClick={() => onNavigateToWedstrijd(match)}
-        className="w-full px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
+        className="w-full px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg font-display font-bold text-sm uppercase tracking-wide transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
       >
-        <span>⚽</span>
         <span>{isManager && !isFinalized ? 'Bekijk / bewerk opstelling' : 'Bekijk opstelling'}</span>
-        <span className="text-gray-400">→</span>
+        <span>→</span>
       </button>
     </div>
   );

@@ -1,11 +1,22 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { DM_Sans, Barlow_Condensed } from 'next/font/google';
 import { TeamProvider } from './contexts/TeamContext';
 import { ToastProvider } from './contexts/ToastContext';
 import CookieBanner from './components/CookieBanner';
 
-const inter = Inter({ subsets: ['latin'] });
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+  display: 'swap',
+});
+
+const barlowCondensed = Barlow_Condensed({
+  subsets: ['latin'],
+  weight: ['500', '600', '700', '800'],
+  variable: '--font-barlow-condensed',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Team Manager',
@@ -41,7 +52,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="nl">
-      <body className={inter.className}>
+      <body className={`${dmSans.variable} ${barlowCondensed.variable} font-sans`}>
         <ToastProvider>
           <TeamProvider>{children}</TeamProvider>
         </ToastProvider>

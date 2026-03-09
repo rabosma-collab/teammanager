@@ -46,26 +46,26 @@ export default function PersonalCard({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Mijn profiel</h3>
+      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 mb-3">Mijn profiel</h3>
       <div className="flex justify-center mb-4">
         <PlayerCard player={player} size="md" />
       </div>
       <div className="grid grid-cols-4 gap-1.5 text-center">
-        <div className="bg-gray-700/50 rounded-lg p-2">
-          <div className="text-xl font-black text-white">{player.goals}</div>
-          <div className="text-xs text-gray-400 mt-0.5">⚽ Goals</div>
+        <div className="bg-gray-700/40 rounded-lg p-2">
+          <div className="font-display font-bold text-2xl text-white leading-none">{player.goals}</div>
+          <div className="text-xs text-gray-500 mt-1">Goals</div>
         </div>
-        <div className="bg-gray-700/50 rounded-lg p-2">
-          <div className="text-xl font-black text-white">{player.assists}</div>
-          <div className="text-xs text-gray-400 mt-0.5">🎯 Assists</div>
+        <div className="bg-gray-700/40 rounded-lg p-2">
+          <div className="font-display font-bold text-2xl text-white leading-none">{player.assists}</div>
+          <div className="text-xs text-gray-500 mt-1">Assists</div>
         </div>
-        <div className="bg-gray-700/50 rounded-lg p-2">
-          <div className="text-xl font-black text-white">{player.min}</div>
-          <div className="text-xs text-gray-400 mt-0.5">⏱ Wissel</div>
+        <div className="bg-gray-700/40 rounded-lg p-2">
+          <div className="font-display font-bold text-2xl text-white leading-none">{player.min}</div>
+          <div className="text-xs text-gray-500 mt-1">Wissel</div>
         </div>
-        <div className="bg-yellow-900/40 rounded-lg p-2 border border-yellow-700/40">
-          <div className="text-xl font-black text-yellow-400">{potwWins}</div>
-          <div className="text-xs text-yellow-600 mt-0.5">🏆 SVDW</div>
+        <div className="bg-yellow-950/60 rounded-lg p-2 border border-yellow-800/40">
+          <div className="font-display font-bold text-2xl text-yellow-400 leading-none">{potwWins}</div>
+          <div className="text-xs text-yellow-700 mt-1">SVDW</div>
         </div>
       </div>
       {creditBalance != null && (
