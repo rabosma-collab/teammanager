@@ -467,7 +467,7 @@ export default function PlayersManageView({
                           )
                         )}
 
-                        <button onClick={() => setEditingPlayer(player)} className="px-2 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-xs sm:text-sm font-bold">✏️</button>
+                        <button onClick={() => setEditingPlayer(player)} className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold">✏️</button>
                         <button onClick={() => handleDelete(player)} className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold">🗑️</button>
                       </div>
                     </div>
@@ -489,7 +489,7 @@ export default function PlayersManageView({
           <h2 className="text-xl sm:text-2xl font-bold">🧑‍💼 Stafleden</h2>
           <button
             onClick={() => setShowStaffInviteModal(true)}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded font-bold text-sm"
+            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm"
           >
             ➕ Staflid uitnodigen
           </button>

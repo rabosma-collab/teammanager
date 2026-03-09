@@ -64,7 +64,7 @@ export default function MyAvailabilityPanel({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 mb-3">
         Mijn beschikbaarheid
       </h3>
 

@@ -159,10 +159,10 @@ export default function Navbar({
       This split is needed because overflow-x:auto also sets overflow-y:auto (CSS spec),
       which would clip the absolute-positioned Beheer dropdown.
     */}
-    <nav className="flex items-stretch bg-gray-800 border-b border-gray-700 select-none">
+    <nav className="flex items-stretch bg-gray-900 border-b border-gray-800 select-none min-h-[52px]">
 
       {/* Scrollable left side */}
-      <div className="flex items-center gap-1.5 sm:gap-3 p-2 sm:p-4 overflow-x-auto flex-1 min-w-0">
+      <div className="flex items-stretch gap-0 overflow-x-auto flex-1 min-w-0 pl-1 sm:pl-2">
         <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
         <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
         <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Uitslagen" />
@@ -171,13 +171,13 @@ export default function Navbar({
       </div>
 
       {/* Right side: team-switcher + Beheer + profile + logout — NOT inside the overflow div */}
-      <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 flex-shrink-0 border-l border-gray-700/50">
+      <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 flex-shrink-0 border-l border-gray-800">
 
         {/* Team-switcher — hier staat het dropdown BUITEN de overflow-x:auto container */}
         <div className="relative" ref={teamSwitcherRef}>
           <button
             onClick={() => setShowTeamSwitcher(v => !v)}
-            className="flex items-center gap-1.5 text-xs text-gray-300 font-medium px-2 py-1.5 bg-gray-700/50 hover:bg-gray-700 rounded transition-colors"
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 font-display font-semibold uppercase tracking-wide px-2 py-1.5 hover:bg-gray-800 rounded transition-colors"
           >
             <span
               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -192,7 +192,7 @@ export default function Navbar({
           </button>
 
           {showTeamSwitcher && (
-            <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 w-56 py-1">
+            <div className="absolute top-full right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 w-56 py-1">
               {teams.map(team => (
                 <button
                   key={team.id}
@@ -201,8 +201,8 @@ export default function Navbar({
                     setShowTeamSwitcher(false);
                     setView('dashboard');
                   }}
-                  className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 transition hover:bg-gray-700 ${
-                    team.id === currentTeam?.id ? 'bg-gray-700/50' : ''
+                  className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2.5 transition hover:bg-gray-800 ${
+                    team.id === currentTeam?.id ? 'bg-gray-800' : ''
                   }`}
                 >
                   <span
@@ -220,7 +220,7 @@ export default function Navbar({
               <div className="border-t border-gray-700 mt-1 pt-1">
                 <button
                   onClick={() => { setShowTeamSwitcher(false); router.push('/team/new'); }}
-                  className="w-full text-left px-3 py-2.5 text-sm text-yellow-400 hover:bg-gray-700 transition flex items-center gap-2"
+                  className="w-full text-left px-3 py-2.5 text-sm text-yellow-400 hover:bg-gray-800 transition flex items-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -236,23 +236,25 @@ export default function Navbar({
           <div className="relative" ref={beheerRef}>
             <button
               onClick={() => setShowBeheer(v => !v)}
-              className={`px-2.5 sm:px-4 py-2 rounded font-bold transition text-xs sm:text-base flex-shrink-0 ${
-                beheerActive ? 'bg-yellow-500 text-black' : 'bg-gray-700 hover:bg-gray-600'
+              className={`px-2.5 sm:px-3 py-1.5 rounded font-display font-semibold uppercase tracking-wide transition text-xs flex-shrink-0 ${
+                beheerActive
+                  ? 'bg-yellow-500 text-gray-900'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
               }`}
             >
-              <span className="hidden sm:inline">⚙️ Beheer {showBeheer ? '▲' : '▼'}</span>
-              <span className="sm:hidden">⚙️</span>
+              <span className="hidden sm:inline">Beheer {showBeheer ? '▲' : '▼'}</span>
+              <span className="sm:hidden">⚙</span>
             </button>
 
             {showBeheer && (
-              <div className="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 w-48 py-1">
+              <div className="absolute top-full right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 w-48 py-1">
                 <BeheerItem
                   icon="⚙️"
                   label="Teaminstellingen"
                   active={view === 'team-settings'}
                   onClick={() => navigateTo('team-settings')}
                 />
-                <div className="border-t border-gray-700/60 my-1" />
+                <div className="border-t border-gray-800 my-1" />
                 <BeheerItem
                   icon="📣"
                   label="Mededelingen"
@@ -298,7 +300,7 @@ export default function Navbar({
         {/* Bel-icoon met ongelezen-badge */}
         <button
           onClick={onBellClick}
-          className="relative p-2 hover:bg-gray-700 rounded transition-colors flex-shrink-0"
+          className="relative p-2 hover:bg-gray-800 rounded transition-colors flex-shrink-0"
           title="Activiteit"
         >
           <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,12 +351,17 @@ function NavButton({ active, onClick, icon, label }: {
   return (
     <button
       onClick={onClick}
-      className={`px-2.5 sm:px-5 py-2 rounded font-bold transition text-xs sm:text-base flex-shrink-0 ${
-        active ? 'bg-yellow-500 text-black' : 'bg-gray-700 hover:bg-gray-600'
+      className={`relative px-3 sm:px-4 py-0 font-display font-semibold uppercase tracking-wide transition-colors text-xs sm:text-sm flex-shrink-0 flex items-center gap-1.5 h-full ${
+        active
+          ? 'text-yellow-400'
+          : 'text-gray-500 hover:text-gray-200'
       }`}
     >
-      <span className="hidden sm:inline">{icon} {label}</span>
+      <span className="hidden sm:inline">{label}</span>
       <span className="sm:hidden">{icon}</span>
+      {active && (
+        <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-400 rounded-t" />
+      )}
     </button>
   );
 }
@@ -368,8 +375,8 @@ function BeheerItem({ icon, label, active, onClick }: {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-2.5 text-sm font-medium transition hover:bg-gray-700 flex items-center gap-2 ${
-        active ? 'text-yellow-400 bg-gray-700/50' : 'text-gray-200'
+      className={`w-full text-left px-4 py-2.5 text-sm font-medium transition hover:bg-gray-800 flex items-center gap-2 ${
+        active ? 'text-yellow-400' : 'text-gray-300'
       }`}
     >
       <span>{icon}</span>

@@ -253,7 +253,7 @@ export default function JoinPage() {
             </div>
             <InviteDetails invite={state.invite} />
             <div className="space-y-3 mt-6">
-              <button onClick={handleLoginRedirect} className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold text-base transition active:scale-[0.98]">
+              <button onClick={handleLoginRedirect} className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-gray-900 font-display font-bold uppercase tracking-wide text-base transition active:scale-[0.98]">
                 Inloggen
               </button>
               <button onClick={handleRegisterRedirect} className="w-full py-3 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-white font-bold text-base transition active:scale-[0.98]">
@@ -300,7 +300,7 @@ export default function JoinPage() {
             <p className="text-gray-400 mb-6">
               Je bent al lid van <strong className="text-white">{state.invite.team.name}</strong>. Je kunt direct naar de app gaan.
             </p>
-            <Link href="/" className="inline-block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
+            <Link href="/" className="inline-block w-full py-3 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-gray-900 font-display font-bold uppercase tracking-wide transition active:scale-[0.98]">
               Naar Team Manager
             </Link>
           </div>
@@ -320,7 +320,7 @@ export default function JoinPage() {
             <p className="text-gray-400 mb-6">
               Je bent nu lid van <strong className="text-white">{state.teamName}</strong>. Je wordt doorgestuurd...
             </p>
-            <Link href="/" className="inline-block w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
+            <Link href="/" className="inline-block w-full py-3 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-gray-900 font-display font-bold uppercase tracking-wide transition active:scale-[0.98]">
               Naar Team Manager
             </Link>
           </div>
@@ -331,7 +331,7 @@ export default function JoinPage() {
             <div className="text-5xl mb-4">⚠️</div>
             <h2 className="text-2xl font-bold text-white mb-3">Er ging iets mis</h2>
             <p className="text-gray-400 mb-6">{state.message}</p>
-            <button onClick={validateToken} className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition active:scale-[0.98]">
+            <button onClick={validateToken} className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-gray-900 font-display font-bold uppercase tracking-wide transition active:scale-[0.98]">
               Opnieuw proberen
             </button>
           </div>

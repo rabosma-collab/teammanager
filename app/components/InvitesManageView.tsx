@@ -259,7 +259,7 @@ export default function InvitesManageView() {
                   <button
                     onClick={() => handleCopy(invite)}
                     className={`px-3 py-1.5 rounded text-xs font-bold transition-colors ${
-                      isCopied ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                      isCopied ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-yellow-500 hover:bg-yellow-400 text-gray-900'
                     }`}
                   >
                     {isCopied ? '✅ Gekopieerd' : '📋 Link'}

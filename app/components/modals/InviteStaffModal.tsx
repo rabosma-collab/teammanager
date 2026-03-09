@@ -116,7 +116,7 @@ export default function InviteStaffModal({ onClose, onInviteCreated }: InviteSta
             <button
               onClick={generateInvite}
               disabled={loading || !displayName.trim()}
-              className="w-full p-3 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full p-3 rounded-lg font-display font-bold bg-yellow-500 hover:bg-yellow-400 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide"
             >
               {loading ? 'Aanmaken...' : '📨 Link aanmaken'}
             </button>
@@ -143,7 +143,7 @@ export default function InviteStaffModal({ onClose, onInviteCreated }: InviteSta
             <button
               onClick={handleCopy}
               className={`w-full p-3 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition-colors ${
-                copied ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                copied ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-yellow-500 hover:bg-yellow-400 text-gray-900'
               }`}
             >
               {copied ? <><span>✅</span><span>Gekopieerd!</span></> : <><span>📋</span><span>Link kopiëren</span></>}
