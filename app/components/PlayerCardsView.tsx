@@ -10,6 +10,7 @@ const OUTFIELD_STAT_LABELS: { key: keyof Player; label: string }[] = [
   { key: 'pas', label: 'PAS' },
   { key: 'dri', label: 'DRI' },
   { key: 'def', label: 'DEF' },
+  { key: 'phy', label: 'PHY' },
 ];
 
 const KEEPER_STAT_LABELS: { key: keyof Player; label: string }[] = [
@@ -297,27 +298,27 @@ export default function PlayerCardsView({
                   pos: '🛡️ Verdediger',
                   color: 'border-blue-600',
                   stats: [
-                    { label: 'DEF', pct: 55 }, { label: 'PAC', pct: 15 },
-                    { label: 'PAS', pct: 15 }, { label: 'DRI', pct: 10 },
-                    { label: 'SHO', pct: 5 },
+                    { label: 'DEF', pct: 45 }, { label: 'PHY', pct: 15 },
+                    { label: 'PAC', pct: 15 }, { label: 'PAS', pct: 10 },
+                    { label: 'DRI', pct: 10 }, { label: 'SHO', pct: 5 },
                   ],
                 },
                 {
                   pos: '⚙️ Middenvelder',
                   color: 'border-yellow-600',
                   stats: [
-                    { label: 'PAS', pct: 30 }, { label: 'DRI', pct: 25 },
+                    { label: 'PAS', pct: 25 }, { label: 'DRI', pct: 20 },
                     { label: 'PAC', pct: 15 }, { label: 'SHO', pct: 15 },
-                    { label: 'DEF', pct: 15 },
+                    { label: 'PHY', pct: 15 }, { label: 'DEF', pct: 10 },
                   ],
                 },
                 {
                   pos: '⚡ Aanvaller',
                   color: 'border-red-600',
                   stats: [
-                    { label: 'SHO', pct: 35 }, { label: 'DRI', pct: 25 },
-                    { label: 'PAC', pct: 20 }, { label: 'PAS', pct: 15 },
-                    { label: 'DEF', pct: 5 },
+                    { label: 'SHO', pct: 30 }, { label: 'DRI', pct: 25 },
+                    { label: 'PAC', pct: 20 }, { label: 'PHY', pct: 15 },
+                    { label: 'PAS', pct: 5 }, { label: 'DEF', pct: 5 },
                   ],
                 },
               ].map(({ pos, color, stats }) => (

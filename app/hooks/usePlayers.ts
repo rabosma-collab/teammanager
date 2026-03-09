@@ -230,7 +230,7 @@ export function usePlayers() {
   }, [players, currentTeam]);
 
   const addPlayer = useCallback(async (
-    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number; wash_count: number; div?: number; han?: number; kic?: number; ref?: number; spe?: number; pos?: number }
+    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number; phy?: number; wash_count: number; div?: number; han?: number; kic?: number; ref?: number; spe?: number; pos?: number }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -252,7 +252,7 @@ export function usePlayers() {
 
   const updatePlayer = useCallback(async (
     id: number,
-    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number; wash_count: number; div?: number; han?: number; kic?: number; ref?: number; spe?: number; pos?: number }
+    playerData: { name: string; position: string; injured: boolean; goals: number; assists: number; min: number; pac: number; sho: number; pas: number; dri: number; def: number; phy?: number; wash_count: number; div?: number; han?: number; kic?: number; ref?: number; spe?: number; pos?: number }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 

@@ -16,6 +16,7 @@ export interface PlayerFormData {
   pas: number;
   dri: number;
   def: number;
+  phy?: number;
   div?: number;
   han?: number;
   kic?: number;
@@ -44,6 +45,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
   const [pas, setPas] = useState(player?.pas ?? 50);
   const [dri, setDri] = useState(player?.dri ?? 50);
   const [def, setDef] = useState(player?.def ?? 50);
+  const [phy, setPhy] = useState(player?.phy ?? 70);
   const [div, setDiv] = useState(player?.div ?? 50);
   const [han, setHan] = useState(player?.han ?? 50);
   const [kic, setKic] = useState(player?.kic ?? 50);
@@ -63,7 +65,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
       return;
     }
     setNameError('');
-    onSave({ name: trimmed, position, injured, goals, assists, min, wash_count: washCount, pac, sho, pas, dri, def, div, han, kic, ref, spe, pos });
+    onSave({ name: trimmed, position, injured, goals, assists, min, wash_count: washCount, pac, sho, pas, dri, def, phy, div, han, kic, ref, spe, pos });
   };
 
   return (
@@ -163,6 +165,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
                     { label: 'PAS', value: pas, setter: setPas },
                     { label: 'DRI', value: dri, setter: setDri },
                     { label: 'DEF', value: def, setter: setDef },
+                    { label: 'PHY', value: phy, setter: setPhy },
                   ]
               ).map(({ label, value, setter }) => (
                 <div key={label} className="flex items-center gap-2">

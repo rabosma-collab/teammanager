@@ -34,6 +34,7 @@ export default function PlayerStatsEditModal({ player, onUpdateStat, onClose }: 
         { label: 'PAS', field: 'pas', desc: 'Passen' },
         { label: 'DRI', field: 'dri', desc: 'Dribbelen' },
         { label: 'DEF', field: 'def', desc: 'Verdedigen' },
+        { label: 'PHY', field: 'phy', desc: 'Fysiek' },
       ];
 
   return (
