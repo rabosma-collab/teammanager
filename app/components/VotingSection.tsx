@@ -4,6 +4,14 @@ import { useToast } from '../contexts/ToastContext';
 
 const POINTS_BY_RANK = [5, 3, 2];
 
+function getDenseRank(voteCount: number, allEntries: { vote_count: number }[]): number {
+  return allEntries.filter(e => e.vote_count > voteCount).length + 1;
+}
+
+function getMedal(rank: number): string {
+  return rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
+}
+
 interface VotingSectionProps {
   votingMatches: VotingMatch[];
   isLoading: boolean;
@@ -65,7 +73,6 @@ export default function VotingSection({
         {(currentPlayerId || isStaff) && votingMatches.map(vm => {
           const isClosed = vm.daysRemaining === 0;
           const topVotes = vm.votes.filter(v => v.vote_count > 0);
-          const winner = topVotes[0];
 
           return (
             <div key={vm.match.id} className="bg-gray-800/50 rounded-lg p-3 sm:p-4 mb-3 last:mb-0 border border-gray-700">
@@ -100,39 +107,50 @@ export default function VotingSection({
                 <div>
                   {topVotes.length === 0 ? (
                     <p className="text-gray-500 text-sm text-center py-3">Geen stemmen uitgebracht</p>
-                  ) : (
-                    <>
-                      {/* Winnaar spotlight */}
-                      <div className="text-center py-4 px-3 mb-4 rounded-xl bg-gradient-to-b from-yellow-900/40 to-amber-950/30 border border-yellow-600/40">
-                        <div className="text-4xl mb-1">🏆</div>
-                        <div className="text-yellow-500 font-black text-lg tracking-wide uppercase mb-1">Speler van de Week!</div>
-                        <div className="text-white font-black text-2xl sm:text-3xl">{winner.player_name}</div>
-                        <div className="text-yellow-600/80 text-sm mt-1">
-                          {winner.vote_count} {winner.vote_count === 1 ? 'stem' : 'stemmen'} &middot; +{POINTS_BY_RANK[0]} credits
+                  ) : (() => {
+                    const ranked = topVotes.map(v => ({
+                      ...v,
+                      rank: getDenseRank(v.vote_count, topVotes),
+                      credits: POINTS_BY_RANK[getDenseRank(v.vote_count, topVotes) - 1] ?? 0,
+                    })).filter(v => v.rank <= 3);
+                    const winners = ranked.filter(v => v.rank === 1);
+                    const rest = ranked.filter(v => v.rank > 1);
+                    return (
+                      <>
+                        {/* Winnaar spotlight */}
+                        <div className="text-center py-4 px-3 mb-4 rounded-xl bg-gradient-to-b from-yellow-900/40 to-amber-950/30 border border-yellow-600/40">
+                          <div className="text-4xl mb-1">🏆</div>
+                          <div className="text-yellow-500 font-black text-lg tracking-wide uppercase mb-1">Speler van de Week!</div>
+                          <div className="text-white font-black text-2xl sm:text-3xl">
+                            {winners.map(w => w.player_name).join(' & ')}
+                          </div>
+                          <div className="text-yellow-600/80 text-sm mt-1">
+                            {winners[0].vote_count} {winners[0].vote_count === 1 ? 'stem' : 'stemmen'} &middot; +{POINTS_BY_RANK[0]} credits
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Top 3 */}
-                      {topVotes.length > 1 && (
-                        <div className="space-y-1.5">
-                          {topVotes.slice(1, 3).map((v, idx) => (
-                            <div key={v.player_id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-700/30">
-                              <div className="flex items-center gap-2">
-                                <span className="text-base">{idx === 0 ? '🥈' : '🥉'}</span>
-                                <span className="text-gray-200 text-sm font-medium">{v.player_name}</span>
+                        {/* Top 2 en 3 */}
+                        {rest.length > 0 && (
+                          <div className="space-y-1.5">
+                            {rest.map(v => (
+                              <div key={v.player_id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-700/30">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-base">{getMedal(v.rank)}</span>
+                                  <span className="text-gray-200 text-sm font-medium">{v.player_name}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-gray-400 text-xs">{v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}</span>
+                                  {v.credits > 0 && (
+                                    <span className="text-yellow-700 text-xs font-bold">+{v.credits} cr.</span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-gray-400 text-xs">{v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}</span>
-                                {POINTS_BY_RANK[idx + 1] && (
-                                  <span className="text-yellow-700 text-xs font-bold">+{POINTS_BY_RANK[idx + 1]} cr.</span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -195,17 +213,20 @@ export default function VotingSection({
                   <div className="text-sm">
                     <p className="font-bold text-gray-300 mb-2">Huidige stand:</p>
                     <div className="space-y-1">
-                      {vm.votes.filter(v => v.vote_count > 0).map((v, idx) => (
-                        <div key={v.player_id} className="flex justify-between items-center p-1.5 rounded bg-gray-700/30">
-                          <span className={idx === 0 ? 'text-yellow-400 font-bold' : 'text-gray-300'}>
-                            {idx === 0 && '🥇 '}{idx === 1 && '🥈 '}{idx === 2 && '🥉 '}
-                            {v.player_name}
-                          </span>
-                          <span className="text-gray-400 text-xs">
-                            {v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}
-                          </span>
-                        </div>
-                      ))}
+                      {vm.votes.filter(v => v.vote_count > 0).map((v, _idx, arr) => {
+                        const rank = getDenseRank(v.vote_count, arr);
+                        const medal = getMedal(rank);
+                        return (
+                          <div key={v.player_id} className="flex justify-between items-center p-1.5 rounded bg-gray-700/30">
+                            <span className={rank === 1 ? 'text-yellow-400 font-bold' : 'text-gray-300'}>
+                              {medal && `${medal} `}{v.player_name}
+                            </span>
+                            <span className="text-gray-400 text-xs">
+                              {v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}
+                            </span>
+                          </div>
+                        );
+                      })}
                       {vm.votes.filter(v => v.vote_count > 0).length === 0 && (
                         <div className="text-gray-500 text-xs">Nog geen stemmen</div>
                       )}
