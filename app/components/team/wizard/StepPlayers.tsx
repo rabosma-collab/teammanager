@@ -111,11 +111,12 @@ interface Props {
   teamId: string;
   currentUserId: string | null;
   onNext: () => void;
+  onBack: () => void;
   onSkip: () => void;
   onPlayersImported: (count: number) => void;
 }
 
-export default function StepPlayers({ teamId, currentUserId, onNext, onSkip, onPlayersImported }: Props) {
+export default function StepPlayers({ teamId, currentUserId, onNext, onBack, onSkip, onPlayersImported }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>('choice');
 
@@ -292,6 +293,9 @@ export default function StepPlayers({ teamId, currentUserId, onNext, onSkip, onP
           />
 
           <div className="flex gap-3">
+            <button onClick={onBack} className="px-4 py-3 text-gray-400 hover:text-gray-200 font-medium text-sm transition">
+              ← Vorige
+            </button>
             <button
               onClick={() => handleNext()}
               disabled={staffSaving}

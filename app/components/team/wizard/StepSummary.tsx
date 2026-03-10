@@ -16,10 +16,11 @@ interface SummaryData {
 interface Props {
   data: SummaryData;
   onFinish: () => void;
+  onBack: () => void;
   isLoading: boolean;
 }
 
-export default function StepSummary({ data, onFinish, isLoading }: Props) {
+export default function StepSummary({ data, onFinish, onBack, isLoading }: Props) {
   const rows: Array<{ label: string; value: string; done: boolean }> = [
     {
       label: 'Team aangemaakt',
@@ -80,13 +81,22 @@ export default function StepSummary({ data, onFinish, isLoading }: Props) {
         Je kan alles daarna wijzigen via Beheer → Teaminstellingen.
       </p>
 
-      <button
-        onClick={onFinish}
-        disabled={isLoading}
-        className="w-full py-3.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl text-base transition active:scale-95"
-      >
-        {isLoading ? 'Laden...' : '🏠 Open mijn team'}
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          disabled={isLoading}
+          className="px-4 py-3 text-gray-400 hover:text-gray-200 font-medium text-sm transition disabled:opacity-50"
+        >
+          ← Vorige
+        </button>
+        <button
+          onClick={onFinish}
+          disabled={isLoading}
+          className="flex-1 py-3.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl text-base transition active:scale-95"
+        >
+          {isLoading ? 'Laden...' : '🏠 Open mijn team'}
+        </button>
+      </div>
     </div>
   );
 }

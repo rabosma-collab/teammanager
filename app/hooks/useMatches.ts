@@ -126,7 +126,7 @@ export function useMatches() {
   }, [selectedMatch]);
 
   const addMatch = useCallback(async (
-    matchData: { date: string; opponent: string; home_away: string; formation: string; substitution_scheme_id: number }
+    matchData: { date: string; opponent: string; home_away: string; formation: string }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -156,7 +156,7 @@ export function useMatches() {
 
   const updateMatch = useCallback(async (
     id: number,
-    matchData: { date: string; opponent: string; home_away: string; formation: string; substitution_scheme_id: number }
+    matchData: { date: string; opponent: string; home_away: string; formation: string }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 

@@ -743,7 +743,7 @@ export default function FootballApp() {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
         <div className="text-center">
-          <div className="text-4xl mb-4">⚽</div>
+          <img src="/logo-full.png" alt="Team Manager" className="h-16 mb-4 mx-auto" />
           <div>Laden...</div>
         </div>
       </div>
@@ -764,7 +764,7 @@ export default function FootballApp() {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
         <div className="text-center">
-          <div className="text-4xl mb-4">⚽</div>
+          <img src="/logo-full.png" alt="Team Manager" className="h-16 mb-4 mx-auto" />
           <div>Laden...</div>
         </div>
       </div>
@@ -1039,9 +1039,7 @@ export default function FootballApp() {
       ) : view === 'matches-manage' && isManager ? (
         <MatchesManageView
           matches={matches}
-          schemes={schemes}
           gameFormat={gameFormat}
-          matchDuration={matchDuration}
           defaultFormation={teamSettings?.default_formation}
           onAddMatch={addMatch}
           onUpdateMatch={updateMatch}

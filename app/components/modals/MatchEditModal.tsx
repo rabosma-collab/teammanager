@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { formations, formationLabels } from '../../lib/constants';
-import type { Match, SubstitutionScheme } from '../../lib/types';
+import { formationLabels } from '../../lib/constants';
+import type { Match } from '../../lib/types';
 import DraggableModal from './DraggableModal';
 
 export interface MatchFormData {
@@ -8,25 +8,21 @@ export interface MatchFormData {
   opponent: string;
   home_away: string;
   formation: string;
-  substitution_scheme_id: number;
 }
 
 interface MatchEditModalProps {
   match: Match | null; // null = new match
-  schemes: SubstitutionScheme[];
   gameFormat: string;
-  matchDuration?: number;
   defaultFormation?: string;
   onSave: (data: MatchFormData) => void;
   onClose: () => void;
 }
 
-export default function MatchEditModal({ match, schemes, gameFormat, matchDuration = 90, defaultFormation = '4-3-3-aanvallend', onSave, onClose }: MatchEditModalProps) {
+export default function MatchEditModal({ match, gameFormat, defaultFormation = '4-3-3-aanvallend', onSave, onClose }: MatchEditModalProps) {
   const [date, setDate] = useState(match?.date || '');
   const [opponent, setOpponent] = useState(match?.opponent || '');
   const [homeAway, setHomeAway] = useState(match?.home_away || 'Thuis');
   const [formation, setFormation] = useState(match?.formation || defaultFormation);
-  const [schemeId, setSchemeId] = useState(match?.substitution_scheme_id || 1);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +32,6 @@ export default function MatchEditModal({ match, schemes, gameFormat, matchDurati
       opponent: opponent.trim(),
       home_away: homeAway,
       formation,
-      substitution_scheme_id: schemeId
     });
   };
 
@@ -97,29 +92,6 @@ export default function MatchEditModal({ match, schemes, gameFormat, matchDurati
               {Object.entries(formationLabels[gameFormat] ?? formationLabels['11v11']).map(([f, label]) => (
                 <option key={f} value={f}>{label}</option>
               ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-400 mb-1">Wisselschema</label>
-            <select
-              value={schemeId}
-              onChange={(e) => setSchemeId(parseInt(e.target.value))}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
-            >
-              {schemes.map(scheme => {
-                // Globale schema's zijn ontworpen voor 90 min en worden geschaald naar de werkelijke duur.
-                // Team-specifieke schema's bevatten al de exacte minuten — niet opnieuw schalen.
-                const displayMinutes = scheme.team_id
-                  ? scheme.minutes
-                  : scheme.minutes.map(m => Math.round(m * matchDuration / 90));
-                return (
-                  <option key={scheme.id} value={scheme.id}>
-                    {scheme.name}
-                    {displayMinutes.length > 0 ? ` (${displayMinutes.join("', ")}')` : ''}
-                  </option>
-                );
-              })}
             </select>
           </div>
 

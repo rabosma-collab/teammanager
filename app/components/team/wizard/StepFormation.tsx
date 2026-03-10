@@ -8,10 +8,11 @@ interface Props {
   formation: string;
   onChangeFormation: (v: string) => void;
   onNext: () => void;
+  onBack: () => void;
   onSkip: () => void;
 }
 
-export default function StepFormation({ gameFormat, formation, onChangeFormation, onNext, onSkip }: Props) {
+export default function StepFormation({ gameFormat, formation, onChangeFormation, onNext, onBack, onSkip }: Props) {
   const availableFormations = formationLabels[gameFormat] ?? formationLabels['11v11'];
 
   return (
@@ -52,6 +53,12 @@ export default function StepFormation({ gameFormat, formation, onChangeFormation
       </div>
 
       <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          className="px-4 py-3 text-gray-400 hover:text-gray-200 font-medium text-sm transition"
+        >
+          ← Vorige
+        </button>
         <button
           onClick={onNext}
           className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition active:scale-95"

@@ -11,10 +11,11 @@ interface Props {
   onChangeMatchDuration: (v: number) => void;
   onChangePeriods: (v: number) => void;
   onNext: () => void;
+  onBack: () => void;
   onSkip: () => void;
 }
 
-export default function StepSpelvorm({ gameFormat, matchDuration, periods, onChangeGameFormat, onChangeMatchDuration, onChangePeriods, onNext, onSkip }: Props) {
+export default function StepSpelvorm({ gameFormat, matchDuration, periods, onChangeGameFormat, onChangeMatchDuration, onChangePeriods, onNext, onBack, onSkip }: Props) {
   const periodDuration = Math.round(matchDuration / periods);
 
   return (
@@ -92,6 +93,12 @@ export default function StepSpelvorm({ gameFormat, matchDuration, periods, onCha
       </div>
 
       <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          className="px-4 py-3 text-gray-400 hover:text-gray-200 font-medium text-sm transition"
+        >
+          ← Vorige
+        </button>
         <button
           onClick={onNext}
           className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition active:scale-95"
