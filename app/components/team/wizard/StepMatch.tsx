@@ -51,11 +51,12 @@ interface Props {
   teamId: string;
   defaultFormation: string;
   onNext: () => void;
+  onBack: () => void;
   onSkip: () => void;
   onMatchCreated: () => void;
 }
 
-export default function StepMatch({ teamId, defaultFormation, onNext, onSkip, onMatchCreated }: Props) {
+export default function StepMatch({ teamId, defaultFormation, onNext, onBack, onSkip, onMatchCreated }: Props) {
   const [mode, setMode] = useState<Mode>('choice');
 
   // ── Handmatig ─────────────────────────────────────────────
@@ -169,6 +170,9 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onSkip, on
           </button>
 
           <div className="flex gap-3">
+            <button onClick={onBack} className="px-4 py-3 text-gray-400 hover:text-gray-200 font-medium text-sm transition">
+              ← Vorige
+            </button>
             <button onClick={onNext} className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition active:scale-95">
               Doorgaan →
             </button>

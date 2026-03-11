@@ -22,10 +22,11 @@ interface Props {
   settings: SettingsState;
   onToggle: (key: keyof SettingsState) => void;
   onNext: () => void;
+  onBack: () => void;
   onSkip: () => void;
 }
 
-export default function StepSettings({ settings, onToggle, onNext, onSkip }: Props) {
+export default function StepSettings({ settings, onToggle, onNext, onBack, onSkip }: Props) {
   return (
     <div className="space-y-6">
       <div>
@@ -62,6 +63,12 @@ export default function StepSettings({ settings, onToggle, onNext, onSkip }: Pro
       </div>
 
       <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          className="px-4 py-3 text-gray-400 hover:text-gray-200 font-medium text-sm transition"
+        >
+          ← Vorige
+        </button>
         <button
           onClick={onNext}
           className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition active:scale-95"

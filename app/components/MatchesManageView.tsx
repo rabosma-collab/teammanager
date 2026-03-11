@@ -2,15 +2,13 @@
 
 import React, { useState } from 'react';
 import { formationLabels } from '../lib/constants';
-import type { Match, SubstitutionScheme } from '../lib/types';
+import type { Match } from '../lib/types';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import { useToast } from '../contexts/ToastContext';
 
 interface MatchesManageViewProps {
   matches: Match[];
-  schemes: SubstitutionScheme[];
   gameFormat: string;
-  matchDuration?: number;
   defaultFormation?: string;
   onAddMatch: (data: MatchFormData) => Promise<boolean>;
   onUpdateMatch: (id: number, data: MatchFormData) => Promise<boolean>;
@@ -21,9 +19,7 @@ interface MatchesManageViewProps {
 
 export default function MatchesManageView({
   matches,
-  schemes,
   gameFormat,
-  matchDuration = 90,
   defaultFormation,
   onAddMatch,
   onUpdateMatch,
@@ -112,9 +108,7 @@ export default function MatchesManageView({
       {editingMatch !== null && (
         <MatchEditModal
           match={editingMatch === 'new' ? null : editingMatch}
-          schemes={schemes}
           gameFormat={gameFormat}
-          matchDuration={matchDuration}
           defaultFormation={defaultFormation}
           onSave={handleSave}
           onClose={() => setEditingMatch(null)}

@@ -345,6 +345,7 @@ export default function TeamSetupWizard() {
               onChangeMatchDuration={setMatchDuration}
               onChangePeriods={setPeriods}
               onNext={() => handleSaveGameFormat(gameFormat)}
+              onBack={() => setStep(1)}
               onSkip={() => setStep(3)}
             />
           )}
@@ -354,6 +355,7 @@ export default function TeamSetupWizard() {
               formation={formation}
               onChangeFormation={setFormation}
               onNext={handleSaveFormation}
+              onBack={() => setStep(2)}
               onSkip={() => setStep(4)}
             />
           )}
@@ -362,6 +364,7 @@ export default function TeamSetupWizard() {
               settings={settings}
               onToggle={(key) => setSettings((prev: SettingsState) => ({ ...prev, [key]: !prev[key] }))}
               onNext={handleSaveSettings}
+              onBack={() => setStep(3)}
               onSkip={() => setStep(5)}
             />
           )}
@@ -370,6 +373,7 @@ export default function TeamSetupWizard() {
               teamId={teamId}
               currentUserId={currentUserId}
               onNext={() => setStep(6)}
+              onBack={() => setStep(4)}
               onSkip={handleSkip}
               onPlayersImported={(count) => setPlayersImported(count)}
             />
@@ -379,6 +383,7 @@ export default function TeamSetupWizard() {
               teamId={teamId}
               defaultFormation={formation}
               onNext={() => setStep(7)}
+              onBack={() => setStep(5)}
               onSkip={handleSkip}
               onMatchCreated={() => setMatchCreated(true)}
             />
@@ -395,6 +400,7 @@ export default function TeamSetupWizard() {
                 settingsDone: settingsSaved,
               }}
               onFinish={handleFinish}
+              onBack={() => setStep(6)}
               isLoading={finishLoading}
             />
           )}
