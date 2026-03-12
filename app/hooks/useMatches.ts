@@ -69,7 +69,14 @@ export function useMatches() {
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
-    const isAbsent = matchAbsences.includes(playerId);
+    // Query the DB directly so this works for any match, not just the pitch-view's selected match
+    const { data: existing } = await supabase
+      .from('match_absences')
+      .select('player_id')
+      .eq('match_id', matchId)
+      .eq('player_id', playerId)
+      .maybeSingle();
+    const isAbsent = !!existing;
 
     try {
       if (isAbsent) {
@@ -115,7 +122,7 @@ export function useMatches() {
       console.error('Error toggling absence:', error);
       return false;
     }
-  }, [matchAbsences, currentTeam]);
+  }, [currentTeam]);
 
   const isMatchEditable = useCallback((isAdmin: boolean): boolean => {
     if (!selectedMatch || !isAdmin) return false;
