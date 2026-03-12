@@ -143,6 +143,11 @@ export default function MatchesManageView({
                     }`}>
                       {match.home_away}
                     </span>
+                    {match.match_type === 'oefenwedstrijd' && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-700/80 text-gray-400">
+                        🔵 Oefenwedstrijd
+                      </span>
+                    )}
                     {isFinalized && (
                       <span className="ml-2 text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-400">
                         ✅ Afgerond

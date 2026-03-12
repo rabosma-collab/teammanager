@@ -593,7 +593,7 @@ export default function FootballApp() {
     calcMinutes: boolean;
     goalsFor: number | null;
     goalsAgainst: number | null;
-    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number }>;
+    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>;
   }) => {
     if (!selectedMatch || !canFinalizeMatch()) return;
     setShowFinalizeModal(false);

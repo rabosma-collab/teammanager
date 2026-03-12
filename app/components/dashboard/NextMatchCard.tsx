@@ -154,6 +154,11 @@ export default function NextMatchCard({
           }`}>
             {isThuis ? '🏠 Thuis' : '✈️ Uit'}
           </span>
+          {match.match_type === 'oefenwedstrijd' && (
+            <span className="text-xs px-2 py-1 rounded font-bold bg-gray-700/60 text-gray-300 border border-gray-600/50">
+              🔵 Oefenwedstrijd
+            </span>
+          )}
           {isFinalized && (
             <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded border border-gray-600">✅ Afgerond</span>
           )}

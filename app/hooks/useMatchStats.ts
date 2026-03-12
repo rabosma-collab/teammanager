@@ -33,6 +33,7 @@ export function useMatchStats() {
         assists: number;
         yellow_cards: number;
         red_cards: number;
+        own_goals: number;
         players?: { name: string } | null;
       }) => ({
         id: row.id,
@@ -44,6 +45,7 @@ export function useMatchStats() {
         assists: row.assists,
         yellow_cards: row.yellow_cards,
         red_cards: row.red_cards,
+        own_goals: row.own_goals ?? 0,
         player_name: row.players?.name ?? undefined,
       }));
 
@@ -83,6 +85,7 @@ export function useMatchStats() {
           assists: row.assists,
           yellow_cards: row.yellow_cards,
           red_cards: row.red_cards,
+          own_goals: row.own_goals ?? 0,
           player_name: row.players?.name ?? undefined,
         };
         if (!byMatch[row.match_id]) byMatch[row.match_id] = [];
@@ -100,12 +103,12 @@ export function useMatchStats() {
   // Sla statistieken op via de RPC (delta-safe, werkt ook voor edits achteraf)
   const saveMatchStats = useCallback(async (
     matchId: number,
-    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number }>
+    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
     // Filter rijen met alleen nullen eruit (geen data = niet opslaan)
-    const nonEmpty = stats.filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0);
+    const nonEmpty = stats.filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0 || s.own_goals > 0);
 
     try {
       const { data, error } = await supabase.rpc('save_match_stats', {
