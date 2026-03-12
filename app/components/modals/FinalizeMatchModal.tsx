@@ -6,6 +6,7 @@ import type { Match, Player, TeamSettings } from '../../lib/types';
 interface GoalEntry {
   scorer_id: number | null;
   assist_id: number | null;
+  is_own_goal: boolean;
 }
 
 interface CardEntry {
@@ -22,7 +23,7 @@ interface FinalizeMatchModalProps {
     calcMinutes: boolean;
     goalsFor: number | null;
     goalsAgainst: number | null;
-    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number }>;
+    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>;
   }) => Promise<void>;
   onClose: () => void;
 }
@@ -58,7 +59,7 @@ export default function FinalizeMatchModal({
   const [goalsAgainst, setGoalsAgainst] = useState<number | null>(null);
 
   // Step 2 — Doelpunten
-  const [goals, setGoals] = useState<GoalEntry[]>([{ scorer_id: null, assist_id: null }]);
+  const [goals, setGoals] = useState<GoalEntry[]>([{ scorer_id: null, assist_id: null, is_own_goal: false }]);
 
   // Step 3 — Kaarten
   const [cards, setCards] = useState<CardEntry[]>([{ player_id: null, card_type: 'yellow' }]);
@@ -73,16 +74,22 @@ export default function FinalizeMatchModal({
 
   // Berekend overzicht van stats per speler voor bevestig-stap
   const computedStats = useMemo(() => {
-    const map = new Map<number, { player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number }>();
+    const map = new Map<number, { player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>();
 
     const ensure = (id: number) => {
-      if (!map.has(id)) map.set(id, { player_id: id, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0 });
+      if (!map.has(id)) map.set(id, { player_id: id, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, own_goals: 0 });
       return map.get(id)!;
     };
 
     for (const g of goals) {
-      if (g.scorer_id) ensure(g.scorer_id).goals++;
-      if (g.assist_id) ensure(g.assist_id).assists++;
+      if (g.scorer_id) {
+        if (g.is_own_goal) {
+          ensure(g.scorer_id).own_goals++;
+        } else {
+          ensure(g.scorer_id).goals++;
+          if (g.assist_id) ensure(g.assist_id).assists++;
+        }
+      }
     }
     for (const c of cards) {
       if (c.player_id) {
@@ -92,7 +99,7 @@ export default function FinalizeMatchModal({
       }
     }
 
-    return Array.from(map.values()).filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0);
+    return Array.from(map.values()).filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0 || s.own_goals > 0);
   }, [goals, cards]);
 
   const getPlayerName = (id: number) =>
@@ -239,17 +246,33 @@ export default function FinalizeMatchModal({
                 Voeg per doelpunt de schutter toe, en optioneel de aangever.
                 {goalsFor !== null && (
                   <span className="ml-1 text-yellow-400 font-bold">
-                    ({goals.filter(g => g.scorer_id).length}/{goalsFor} doelpunten ingevuld)
+                    ({goals.filter(g => g.scorer_id && !g.is_own_goal).length}/{goalsFor} doelpunten ingevuld)
                   </span>
                 )}
               </div>
 
               {goals.map((goal, i) => (
-                <div key={i} className="flex gap-2 items-start p-3 bg-gray-700/40 rounded-lg">
+                <div key={i} className={`flex gap-2 items-start p-3 rounded-lg ${goal.is_own_goal ? 'bg-orange-900/30 border border-orange-700/50' : 'bg-gray-700/40'}`}>
                   <span className="text-gray-400 text-sm font-bold w-5 pt-2 flex-shrink-0">{i + 1}</span>
                   <div className="flex-1 space-y-2">
+                    {/* Eigen doelpunt toggle */}
+                    <button
+                      onClick={() => setGoals(prev => prev.map((g, j) =>
+                        j === i ? { ...g, is_own_goal: !g.is_own_goal, assist_id: null } : g
+                      ))}
+                      className={`text-xs px-2 py-1 rounded font-bold transition ${
+                        goal.is_own_goal
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-gray-700 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      🥅 Eigen doelpunt
+                    </button>
+
                     <div>
-                      <label className="text-xs text-gray-400 mb-1 block">⚽ Schutter</label>
+                      <label className="text-xs text-gray-400 mb-1 block">
+                        {goal.is_own_goal ? '🥅 Wie scoorde het eigen doelpunt?' : '⚽ Schutter'}
+                      </label>
                       <select
                         value={goal.scorer_id ?? ''}
                         onChange={e => {
@@ -264,7 +287,7 @@ export default function FinalizeMatchModal({
                         ))}
                       </select>
                     </div>
-                    {trackAssists && (
+                    {trackAssists && !goal.is_own_goal && (
                       <div>
                         <label className="text-xs text-gray-400 mb-1 block">🅰️ Aangever (optioneel)</label>
                         <select
@@ -294,15 +317,18 @@ export default function FinalizeMatchModal({
               ))}
 
               <button
-                onClick={() => setGoals(prev => [...prev, { scorer_id: null, assist_id: null }])}
+                onClick={() => setGoals(prev => [...prev, { scorer_id: null, assist_id: null, is_own_goal: false }])}
                 className="w-full py-2 border border-dashed border-gray-600 rounded-lg text-sm text-gray-400 hover:text-white hover:border-gray-400 transition"
               >
                 + Doelpunt toevoegen
               </button>
 
-              {goalsFor !== null && goals.filter(g => g.scorer_id).length !== goalsFor && (
+              {goalsFor !== null && goals.filter(g => g.scorer_id && !g.is_own_goal).length !== goalsFor && (
                 <p className="text-xs text-amber-400">
-                  Let op: je hebt {goals.filter(g => g.scorer_id).length} schutter(s) ingevuld, maar de score is {goalsFor}.
+                  Let op: je hebt {goals.filter(g => g.scorer_id && !g.is_own_goal).length} schutter(s) ingevuld, maar de score is {goalsFor}.
+                  {goals.some(g => g.is_own_goal && g.scorer_id) && (
+                    <span className="ml-1">(eigen doelpunten tellen niet mee voor jouw score)</span>
+                  )}
                 </p>
               )}
             </div>
@@ -394,6 +420,7 @@ export default function FinalizeMatchModal({
                         <div className="flex gap-3 text-xs">
                           {s.goals > 0 && <span className="text-green-400">⚽ {s.goals}</span>}
                           {s.assists > 0 && <span className="text-blue-400">🅰️ {s.assists}</span>}
+                          {s.own_goals > 0 && <span className="text-orange-400">🥅 {s.own_goals}</span>}
                           {s.yellow_cards > 0 && <span className="text-yellow-400">🟡 {s.yellow_cards}</span>}
                           {s.red_cards > 0 && <span className="text-red-400">🔴 {s.red_cards}</span>}
                         </div>

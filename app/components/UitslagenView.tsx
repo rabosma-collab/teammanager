@@ -39,7 +39,7 @@ interface StatsEditorProps {
   existingStats: MatchPlayerStats[];
   trackAssists: boolean;
   trackCards: boolean;
-  onSave: (stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number }>) => Promise<void>;
+  onSave: (stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -50,7 +50,7 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
   );
 
   // Initialiseer lokale state vanuit existingStats
-  type Row = { player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number };
+  type Row = { player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number };
   const [rows, setRows] = useState<Row[]>(() => {
     if (existingStats.length > 0) {
       return existingStats
@@ -61,13 +61,14 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
           assists: s.assists,
           yellow_cards: s.yellow_cards,
           red_cards: s.red_cards,
+          own_goals: s.own_goals ?? 0,
         }));
     }
     return [];
   });
   const [saving, setSaving] = useState(false);
 
-  const addRow = () => setRows(prev => [...prev, { player_id: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0 }]);
+  const addRow = () => setRows(prev => [...prev, { player_id: 0, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, own_goals: 0 }]);
   const removeRow = (i: number) => setRows(prev => prev.filter((_, j) => j !== i));
   const updateRow = (i: number, field: keyof Row, value: number) =>
     setRows(prev => prev.map((r, j) => j === i ? { ...r, [field]: value } : r));
@@ -85,11 +86,12 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
 
       {/* Header */}
       <div className={`grid gap-1 text-[10px] text-gray-500 font-bold uppercase mb-1 px-1 ${
-        trackCards ? 'grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]' : trackAssists ? 'grid-cols-[2fr_1fr_1fr_auto]' : 'grid-cols-[2fr_1fr_auto]'
+        trackCards ? 'grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto]' : trackAssists ? 'grid-cols-[2fr_1fr_1fr_1fr_auto]' : 'grid-cols-[2fr_1fr_1fr_auto]'
       }`}>
         <span>Speler</span>
         <span className="text-center">⚽</span>
         {trackAssists && <span className="text-center">🅰️</span>}
+        <span className="text-center text-orange-400">🥅</span>
         {trackCards && <span className="text-center">🟡</span>}
         {trackCards && <span className="text-center">🔴</span>}
         <span />
@@ -98,7 +100,7 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
       <div className="space-y-1">
         {rows.map((row, i) => (
           <div key={i} className={`grid gap-1 items-center ${
-            trackCards ? 'grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]' : trackAssists ? 'grid-cols-[2fr_1fr_1fr_auto]' : 'grid-cols-[2fr_1fr_auto]'
+            trackCards ? 'grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto]' : trackAssists ? 'grid-cols-[2fr_1fr_1fr_1fr_auto]' : 'grid-cols-[2fr_1fr_1fr_auto]'
           }`}>
             <select
               value={row.player_id || ''}
@@ -118,6 +120,9 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
                 onChange={e => updateRow(i, 'assists', parseInt(e.target.value) || 0)}
                 className="px-1 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs text-center w-full" />
             )}
+            <input type="number" min="0" max="10" value={row.own_goals}
+              onChange={e => updateRow(i, 'own_goals', parseInt(e.target.value) || 0)}
+              className="px-1 py-1 bg-gray-700 border border-orange-800/50 rounded text-orange-300 text-xs text-center w-full" />
             {trackCards && (
               <input type="number" min="0" max="10" value={row.yellow_cards}
                 onChange={e => updateRow(i, 'yellow_cards', parseInt(e.target.value) || 0)}
@@ -194,7 +199,7 @@ export default function UitslagenView({ matches, players, teamSettings, onRefres
 
   const handleSaveStats = useCallback(async (
     matchId: number,
-    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number }>
+    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>
   ) => {
     const ok = await saveMatchStats(matchId, stats);
     if (ok) {
@@ -253,8 +258,11 @@ export default function UitslagenView({ matches, players, teamSettings, onRefres
                   {/* Wedstrijd info */}
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-sm truncate">{match.opponent}</div>
-                    <div className="text-xs text-gray-400">
-                      {match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit'}
+                    <div className="text-xs text-gray-400 flex items-center gap-2">
+                      <span>{match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit'}</span>
+                      {match.match_type === 'oefenwedstrijd' && (
+                        <span className="text-gray-500">· 🔵 Oefenwedstrijd</span>
+                      )}
                     </div>
                   </div>
 
@@ -284,16 +292,17 @@ export default function UitslagenView({ matches, players, teamSettings, onRefres
                     {/* Stats overzicht */}
                     {trackGoals && (
                       <>
-                        {stats.filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0).length > 0 ? (
+                        {stats.filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0 || s.own_goals > 0).length > 0 ? (
                           <div className="mt-3 space-y-1">
                             {stats
-                              .filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0)
+                              .filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0 || s.own_goals > 0)
                               .map(s => (
                                 <div key={s.id ?? s.player_id} className="flex items-center justify-between text-sm py-1">
                                   <span className="text-gray-300">{s.player_name ?? `Speler ${s.player_id}`}</span>
                                   <div className="flex gap-3 text-xs">
                                     {s.goals > 0 && <span className="text-green-400">⚽ {s.goals}</span>}
                                     {trackAssists && s.assists > 0 && <span className="text-blue-400">🅰️ {s.assists}</span>}
+                                    {s.own_goals > 0 && <span className="text-orange-400">🥅 {s.own_goals}</span>}
                                     {trackCards && s.yellow_cards > 0 && <span className="text-yellow-400">🟡 {s.yellow_cards}</span>}
                                     {trackCards && s.red_cards > 0 && <span className="text-red-400">🔴 {s.red_cards}</span>}
                                   </div>

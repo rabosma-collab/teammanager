@@ -8,6 +8,7 @@ export interface Player {
     consumption_count: number;
     yellow_cards: number;
     red_cards: number;
+    own_goals?: number;
     min: number;
     injured: boolean;
     pac: number;
@@ -34,6 +35,7 @@ export interface Player {
     opponent: string;
     home_away: string;
     formation: string;
+    match_type: 'competitie' | 'oefenwedstrijd';
     substitution_scheme_id: number;
     sub_moments?: number | null;
     match_status: 'concept' | 'afgerond';
@@ -165,6 +167,7 @@ export interface Player {
     assists: number;
     yellow_cards: number;
     red_cards: number;
+    own_goals: number;
     // Denormalized for display convenience (not in DB)
     player_name?: string;
   }

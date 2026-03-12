@@ -8,6 +8,7 @@ export interface MatchFormData {
   opponent: string;
   home_away: string;
   formation: string;
+  match_type: 'competitie' | 'oefenwedstrijd';
 }
 
 interface MatchEditModalProps {
@@ -23,6 +24,7 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
   const [opponent, setOpponent] = useState(match?.opponent || '');
   const [homeAway, setHomeAway] = useState(match?.home_away || 'Thuis');
   const [formation, setFormation] = useState(match?.formation || defaultFormation);
+  const [matchType, setMatchType] = useState<'competitie' | 'oefenwedstrijd'>(match?.match_type || 'competitie');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +34,7 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
       opponent: opponent.trim(),
       home_away: homeAway,
       formation,
+      match_type: matchType,
     });
   };
 
@@ -80,6 +83,34 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
               <option value="Thuis">Thuis</option>
               <option value="Uit">Uit</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-400 mb-1">Type wedstrijd</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMatchType('competitie')}
+                className={`flex-1 py-2 rounded font-bold text-sm transition ${
+                  matchType === 'competitie'
+                    ? 'bg-yellow-500 text-gray-900'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🏆 Competitie
+              </button>
+              <button
+                type="button"
+                onClick={() => setMatchType('oefenwedstrijd')}
+                className={`flex-1 py-2 rounded font-bold text-sm transition ${
+                  matchType === 'oefenwedstrijd'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🔵 Oefenwedstrijd
+              </button>
+            </div>
           </div>
 
           <div>
