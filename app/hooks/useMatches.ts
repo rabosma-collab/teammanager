@@ -133,7 +133,7 @@ export function useMatches() {
   }, [selectedMatch]);
 
   const addMatch = useCallback(async (
-    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: string }
+    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: 'competitie' | 'oefenwedstrijd' }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -163,7 +163,7 @@ export function useMatches() {
 
   const updateMatch = useCallback(async (
     id: number,
-    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: string }
+    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: 'competitie' | 'oefenwedstrijd' }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
