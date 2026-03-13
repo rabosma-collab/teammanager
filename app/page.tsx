@@ -168,7 +168,7 @@ export default function FootballApp() {
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
   const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
-  const { overrides: periodOverrides, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, clearOverrides: clearPeriodOverrides } = usePeriodOverrides();
+  const { overrides: periodOverrides, periodFormations, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, savePeriodFormation, clearOverrides: clearPeriodOverrides } = usePeriodOverrides();
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
   const [showActivity, setShowActivity] = useState(false);
 
@@ -276,6 +276,9 @@ export default function FootballApp() {
     if (periodOverrides[selectedPeriod]) return periodOverrides[selectedPeriod];
     return computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
   }, [selectedPeriod, fieldOccupants, substitutions, players, periodOverrides]);
+
+  // Formatie voor de geselecteerde periode (periode 1 = wedstrijdformatie, periode N = periodieke override)
+  const displayedFormation = selectedPeriod > 1 ? (periodFormations[selectedPeriod] ?? formation) : formation;
 
   // Bank voor de geselecteerde periode: wie staat NIET in de huidige periode op het veld?
   const benchPlayersForPeriod = useMemo(() => {
@@ -1253,9 +1256,18 @@ export default function FootballApp() {
               </select>
 
               <select
-                value={formation}
-                onChange={(e) => activelyEditing && setFormation(e.target.value)}
-                disabled={!activelyEditing || isFinalized}
+                value={displayedFormation}
+                onChange={(e) => {
+                  if (isFinalized) return;
+                  if (selectedPeriod > 1) {
+                    if (isManager && selectedMatch && currentTeam) {
+                      savePeriodFormation(selectedMatch.id, currentTeam.id, selectedPeriod, e.target.value);
+                    }
+                  } else if (activelyEditing) {
+                    setFormation(e.target.value);
+                  }
+                }}
+                disabled={isFinalized || (selectedPeriod === 1 ? !activelyEditing : !isManager)}
                 className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 disabled:opacity-50 text-white text-sm sm:text-base"
               >
                 {Object.entries(formations[gameFormat] ?? formations['11v11']).map(([f]) => (
@@ -1457,7 +1469,7 @@ export default function FootballApp() {
               <div className="flex-shrink-0 w-full lg:w-[580px]">
               <PitchView
                 gameFormat={gameFormat}
-                formation={formation}
+                formation={displayedFormation}
                 fieldOccupants={displayedOccupants}
                 selectedPosition={selectedPeriod === 1 ? selectedPosition : null}
                 selectedPlayer={selectedPeriod === 1 ? selectedPlayer : null}
