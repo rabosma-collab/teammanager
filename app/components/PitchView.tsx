@@ -19,6 +19,11 @@ interface PitchViewProps {
   onShowPositionInfo: (player: Player, positionIndex: number) => void;
   /** Optioneel: als meegegeven, wordt dit aangeroepen i.p.v. onShowPositionInfo (bijv. bij periode-swap) */
   onSwapPlayer?: (positionIndex: number) => void;
+  /**
+   * Periode-sleepbewerking: drag-and-drop is actief voor positiewisseling op het veld,
+   * maar klikgedrag volgt onSwapPlayer (geen volledige bewerkingsmode).
+   */
+  isPeriodPositionEdit?: boolean;
 }
 
 interface PositionSlotProps {
@@ -37,28 +42,31 @@ interface PositionSlotProps {
   onShowTooltip: (index: number) => void;
   onShowPositionInfo: (player: Player, positionIndex: number) => void;
   onSwapPlayer?: (positionIndex: number) => void;
+  isPeriodPositionEdit?: boolean;
 }
 
 function PositionSlot({
   index, pos, player, isEditable, isManagerEdit, isSelected, showWarning,
   instruction, showInstructionButton, positionCategory, selectedPlayer,
-  onPositionClick, onShowTooltip, onShowPositionInfo, onSwapPlayer,
+  onPositionClick, onShowTooltip, onShowPositionInfo, onSwapPlayer, isPeriodPositionEdit,
 }: PositionSlotProps) {
+  const canDrag = isEditable || isPeriodPositionEdit;
+
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `pos-${index}`,
-    disabled: !isEditable,
+    disabled: !canDrag,
   });
 
   const { setNodeRef: setDragRef, listeners, attributes, isDragging } = useDraggable({
     id: `field-${index}`,
-    disabled: !player || !isEditable,
+    disabled: !player || !canDrag,
     data: { type: 'field', positionIndex: index, player },
   });
 
   // Combine drop + drag ref onto the same element
   const setRef = (node: HTMLDivElement | null) => {
     setDropRef(node);
-    if (player && isEditable) setDragRef(node);
+    if (player && canDrag) setDragRef(node);
   };
 
   // Feature 1: Highlight lege posities die matchen met de positiecategorie van de geselecteerde speler
@@ -102,8 +110,8 @@ function PositionSlot({
       <div
         ref={setRef}
         onClick={!isDragging ? handleClick : undefined}
-        {...(player && isEditable ? listeners : {})}
-        {...(player && isEditable ? attributes : {})}
+        {...(player && canDrag ? listeners : {})}
+        {...(player && canDrag ? attributes : {})}
         className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 flex items-center justify-center font-bold text-sm sm:text-base relative transition-all active:scale-95 ${
           showInstructionButton ? 'mb-6' : ''
         } ${isOver ? 'scale-110' : ''} ${
@@ -175,6 +183,7 @@ const PitchView = React.memo(function PitchView({
   onShowTooltip,
   onShowPositionInfo,
   onSwapPlayer,
+  isPeriodPositionEdit,
 }: PitchViewProps) {
   const positionsList = formations[gameFormat]?.[formation] ?? [];
 
@@ -217,6 +226,7 @@ const PitchView = React.memo(function PitchView({
               onShowTooltip={onShowTooltip}
               onShowPositionInfo={onShowPositionInfo}
               onSwapPlayer={onSwapPlayer}
+              isPeriodPositionEdit={isPeriodPositionEdit}
             />
           );
         })}

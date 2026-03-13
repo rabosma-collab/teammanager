@@ -42,6 +42,7 @@ import { useSubstitutionSchemes } from './hooks/useSubstitutionSchemes';
 import { useVoting } from './hooks/useVoting';
 import { useStatCredits } from './hooks/useStatCredits';
 import { useTeamSettings } from './hooks/useTeamSettings';
+import { usePeriodOverrides } from './hooks/usePeriodOverrides';
 import { useMatchStats } from './hooks/useMatchStats';
 import { useActivityLog } from './hooks/useActivityLog';
 
@@ -166,6 +167,7 @@ export default function FootballApp() {
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
   const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
+  const { overrides: periodOverrides, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, clearOverrides: clearPeriodOverrides } = usePeriodOverrides();
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
   const [showActivity, setShowActivity] = useState(false);
 
@@ -264,10 +266,12 @@ export default function FootballApp() {
   }), [players, matchAbsences]);
 
   // Opstelling voor de geselecteerde periode (period 1 = startopstelling, period N = na N-1 wisselmomenten)
+  // Prioriteit: manager-override > berekende opstelling > startopstelling
   const displayedOccupants = useMemo(() => {
     if (selectedPeriod <= 1) return fieldOccupants;
+    if (periodOverrides[selectedPeriod]) return periodOverrides[selectedPeriod];
     return computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
-  }, [selectedPeriod, fieldOccupants, substitutions, players]);
+  }, [selectedPeriod, fieldOccupants, substitutions, players, periodOverrides]);
 
   // Bank voor de geselecteerde periode (wie is er beschikbaar om in te wisselen vóór wisselmoment N-1)
   const benchPlayersForPeriod = useMemo(() => {
@@ -322,6 +326,7 @@ export default function FootballApp() {
       fetchPlayers(selectedMatch.id);
       setIsEditingLineup(false);
       setSelectedPeriod(1);
+      clearPeriodOverrides();
     } else {
       // No match selected yet, fetch players without match context
       fetchPlayers();
@@ -340,6 +345,7 @@ export default function FootballApp() {
   useEffect(() => {
     if (selectedMatch && players.length > 0) {
       loadLineup(selectedMatch.id, players, playerCount);
+      fetchPeriodOverrides(selectedMatch.id, players);
     }
   }, [players.length, selectedMatch?.id, loadLineup, playerCount]);
 
@@ -508,13 +514,34 @@ export default function FootballApp() {
 
   const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
     setActiveDragPlayer(null);
-    if (!over || !activelyEditing) return;
+    if (!over) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
     if (activeId === overId) return;
 
     const activeData = active.data.current as { type: 'field' | 'bench'; positionIndex?: number; player: Player };
+
+    // Periode 2+: alleen veld-naar-veld positiewisseling, opgeslagen als override
+    if (selectedPeriod > 1) {
+      if (!isManager || isFinalized || isFreeSubstitution) return;
+      if (overId.startsWith('pos-') && activeData.type === 'field') {
+        const targetPos = parseInt(overId.replace('pos-', ''));
+        const sourcePos = activeData.positionIndex!;
+        if (sourcePos === targetPos) return;
+        const baseLineup = periodOverrides[selectedPeriod]
+          ?? computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
+        const newLineup = [...baseLineup];
+        [newLineup[sourcePos], newLineup[targetPos]] = [newLineup[targetPos], newLineup[sourcePos]];
+        if (selectedMatch && currentTeam) {
+          applyPeriodOverride(selectedMatch.id, currentTeam.id, selectedPeriod, newLineup);
+        }
+      }
+      return;
+    }
+
+    // Periode 1: normale drag-and-drop (vereist bewerkingsmode)
+    if (!activelyEditing) return;
 
     if (overId.startsWith('pos-')) {
       const targetPos = parseInt(overId.replace('pos-', ''));
@@ -542,7 +569,7 @@ export default function FootballApp() {
         return newField;
       });
     }
-  }, [activelyEditing, setFieldOccupants, placePlayerAtPosition]);
+  }, [selectedPeriod, isManager, isFinalized, isFreeSubstitution, periodOverrides, fieldOccupants, substitutions, players, selectedMatch, currentTeam, applyPeriodOverride, activelyEditing, setFieldOccupants, placePlayerAtPosition]);
 
   // Feature 5: laad opstelling van de vorige wedstrijd
   const handleLoadPreviousLineup = useCallback(async () => {
@@ -1422,6 +1449,7 @@ export default function FootballApp() {
                       }
                     : undefined
                 }
+                isPeriodPositionEdit={selectedPeriod > 1 && isManager && !isFinalized && !isFreeSubstitution}
                 onShowTooltip={(positionIndex: number) => {
                   if (isManager && selectedMatch && !isFinalized) {
                     const matchInstr = matchInstructions.find((m: PositionInstruction) => m.position_index === positionIndex);
@@ -1453,6 +1481,7 @@ export default function FootballApp() {
                   unavailablePlayers={unavailablePlayers}
                   selectedPlayer={selectedPeriod === 1 ? selectedPlayer : null}
                   isEditable={activelyEditing && selectedPeriod === 1}
+                  periodLocked={selectedPeriod > 1}
                   onSelectPlayer={handleSelectPlayer}
                   onShowPlayerCard={setShowPlayerCard}
                 />
