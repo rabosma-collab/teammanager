@@ -39,6 +39,9 @@ export default function Navbar({
   const beheerRef = useRef<HTMLDivElement>(null);
   const teamSwitcherRef = useRef<HTMLDivElement>(null);
 
+  // Ref zodat de auth-listener altijd de meest recente versie aanroept (geen stale closure)
+  const loadProfileInfoRef = useRef<() => Promise<void>>(async () => {});
+
   // Laad avatar centraal uit user_metadata
   const loadProfileInfo = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -64,15 +67,19 @@ export default function Navbar({
     }
   };
 
+  // Update ref op elke render zodat de auth-listener nooit een stale closure aanroept
+  loadProfileInfoRef.current = loadProfileInfo;
+
   useEffect(() => { loadProfileInfo(); }, [currentPlayerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Supabase initialiseert de sessie asynchroon vanuit localStorage. Als loadProfileInfo()
   // wordt aangeroepen vóórdat de sessie klaar is, geeft getUser() null terug en verdwijnt
   // de avatar. INITIAL_SESSION wordt gefired zodra de sessie hersteld is — dan opnieuw laden.
+  // Gebruik de ref zodat altijd de meest recente loadProfileInfo (met correcte currentPlayerId) wordt aangeroepen.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
-        loadProfileInfo();
+        loadProfileInfoRef.current();
       }
     });
     return () => subscription.unsubscribe();

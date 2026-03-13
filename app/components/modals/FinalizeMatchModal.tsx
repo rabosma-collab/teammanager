@@ -286,48 +286,43 @@ export default function FinalizeMatchModal({
           {/* ─── STAP 2: DOELPUNTEN & ASSISTS (tally) ─── */}
           {currentStep === 'doelpunten' && (
             <div className="space-y-2 pt-1">
-              {/* Kolomkoppen */}
-              <div className="flex items-center gap-2 px-3 pb-1">
-                <span className="flex-1 text-xs text-gray-500 font-bold uppercase tracking-wide">Speler</span>
-                <span className="w-24 text-xs text-gray-500 font-bold text-center">⚽ Goals</span>
-                {trackAssists && (
-                  <span className="w-24 text-xs text-gray-500 font-bold text-center">🅰️ Assists</span>
-                )}
-                <span className="w-24 text-xs text-gray-500 font-bold text-center">🥅 Eigen</span>
-              </div>
-
               {selectablePlayers.map(player => {
                 const t = tally[player.id] ?? { goals: 0, assists: 0, own_goals: 0 };
                 const hasAny = t.goals > 0 || t.assists > 0 || t.own_goals > 0;
                 return (
                   <div
                     key={player.id}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${
+                    className={`px-3 py-2.5 rounded-lg transition ${
                       hasAny ? 'bg-gray-700/70' : 'bg-gray-700/20'
                     }`}
                   >
-                    <span className={`flex-1 text-sm truncate ${hasAny ? 'font-bold text-white' : 'text-gray-400'}`}>
+                    <span className={`block text-sm mb-2 ${hasAny ? 'font-bold text-white' : 'text-gray-400'}`}>
                       {player.name}
                     </span>
-                    <div className="w-24 flex justify-center">
-                      <TallyCounter
-                        value={t.goals}
-                        onAdjust={d => adjustTally(player.id, 'goals', d)}
-                      />
-                    </div>
-                    {trackAssists && (
-                      <div className="w-24 flex justify-center">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <span className="text-xs text-gray-500 w-8">⚽</span>
                         <TallyCounter
-                          value={t.assists}
-                          onAdjust={d => adjustTally(player.id, 'assists', d)}
+                          value={t.goals}
+                          onAdjust={d => adjustTally(player.id, 'goals', d)}
                         />
                       </div>
-                    )}
-                    <div className="w-24 flex justify-center">
-                      <TallyCounter
-                        value={t.own_goals}
-                        onAdjust={d => adjustTally(player.id, 'own_goals', d)}
-                      />
+                      {trackAssists && (
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <span className="text-xs text-gray-500 w-8">🅰️</span>
+                          <TallyCounter
+                            value={t.assists}
+                            onAdjust={d => adjustTally(player.id, 'assists', d)}
+                          />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <span className="text-xs text-gray-500 w-8">🥅</span>
+                        <TallyCounter
+                          value={t.own_goals}
+                          onAdjust={d => adjustTally(player.id, 'own_goals', d)}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
