@@ -17,7 +17,7 @@ function resolveKey(): string {
   return FALLBACK_KEY;
 }
 
-const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback', '/join'];
+const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback', '/join', '/forgot-password', '/reset-password'];
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
