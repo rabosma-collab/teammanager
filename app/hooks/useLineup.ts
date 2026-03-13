@@ -10,9 +10,12 @@ export function useLineup() {
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [savingLineup, setSavingLineup] = useState(false);
   const lineupSnapshot = useRef<(Player | null)[]>(Array(11).fill(null));
+  const fetchIdRef = useRef(0);
 
   const loadLineup = useCallback(async (matchId: number, players: Player[], playerCount: number = 11) => {
     if (!currentTeam || players.length === 0) return;
+
+    const currentFetchId = ++fetchIdRef.current;
 
     try {
       const { data, error } = await supabase
@@ -21,6 +24,7 @@ export function useLineup() {
         .eq('match_id', matchId);
 
       if (error) throw error;
+      if (currentFetchId !== fetchIdRef.current) return;
 
       const lineup: (Player | null)[] = Array(playerCount).fill(null);
 
@@ -50,7 +54,7 @@ export function useLineup() {
       setFieldOccupants(lineup);
     } catch (error) {
       console.error('Error loading lineup:', error);
-      setFieldOccupants(Array(playerCount).fill(null));
+      // Do not clear the field on error — keep existing lineup visible
     }
   }, [currentTeam]);
 
