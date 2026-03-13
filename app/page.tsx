@@ -61,6 +61,7 @@ import UitslagenView from './components/UitslagenView';
 import InvitesManageView from './components/InvitesManageView';
 import MededelingenView from './components/MededelingenView';
 import TeamSettingsView from './components/TeamSettingsView';
+import FeedbackView from './components/FeedbackView';
 
 // PDF
 import { generateMatchPdf } from './utils/generateMatchPdf';
@@ -1051,6 +1052,8 @@ export default function FootballApp() {
         <InvitesManageView />
       ) : view === 'mededelingen' && isManager ? (
         <MededelingenView />
+      ) : view === 'feedback' && isManager ? (
+        <FeedbackView />
       ) : view === 'team-settings' && isManager ? (
         <TeamSettingsView onSettingsSaved={() => currentTeam && fetchTeamSettings(currentTeam.id)} />
       ) : view === 'cards' ? (

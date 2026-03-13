@@ -16,7 +16,7 @@ interface NavbarProps {
   onBellClick?: () => void;
 }
 
-const ADMIN_VIEWS = ['mededelingen', 'instructions', 'players-manage', 'matches-manage', 'invites', 'team-settings'] as const;
+const ADMIN_VIEWS = ['mededelingen', 'instructions', 'players-manage', 'matches-manage', 'invites', 'team-settings', 'feedback'] as const;
 
 export default function Navbar({
   view,
@@ -292,6 +292,13 @@ export default function Navbar({
                     </span>
                   )}
                 </div>
+                <div className="border-t border-gray-800 my-1" />
+                <BeheerItem
+                  icon="💬"
+                  label="Feedback"
+                  active={view === 'feedback'}
+                  onClick={() => navigateTo('feedback')}
+                />
               </div>
             )}
           </div>
