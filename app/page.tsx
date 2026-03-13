@@ -44,6 +44,7 @@ import { useStatCredits } from './hooks/useStatCredits';
 import { useTeamSettings } from './hooks/useTeamSettings';
 import { usePeriodOverrides } from './hooks/usePeriodOverrides';
 import { useMatchStats } from './hooks/useMatchStats';
+import { useLineupPresence } from './hooks/useLineupPresence';
 import { useActivityLog } from './hooks/useActivityLog';
 
 // Components
@@ -171,6 +172,9 @@ export default function FootballApp() {
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
   const [showActivity, setShowActivity] = useState(false);
 
+  const { activeEditor, claimEdit, releaseEdit } = useLineupPresence(selectedMatch?.id ?? null);
+  const myName = players.find(p => p.id === teamPlayerId)?.name ?? 'Manager';
+
   const gameFormat = teamSettings?.game_format ?? DEFAULT_GAME_FORMAT;
   const matchDuration = teamSettings?.match_duration ?? 90;
 
@@ -273,10 +277,21 @@ export default function FootballApp() {
     return computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
   }, [selectedPeriod, fieldOccupants, substitutions, players, periodOverrides]);
 
-  // Bank voor de geselecteerde periode (wie is er beschikbaar om in te wisselen vóór wisselmoment N-1)
+  // Bank voor de geselecteerde periode: wie staat NIET in de huidige periode op het veld?
   const benchPlayersForPeriod = useMemo(() => {
     if (selectedPeriod <= 1) return benchPlayers;
-    // Bereken de opstelling vlak vóór het wisselmoment (periode N-1) om de juiste bankspelers te bepalen
+    const fieldKeys = new Set(
+      displayedOccupants.filter(Boolean).map(p => `${p!.is_guest ? 'g' : 'r'}_${p!.id}`)
+    );
+    return players.filter(p => {
+      const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+      return !fieldKeys.has(key) && !p.injured && (p.is_guest || !matchAbsences.includes(p.id));
+    });
+  }, [selectedPeriod, displayedOccupants, players, benchPlayers, matchAbsences]);
+
+  // Bank vóór het wisselmoment (voor de swap modal: wie kan er ingewisseld worden?)
+  const benchPlayersForSwap = useMemo(() => {
+    if (selectedPeriod <= 1) return benchPlayers;
     const lineupBeforeSwap = computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod - 1);
     const fieldKeys = new Set(lineupBeforeSwap.filter(Boolean).map(p => `${p!.is_guest ? 'g' : 'r'}_${p!.id}`));
     return players.filter(p => {
@@ -980,7 +995,7 @@ export default function FootballApp() {
           playerOut={swapTarget.player}
           periodIndex={selectedPeriod}
           subMomentMinute={subMomentMinutes[selectedPeriod - 2] ?? 0}
-          benchPlayers={benchPlayersForPeriod}
+          benchPlayers={benchPlayersForSwap}
           onConfirm={async (playerIn) => {
             const subNumber = selectedPeriod - 1;
             const minute = subMomentMinutes[subNumber - 1] ?? 0;
@@ -1296,17 +1311,25 @@ export default function FootballApp() {
                 </div>
               )}
 
+              {activeEditor && !isEditingLineup && (
+                <span className="text-xs text-yellow-400 flex items-center gap-1 px-2">
+                  ✏️ {activeEditor.name} is de opstelling aan het bewerken
+                </span>
+              )}
+
               {editable && !isFinalized && !isEditingLineup && (
                 <button
                   onClick={() => {
                     wasPublishedBeforeEdit.current = isLineupPublished;
                     takeSnapshot();
                     setIsEditingLineup(true);
+                    claimEdit(myName);
                     if (isLineupPublished && selectedMatch) {
                       publishLineup(selectedMatch.id, false);
                     }
                   }}
-                  className="px-3 sm:px-4 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm sm:text-base"
+                  disabled={!!activeEditor}
+                  className="px-3 sm:px-4 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   {isLineupPublished ? '✏️ Herzien' : '✏️ Aanpassen'}
                 </button>
@@ -1320,6 +1343,7 @@ export default function FootballApp() {
                       if (wasPublishedBeforeEdit.current && selectedMatch) {
                         publishLineup(selectedMatch.id, true);
                       }
+                      releaseEdit();
                       setIsEditingLineup(false);
                     }}
                     disabled={savingLineup}
@@ -1338,6 +1362,7 @@ export default function FootballApp() {
                           return;
                         }
                       }
+                      releaseEdit();
                       toast.success('💾 Opstelling opgeslagen!');
                       setIsEditingLineup(false);
                     }}
@@ -1361,6 +1386,7 @@ export default function FootballApp() {
                         }
                         fetchActivities();
                       }
+                      releaseEdit();
                       toast.success('✅ Opstelling definitief gemaakt!');
                       setIsEditingLineup(false);
                     }}
