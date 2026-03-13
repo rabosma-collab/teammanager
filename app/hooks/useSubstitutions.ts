@@ -136,6 +136,49 @@ export function useSubstitutions() {
     setTempSubs([]);
   }, []);
 
+  /**
+   * Sla één enkele wissel op (quick swap vanuit periode-view).
+   * Vervangt een eventuele bestaande wissel met dezelfde player_out op dit moment.
+   */
+  const saveQuickSwap = useCallback(async (
+    matchId: number,
+    subNumber: number,
+    minute: number,
+    playerOutId: number,
+    playerInId: number
+  ): Promise<boolean> => {
+    if (!currentTeam) return false;
+    try {
+      // Verwijder bestaande wissel voor deze speler op dit wisselmoment (indien aanwezig)
+      await supabase
+        .from('substitutions')
+        .delete()
+        .eq('match_id', matchId)
+        .eq('substitution_number', subNumber)
+        .eq('player_out_id', playerOutId)
+        .eq('is_extra', false);
+
+      const { error } = await supabase
+        .from('substitutions')
+        .insert({
+          match_id: matchId,
+          substitution_number: subNumber,
+          minute,
+          player_out_id: playerOutId,
+          player_in_id: playerInId,
+          custom_minute: null,
+          is_extra: false,
+        });
+
+      if (error) throw error;
+      await fetchSubstitutions(matchId);
+      return true;
+    } catch (error) {
+      console.error('Error saving quick swap:', error);
+      return false;
+    }
+  }, [currentTeam, fetchSubstitutions]);
+
   return {
     substitutions,
     tempSubs,
@@ -150,6 +193,7 @@ export function useSubstitutions() {
     removeTempSub,
     updateTempSub,
     saveSubstitutions,
+    saveQuickSwap,
     closeSubModal
   };
 }

@@ -11,6 +11,8 @@ interface BenchPanelProps {
   };
   selectedPlayer: Player | null;
   isEditable: boolean;
+  /** Periode 2+: bank is puur visueel, samenstelling volgt uit de wissels */
+  periodLocked?: boolean;
   onSelectPlayer: (player: Player | null) => void;
   onShowPlayerCard?: (player: Player) => void;
 }
@@ -89,6 +91,7 @@ export default function BenchPanel({
   unavailablePlayers,
   selectedPlayer,
   isEditable,
+  periodLocked,
   onSelectPlayer,
   onShowPlayerCard
 }: BenchPanelProps) {
@@ -134,13 +137,21 @@ export default function BenchPanel({
     <div className="w-full lg:flex lg:flex-col">
       <div
         ref={setBenchDropRef}
-        className={`bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-3xl p-3 sm:p-4 border-4 border-amber-800 lg:flex-1 transition-colors ${
+        className={`relative bg-gradient-to-b from-amber-900 to-amber-950 rounded-t-3xl p-3 sm:p-4 border-4 border-amber-800 lg:flex-1 transition-colors ${
           isBenchOver ? 'border-yellow-400 bg-amber-800/50' : ''
-        }`}
+        } ${periodLocked ? 'opacity-60' : ''}`}
       >
         <h3 className="text-center font-bold text-lg sm:text-xl mb-3 text-amber-200 select-none">
           🪑 Wissels ({benchPlayers.length})
         </h3>
+
+        {periodLocked && (
+          <div className="mb-3 px-3 py-2 rounded-lg bg-amber-950/70 border border-amber-700 text-center">
+            <span className="text-xs text-amber-400 select-none">
+              🔒 Banksamenstelling volgt uit de wissels
+            </span>
+          </div>
+        )}
 
         {benchPlayers.length === 0 ? (
           <div className={`text-center py-6 sm:py-8 text-sm select-none ${

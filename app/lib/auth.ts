@@ -59,6 +59,19 @@ export async function signUpWithEmail(
   return data.user;
 }
 
+/** Send a password reset email to the given address. */
+export async function resetPasswordForEmail(email: string): Promise<void> {
+  const redirectTo = new URL('/reset-password', window.location.origin).toString();
+  const { error } = await getAuthClient().auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
+}
+
+/** Update the password for the currently authenticated user. */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await getAuthClient().auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
 /** Start Google OAuth flow. Redirects the browser to Google sign-in. */
 export async function signInWithGoogle(inviteToken?: string): Promise<void> {
   const callbackUrl = new URL('/auth/callback', window.location.origin);

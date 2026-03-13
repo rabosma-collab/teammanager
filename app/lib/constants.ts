@@ -219,3 +219,34 @@ export const normalizeFormation = (form: string | null | undefined, gameFormat: 
   if (!form || !(form in gameFormations)) return defaultForm;
   return form;
 };
+
+/**
+ * Bereken de effectieve opstelling voor een bepaalde periode.
+ * Period 1 = startopstelling (baseLineup ongewijzigd).
+ * Period N = baseLineup na het toepassen van alle reguliere wissels bij
+ * wisselmomenten 1 t/m N-1.
+ *
+ * @param baseLineup  De startopstelling (11 posities, kan null bevatten)
+ * @param substitutions  Alle wissels van de wedstrijd
+ * @param allPlayers  Alle spelers (regulier + gasten) om player_in op te zoeken
+ * @param period  1-geïndexeerde periode (1 = start, 2 = na wisselmoment 1, ...)
+ */
+export function computeLineupForPeriod(
+  baseLineup: (import('./types').Player | null)[],
+  substitutions: import('./types').Substitution[],
+  allPlayers: import('./types').Player[],
+  period: number
+): (import('./types').Player | null)[] {
+  if (period <= 1) return baseLineup;
+  const lineup = [...baseLineup];
+  for (let moment = 1; moment < period; moment++) {
+    const subs = substitutions.filter(s => s.substitution_number === moment && !s.is_extra);
+    for (const sub of subs) {
+      const idx = lineup.findIndex(p => p !== null && p.id === sub.player_out_id);
+      if (idx !== -1) {
+        lineup[idx] = allPlayers.find(p => p.id === sub.player_in_id) ?? null;
+      }
+    }
+  }
+  return lineup;
+}

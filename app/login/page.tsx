@@ -77,7 +77,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">⚽</div>
+          <img src="/logo-full.png" alt="Team Manager" className="h-16 mb-3 mx-auto" />
           <h1 className="text-3xl font-bold text-white">Team Manager</h1>
           <p className="text-gray-400 mt-2">Log in om verder te gaan</p>
         </div>
@@ -122,9 +122,14 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1.5">
-                Wachtwoord
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+                  Wachtwoord
+                </label>
+                <Link href="/forgot-password" className="text-xs text-blue-400 hover:text-blue-300 transition">
+                  Wachtwoord vergeten?
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"
