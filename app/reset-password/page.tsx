@@ -92,7 +92,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">⚽</div>
+          <img src="/logo-full.png" alt="Team Manager" className="h-16 mb-3 mx-auto" />
           <h1 className="text-3xl font-bold text-white">Nieuw wachtwoord</h1>
           <p className="text-gray-400 mt-2">Kies een nieuw wachtwoord voor je account</p>
         </div>
