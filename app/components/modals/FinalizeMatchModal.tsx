@@ -3,10 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import type { Match, Player, TeamSettings } from '../../lib/types';
 
-interface GoalEntry {
-  scorer_id: number | null;
-  assist_id: number | null;
-  is_own_goal: boolean;
+interface PlayerTally {
+  goals: number;
+  assists: number;
+  own_goals: number;
 }
 
 interface CardEntry {
@@ -29,6 +29,34 @@ interface FinalizeMatchModalProps {
 }
 
 type Step = 'uitslag' | 'doelpunten' | 'kaarten' | 'bevestig';
+
+function TallyCounter({
+  value,
+  onAdjust,
+  disabled,
+}: {
+  value: number;
+  onAdjust: (delta: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onAdjust(-1)}
+        disabled={disabled || value === 0}
+        className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 disabled:opacity-20 text-white font-bold text-base transition flex items-center justify-center"
+      >−</button>
+      <span className={`w-6 text-center tabular-nums text-sm font-bold ${value > 0 ? 'text-white' : 'text-gray-600'}`}>
+        {value}
+      </span>
+      <button
+        onClick={() => onAdjust(1)}
+        disabled={disabled}
+        className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 disabled:opacity-20 text-white font-bold text-base transition flex items-center justify-center"
+      >+</button>
+    </div>
+  );
+}
 
 export default function FinalizeMatchModal({
   match,
@@ -58,18 +86,34 @@ export default function FinalizeMatchModal({
   const [goalsFor, setGoalsFor] = useState<number | null>(null);
   const [goalsAgainst, setGoalsAgainst] = useState<number | null>(null);
 
-  // Step 2 — Doelpunten
-  const [goals, setGoals] = useState<GoalEntry[]>([{ scorer_id: null, assist_id: null, is_own_goal: false }]);
+  // Step 2 — Doelpunten (tally per speler)
+  const [tally, setTally] = useState<Record<number, PlayerTally>>({});
+
+  const adjustTally = (playerId: number, field: keyof PlayerTally, delta: number) => {
+    setTally(prev => {
+      const cur = prev[playerId] ?? { goals: 0, assists: 0, own_goals: 0 };
+      return { ...prev, [playerId]: { ...cur, [field]: Math.max(0, cur[field] + delta) } };
+    });
+  };
 
   // Step 3 — Kaarten
   const [cards, setCards] = useState<CardEntry[]>([{ player_id: null, card_type: 'yellow' }]);
 
   const [saving, setSaving] = useState(false);
 
-  // Beschikbare spelers voor selects (geen gasten voor career-stats, maar toelaten voor match-context)
   const selectablePlayers = useMemo(
     () => players.filter(p => !p.is_guest).sort((a, b) => a.name.localeCompare(b.name)),
     [players]
+  );
+
+  // Totaal eigen goals (voor validatie)
+  const totalGoalsEntered = useMemo(
+    () => Object.values(tally).reduce((sum, t) => sum + t.goals, 0),
+    [tally]
+  );
+  const totalOwnGoalsEntered = useMemo(
+    () => Object.values(tally).reduce((sum, t) => sum + t.own_goals, 0),
+    [tally]
   );
 
   // Berekend overzicht van stats per speler voor bevestig-stap
@@ -81,16 +125,16 @@ export default function FinalizeMatchModal({
       return map.get(id)!;
     };
 
-    for (const g of goals) {
-      if (g.scorer_id) {
-        if (g.is_own_goal) {
-          ensure(g.scorer_id).own_goals++;
-        } else {
-          ensure(g.scorer_id).goals++;
-          if (g.assist_id) ensure(g.assist_id).assists++;
-        }
+    for (const [idStr, t] of Object.entries(tally)) {
+      const id = parseInt(idStr);
+      if (t.goals > 0 || t.assists > 0 || t.own_goals > 0) {
+        const s = ensure(id);
+        s.goals     = t.goals;
+        s.assists   = t.assists;
+        s.own_goals = t.own_goals;
       }
     }
+
     for (const c of cards) {
       if (c.player_id) {
         const s = ensure(c.player_id);
@@ -99,8 +143,10 @@ export default function FinalizeMatchModal({
       }
     }
 
-    return Array.from(map.values()).filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0 || s.own_goals > 0);
-  }, [goals, cards]);
+    return Array.from(map.values()).filter(s =>
+      s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0 || s.own_goals > 0
+    );
+  }, [tally, cards]);
 
   const getPlayerName = (id: number) =>
     players.find(p => p.id === id)?.name ?? `Speler ${id}`;
@@ -112,14 +158,13 @@ export default function FinalizeMatchModal({
     setSaving(true);
     await onFinalize({
       calcMinutes,
-      goalsFor:     goalsFor,
-      goalsAgainst: goalsAgainst,
-      stats:        computedStats,
+      goalsFor,
+      goalsAgainst,
+      stats: computedStats,
     });
     setSaving(false);
   };
 
-  // Voortgangsindicator
   const stepLabels: Record<Step, string> = {
     uitslag:    'Uitslag',
     doelpunten: 'Doelpunten',
@@ -230,7 +275,6 @@ export default function FinalizeMatchModal({
                 </div>
               </div>
 
-              {/* Waarschuwing als doelpunten-stap volgt maar geen uitslag is ingevuld */}
               {trackGoals && goalsFor === null && (
                 <p className="text-xs text-amber-400">
                   Tip: vul eigen goals in voor de doelpunten-stap.
@@ -239,94 +283,61 @@ export default function FinalizeMatchModal({
             </div>
           )}
 
-          {/* ─── STAP 2: DOELPUNTEN & ASSISTS ─── */}
+          {/* ─── STAP 2: DOELPUNTEN & ASSISTS (tally) ─── */}
           {currentStep === 'doelpunten' && (
-            <div className="space-y-3 pt-1">
-              <div className="text-sm text-gray-400">
-                Voeg per doelpunt de schutter toe, en optioneel de aangever.
-                {goalsFor !== null && (
-                  <span className="ml-1 text-yellow-400 font-bold">
-                    ({goals.filter(g => g.scorer_id && !g.is_own_goal).length}/{goalsFor} doelpunten ingevuld)
-                  </span>
+            <div className="space-y-2 pt-1">
+              {/* Kolomkoppen */}
+              <div className="flex items-center gap-2 px-3 pb-1">
+                <span className="flex-1 text-xs text-gray-500 font-bold uppercase tracking-wide">Speler</span>
+                <span className="w-24 text-xs text-gray-500 font-bold text-center">⚽ Goals</span>
+                {trackAssists && (
+                  <span className="w-24 text-xs text-gray-500 font-bold text-center">🅰️ Assists</span>
                 )}
+                <span className="w-24 text-xs text-gray-500 font-bold text-center">🥅 Eigen</span>
               </div>
 
-              {goals.map((goal, i) => (
-                <div key={i} className={`flex gap-2 items-start p-3 rounded-lg ${goal.is_own_goal ? 'bg-orange-900/30 border border-orange-700/50' : 'bg-gray-700/40'}`}>
-                  <span className="text-gray-400 text-sm font-bold w-5 pt-2 flex-shrink-0">{i + 1}</span>
-                  <div className="flex-1 space-y-2">
-                    {/* Eigen doelpunt toggle */}
-                    <button
-                      onClick={() => setGoals(prev => prev.map((g, j) =>
-                        j === i ? { ...g, is_own_goal: !g.is_own_goal, assist_id: null } : g
-                      ))}
-                      className={`text-xs px-2 py-1 rounded font-bold transition ${
-                        goal.is_own_goal
-                          ? 'bg-orange-600 text-white'
-                          : 'bg-gray-700 text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      🥅 Eigen doelpunt
-                    </button>
-
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1 block">
-                        {goal.is_own_goal ? '🥅 Wie scoorde het eigen doelpunt?' : '⚽ Schutter'}
-                      </label>
-                      <select
-                        value={goal.scorer_id ?? ''}
-                        onChange={e => {
-                          const v = e.target.value ? parseInt(e.target.value) : null;
-                          setGoals(prev => prev.map((g, j) => j === i ? { ...g, scorer_id: v } : g));
-                        }}
-                        className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-white text-sm"
-                      >
-                        <option value="">Selecteer speler…</option>
-                        {selectablePlayers.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
+              {selectablePlayers.map(player => {
+                const t = tally[player.id] ?? { goals: 0, assists: 0, own_goals: 0 };
+                const hasAny = t.goals > 0 || t.assists > 0 || t.own_goals > 0;
+                return (
+                  <div
+                    key={player.id}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${
+                      hasAny ? 'bg-gray-700/70' : 'bg-gray-700/20'
+                    }`}
+                  >
+                    <span className={`flex-1 text-sm truncate ${hasAny ? 'font-bold text-white' : 'text-gray-400'}`}>
+                      {player.name}
+                    </span>
+                    <div className="w-24 flex justify-center">
+                      <TallyCounter
+                        value={t.goals}
+                        onAdjust={d => adjustTally(player.id, 'goals', d)}
+                      />
                     </div>
-                    {trackAssists && !goal.is_own_goal && (
-                      <div>
-                        <label className="text-xs text-gray-400 mb-1 block">🅰️ Aangever (optioneel)</label>
-                        <select
-                          value={goal.assist_id ?? ''}
-                          onChange={e => {
-                            const v = e.target.value ? parseInt(e.target.value) : null;
-                            setGoals(prev => prev.map((g, j) => j === i ? { ...g, assist_id: v } : g));
-                          }}
-                          className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-white text-sm"
-                        >
-                          <option value="">Geen aangever</option>
-                          {selectablePlayers.filter(p => p.id !== goal.scorer_id).map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                        </select>
+                    {trackAssists && (
+                      <div className="w-24 flex justify-center">
+                        <TallyCounter
+                          value={t.assists}
+                          onAdjust={d => adjustTally(player.id, 'assists', d)}
+                        />
                       </div>
                     )}
+                    <div className="w-24 flex justify-center">
+                      <TallyCounter
+                        value={t.own_goals}
+                        onAdjust={d => adjustTally(player.id, 'own_goals', d)}
+                      />
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setGoals(prev => prev.filter((_, j) => j !== i))}
-                    className="text-gray-500 hover:text-red-400 transition pt-2 flex-shrink-0"
-                    title="Verwijder dit doelpunt"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
+                );
+              })}
 
-              <button
-                onClick={() => setGoals(prev => [...prev, { scorer_id: null, assist_id: null, is_own_goal: false }])}
-                className="w-full py-2 border border-dashed border-gray-600 rounded-lg text-sm text-gray-400 hover:text-white hover:border-gray-400 transition"
-              >
-                + Doelpunt toevoegen
-              </button>
-
-              {goalsFor !== null && goals.filter(g => g.scorer_id && !g.is_own_goal).length !== goalsFor && (
-                <p className="text-xs text-amber-400">
-                  Let op: je hebt {goals.filter(g => g.scorer_id && !g.is_own_goal).length} schutter(s) ingevuld, maar de score is {goalsFor}.
-                  {goals.some(g => g.is_own_goal && g.scorer_id) && (
+              {/* Validatie */}
+              {goalsFor !== null && totalGoalsEntered !== goalsFor && (
+                <p className="text-xs text-amber-400 pt-1">
+                  Let op: {totalGoalsEntered} goal(s) ingevuld, maar de score is {goalsFor}.
+                  {totalOwnGoalsEntered > 0 && (
                     <span className="ml-1">(eigen doelpunten tellen niet mee voor jouw score)</span>
                   )}
                 </p>
