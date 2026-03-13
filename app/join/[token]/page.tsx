@@ -161,7 +161,6 @@ export default function JoinPage() {
           role,
           player_id: invite.player_id ?? null,
           status: 'active',
-          invited_by: invite.created_by,
         });
 
       if (memberError) throw memberError;
@@ -178,10 +177,11 @@ export default function JoinPage() {
       setState({ kind: 'success', teamName: invite.team.name });
       localStorage.setItem('onboarding', 'true');
       setTimeout(() => router.push('/'), 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Fout bij accepteren uitnodiging:', err);
       acceptingRef.current = false;
-      setState({ kind: 'error', message: 'Er ging iets mis bij het accepteren. Probeer het opnieuw.' });
+      const detail = err?.message ?? err?.error_description ?? JSON.stringify(err);
+      setState({ kind: 'error', message: `Er ging iets mis: ${detail}` });
     }
   };
 
