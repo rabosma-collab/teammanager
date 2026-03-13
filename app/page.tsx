@@ -25,7 +25,7 @@ const snapBenchCenterToCursor: Modifier = ({ activatorEvent, active, activeNodeR
     y: transform.y + (touch.clientY - activeNodeRect.top - overlayH / 2),
   };
 };
-import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes } from './lib/constants';
+import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes, computeLineupForPeriod } from './lib/constants';
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
@@ -76,6 +76,7 @@ import SubstitutionModal from './components/modals/SubstitutionModal';
 import PlayerCardModal from './components/modals/PlayerCardModal';
 import PositionInfoModal from './components/modals/PositionInfoModal';
 import FinalizeMatchModal from './components/modals/FinalizeMatchModal';
+import PeriodSwapModal from './components/modals/PeriodSwapModal';
 import ActivitySlideOver from './components/ActivitySlideOver';
 import { logActivity } from './lib/logActivity';
 
@@ -100,6 +101,8 @@ export default function FootballApp() {
   const [view, setView] = useState('dashboard');
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [subMoments, setSubMoments] = useState<number>(1);
+  const [selectedPeriod, setSelectedPeriod] = useState<number>(1);
+  const [swapTarget, setSwapTarget] = useState<{ player: import('./lib/types').Player; positionIndex: number } | null>(null);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
   const [isEditingLineup, setIsEditingLineup] = useState(false);
   const wasPublishedBeforeEdit = useRef(false);
@@ -149,7 +152,7 @@ export default function FootballApp() {
     substitutions, tempSubs, showSubModal, showSubModalMinute,
     fetchSubstitutions,
     getSubsForNumber, openSubModal, addTempSub,
-    removeTempSub, updateTempSub, saveSubstitutions, closeSubModal
+    removeTempSub, updateTempSub, saveSubstitutions, saveQuickSwap, closeSubModal
   } = useSubstitutions();
 
   const {
@@ -260,6 +263,24 @@ export default function FootballApp() {
     absent: players.filter(p => !p.is_guest && matchAbsences.includes(p.id))
   }), [players, matchAbsences]);
 
+  // Opstelling voor de geselecteerde periode (period 1 = startopstelling, period N = na N-1 wisselmomenten)
+  const displayedOccupants = useMemo(() => {
+    if (selectedPeriod <= 1) return fieldOccupants;
+    return computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
+  }, [selectedPeriod, fieldOccupants, substitutions, players]);
+
+  // Bank voor de geselecteerde periode (wie is er beschikbaar om in te wisselen vóór wisselmoment N-1)
+  const benchPlayersForPeriod = useMemo(() => {
+    if (selectedPeriod <= 1) return benchPlayers;
+    // Bereken de opstelling vlak vóór het wisselmoment (periode N-1) om de juiste bankspelers te bepalen
+    const lineupBeforeSwap = computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod - 1);
+    const fieldKeys = new Set(lineupBeforeSwap.filter(Boolean).map(p => `${p!.is_guest ? 'g' : 'r'}_${p!.id}`));
+    return players.filter(p => {
+      const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+      return !fieldKeys.has(key) && !p.injured && (p.is_guest || !matchAbsences.includes(p.id));
+    });
+  }, [selectedPeriod, fieldOccupants, substitutions, players, benchPlayers, matchAbsences]);
+
   // ---- DEBUG: track player changes ----
   useEffect(() => {
     const names = players.map(p => p.name);
@@ -300,6 +321,7 @@ export default function FootballApp() {
       fetchSubstitutions(selectedMatch.id);
       fetchPlayers(selectedMatch.id);
       setIsEditingLineup(false);
+      setSelectedPeriod(1);
     } else {
       // No match selected yet, fetch players without match context
       fetchPlayers();
@@ -926,6 +948,22 @@ export default function FootballApp() {
         />
       )}
 
+      {swapTarget && selectedMatch && (
+        <PeriodSwapModal
+          playerOut={swapTarget.player}
+          periodIndex={selectedPeriod}
+          subMomentMinute={subMomentMinutes[selectedPeriod - 2] ?? 0}
+          benchPlayers={benchPlayersForPeriod}
+          onConfirm={async (playerIn) => {
+            const subNumber = selectedPeriod - 1;
+            const minute = subMomentMinutes[subNumber - 1] ?? 0;
+            await saveQuickSwap(selectedMatch.id, subNumber, minute, swapTarget.player.id, playerIn.id);
+            setSwapTarget(null);
+          }}
+          onClose={() => setSwapTarget(null)}
+        />
+      )}
+
       {showExtraSubModal && isManager && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowExtraSubModal(false)}>
           <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
@@ -1183,19 +1221,40 @@ export default function FootballApp() {
                 ))}
               </select>
 
+              {/* Periode-dropdown: toon wie er op dat moment speelt (alleen bij vaste wisselmomenten) */}
+              {selectedMatch && !isFreeSubstitution && subMoments > 0 && (
+                <select
+                  value={selectedPeriod}
+                  onChange={e => setSelectedPeriod(Number(e.target.value))}
+                  className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm sm:text-base"
+                >
+                  <option value={1}>1e periode (Startopstelling)</option>
+                  {Array.from({ length: subMoments }, (_, i) => {
+                    const periodNum = i + 2;
+                    const minute = subMomentMinutes[i];
+                    return (
+                      <option key={periodNum} value={periodNum}>
+                        {periodNum}e periode ({minute}&apos;)
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+
               {activelyEditing && (
                 <div className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded px-2 py-1">
-                  <span className="text-xs text-gray-400 mr-1"># wisselmomenten:</span>
-                  {(['Vrij', 1, 2, 3, 4] as const).map((val) => {
-                    const n = val === 'Vrij' ? 0 : val as number;
+                  <span className="text-xs text-gray-400 mr-1"># periodes:</span>
+                  {/* Vrij = 0 wisselmomenten, 2-5 = aantal periodes (= n-1 wisselmomenten) */}
+                  {(['Vrij', 2, 3, 4, 5] as const).map((val) => {
+                    const n = val === 'Vrij' ? 0 : (val as number) - 1; // aantal wisselmomenten opgeslagen in subMoments
                     const isActive = subMoments === n;
                     const preview = n === 0
                       ? 'Vrije wissels (kies zelf de minuut)'
-                      : `${n} wissel${n > 1 ? 'momenten' : 'moment'}: ${computeSubMomentMinutes(n, matchDuration).join("', ")}' `;
+                      : `${val} periodes — wisselmoment${n > 1 ? 'en' : ''}: ${computeSubMomentMinutes(n, matchDuration).join("', ")}' `;
                     return (
                       <button
                         key={n}
-                        onClick={() => setSubMoments(n)}
+                        onClick={() => { setSubMoments(n); setSelectedPeriod(1); }}
                         title={preview}
                         className={`px-2 py-0.5 rounded text-sm font-bold transition ${
                           isActive
@@ -1346,15 +1405,23 @@ export default function FootballApp() {
               <PitchView
                 gameFormat={gameFormat}
                 formation={formation}
-                fieldOccupants={fieldOccupants}
-                selectedPosition={selectedPosition}
-                selectedPlayer={selectedPlayer}
-                isEditable={activelyEditing}
-                isManagerEdit={isManager && !!selectedMatch && !isFinalized}
+                fieldOccupants={displayedOccupants}
+                selectedPosition={selectedPeriod === 1 ? selectedPosition : null}
+                selectedPlayer={selectedPeriod === 1 ? selectedPlayer : null}
+                isEditable={activelyEditing && selectedPeriod === 1}
+                isManagerEdit={isManager && !!selectedMatch && !isFinalized && selectedPeriod === 1}
                 matchAbsences={matchAbsences}
                 isPlayerAvailable={isPlayerAvailable}
                 getInstructionForPosition={getInstructionForPosition}
                 onPositionClick={handlePositionClick}
+                onSwapPlayer={
+                  selectedPeriod > 1 && isManager && !isFinalized && !isFreeSubstitution
+                    ? (posIdx) => {
+                        const p = displayedOccupants[posIdx];
+                        if (p) setSwapTarget({ player: p, positionIndex: posIdx });
+                      }
+                    : undefined
+                }
                 onShowTooltip={(positionIndex: number) => {
                   if (isManager && selectedMatch && !isFinalized) {
                     const matchInstr = matchInstructions.find((m: PositionInstruction) => m.position_index === positionIndex);
@@ -1382,10 +1449,10 @@ export default function FootballApp() {
 
               <div className="flex flex-col gap-4 w-full lg:w-[580px] flex-shrink-0">
                 <BenchPanel
-                  benchPlayers={benchPlayers}
+                  benchPlayers={benchPlayersForPeriod}
                   unavailablePlayers={unavailablePlayers}
-                  selectedPlayer={selectedPlayer}
-                  isEditable={activelyEditing}
+                  selectedPlayer={selectedPeriod === 1 ? selectedPlayer : null}
+                  isEditable={activelyEditing && selectedPeriod === 1}
                   onSelectPlayer={handleSelectPlayer}
                   onShowPlayerCard={setShowPlayerCard}
                 />

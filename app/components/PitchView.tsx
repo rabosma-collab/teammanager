@@ -17,6 +17,8 @@ interface PitchViewProps {
   onPositionClick: (index: number) => void;
   onShowTooltip: (index: number) => void;
   onShowPositionInfo: (player: Player, positionIndex: number) => void;
+  /** Optioneel: als meegegeven, wordt dit aangeroepen i.p.v. onShowPositionInfo (bijv. bij periode-swap) */
+  onSwapPlayer?: (positionIndex: number) => void;
 }
 
 interface PositionSlotProps {
@@ -34,12 +36,13 @@ interface PositionSlotProps {
   onPositionClick: (index: number) => void;
   onShowTooltip: (index: number) => void;
   onShowPositionInfo: (player: Player, positionIndex: number) => void;
+  onSwapPlayer?: (positionIndex: number) => void;
 }
 
 function PositionSlot({
   index, pos, player, isEditable, isManagerEdit, isSelected, showWarning,
   instruction, showInstructionButton, positionCategory, selectedPlayer,
-  onPositionClick, onShowTooltip, onShowPositionInfo,
+  onPositionClick, onShowTooltip, onShowPositionInfo, onSwapPlayer,
 }: PositionSlotProps) {
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `pos-${index}`,
@@ -68,6 +71,8 @@ function PositionSlot({
   const handleClick = () => {
     if (isEditable) {
       onPositionClick(index);
+    } else if (player && onSwapPlayer) {
+      onSwapPlayer(index);
     } else if (player) {
       onShowPositionInfo(player, index);
     }
@@ -169,6 +174,7 @@ const PitchView = React.memo(function PitchView({
   onPositionClick,
   onShowTooltip,
   onShowPositionInfo,
+  onSwapPlayer,
 }: PitchViewProps) {
   const positionsList = formations[gameFormat]?.[formation] ?? [];
 
@@ -210,6 +216,7 @@ const PitchView = React.memo(function PitchView({
               onPositionClick={onPositionClick}
               onShowTooltip={onShowTooltip}
               onShowPositionInfo={onShowPositionInfo}
+              onSwapPlayer={onSwapPlayer}
             />
           );
         })}
