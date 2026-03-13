@@ -344,9 +344,10 @@ export default function PlayersManageView({
         <h2 className="text-2xl sm:text-3xl font-bold">👥 Spelersbeheer</h2>
         <button
           onClick={() => setEditingPlayer('new')}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm sm:text-base"
+          className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm flex items-center gap-1.5"
         >
-          ➕ Nieuwe speler
+          <span>➕</span>
+          <span className="hidden sm:inline">Nieuwe speler</span>
         </button>
       </div>
 
@@ -489,9 +490,10 @@ export default function PlayersManageView({
           <h2 className="text-xl sm:text-2xl font-bold">🧑‍💼 Stafleden</h2>
           <button
             onClick={() => setShowStaffInviteModal(true)}
-            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm"
+            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm flex items-center gap-1.5"
           >
-            ➕ Staflid uitnodigen
+            <span>➕</span>
+            <span className="hidden sm:inline">Staflid uitnodigen</span>
           </button>
         </div>
 

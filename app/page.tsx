@@ -1182,7 +1182,7 @@ export default function FootballApp() {
 
               {activelyEditing && (
                 <div className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded px-2 py-1">
-                  <span className="text-xs text-gray-400 mr-1 hidden sm:inline">Wissels:</span>
+                  <span className="text-xs text-gray-400 mr-1"># wisselmomenten:</span>
                   {(['Vrij', 1, 2, 3, 4] as const).map((val) => {
                     const n = val === 'Vrij' ? 0 : val as number;
                     const isActive = subMoments === n;
@@ -1298,7 +1298,7 @@ export default function FootballApp() {
                   title="Laad de opstelling van de vorige wedstrijd"
                   className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm flex items-center gap-1.5"
                 >
-                  📋 <span className="hidden sm:inline">Vorige</span>
+                  📋 Vorige opstelling
                 </button>
               )}
 
@@ -1325,7 +1325,7 @@ export default function FootballApp() {
                   title="Wedstrijdrapport als PDF"
                   className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm flex items-center gap-1.5"
                 >
-                  📄 <span className="hidden sm:inline">PDF</span>
+                  📄 Exporteer PDF
                 </button>
               )}
             </div>
