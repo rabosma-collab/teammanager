@@ -18,13 +18,13 @@ export default function ResetPasswordPage() {
   // Supabase stuurt de gebruiker terug met een access_token in de URL hash.
   // We wachten tot de sessie is hersteld voordat we het formulier tonen.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
       if (data.session) {
         setReady(true);
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === 'PASSWORD_RECOVERY') {
         setReady(true);
       }
