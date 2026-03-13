@@ -29,9 +29,9 @@ export default function MatchesManageView({
 }: MatchesManageViewProps) {
   const toast = useToast();
   const [editingMatch, setEditingMatch] = useState<Match | null | 'new'>(null);
-  const [editingScoreId, setEditingScoreId] = useState<number | null>(null);
-  const [scoreGoalsFor, setScoreGoalsFor] = useState('');
-  const [scoreGoalsAgainst, setScoreGoalsAgainst] = useState('');
+  const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
+  const [scoreGoalsFor, setScoreGoalsFor] = useState<number | null>(null);
+  const [scoreGoalsAgainst, setScoreGoalsAgainst] = useState<number | null>(null);
 
   const sortedMatches = [...matches].sort((a, b) =>
     new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -59,19 +59,17 @@ export default function MatchesManageView({
   };
 
   const openScoreEdit = (match: Match) => {
-    setEditingScoreId(match.id);
-    setScoreGoalsFor(match.goals_for != null ? String(match.goals_for) : '');
-    setScoreGoalsAgainst(match.goals_against != null ? String(match.goals_against) : '');
+    setEditingScoreMatch(match);
+    setScoreGoalsFor(match.goals_for ?? null);
+    setScoreGoalsAgainst(match.goals_against ?? null);
   };
 
-  const handleSaveScore = async (matchId: number) => {
-    const rawFor = parseInt(scoreGoalsFor, 10);
-    const rawAgainst = parseInt(scoreGoalsAgainst, 10);
-    const goalsFor = scoreGoalsFor !== '' ? Math.max(0, isNaN(rawFor) ? 0 : rawFor) : null;
-    const goalsAgainst = scoreGoalsAgainst !== '' ? Math.max(0, isNaN(rawAgainst) ? 0 : rawAgainst) : null;
-    const success = await onUpdateScore(matchId, goalsFor, goalsAgainst);
+  const handleSaveScore = async () => {
+    if (!editingScoreMatch) return;
+    const success = await onUpdateScore(editingScoreMatch.id, scoreGoalsFor, scoreGoalsAgainst);
     if (success) {
-      setEditingScoreId(null);
+      toast.success('✅ Uitslag bijgewerkt!');
+      setEditingScoreMatch(null);
     } else {
       toast.error('❌ Kon uitslag niet opslaan');
     }
@@ -79,7 +77,11 @@ export default function MatchesManageView({
 
   const handleDelete = async (match: Match) => {
     const dateStr = new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' });
-    if (!confirm(`Weet je het zeker dat je de wedstrijd tegen ${match.opponent} (${dateStr}) wilt verwijderen? Dit verwijdert ook alle opstellingen, wissels, afwezigheden en gastspelers.`)) {
+    const isFinalized = match.match_status === 'afgerond';
+    const extraWarning = isFinalized
+      ? '\n\nLet op: dit is een AFGESLOTEN wedstrijd. Verwijderen kan niet ongedaan worden gemaakt.'
+      : '';
+    if (!confirm(`Weet je zeker dat je de wedstrijd tegen ${match.opponent} (${dateStr}) wilt verwijderen? Dit verwijdert ook alle opstellingen, wissels, afwezigheden en gastspelers.${extraWarning}`)) {
       return;
     }
     const success = await onDeleteMatch(match.id);
@@ -99,9 +101,10 @@ export default function MatchesManageView({
         <h2 className="text-2xl sm:text-3xl font-bold">📅 Wedstrijdenbeheer</h2>
         <button
           onClick={() => setEditingMatch('new')}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm sm:text-base"
+          className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm flex items-center gap-1.5"
         >
-          ➕ Nieuwe wedstrijd
+          <span>➕</span>
+          <span className="hidden sm:inline">Nieuwe wedstrijd</span>
         </button>
       </div>
 
@@ -113,6 +116,88 @@ export default function MatchesManageView({
           onSave={handleSave}
           onClose={() => setEditingMatch(null)}
         />
+      )}
+
+      {/* Score bewerken modal voor afgesloten wedstrijden */}
+      {editingScoreMatch && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setEditingScoreMatch(null)}
+        >
+          <div
+            className="bg-gray-800 rounded-xl w-full max-w-sm"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-700">
+              <div>
+                <h3 className="text-lg font-bold">⚽ Uitslag bijwerken</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {editingScoreMatch.opponent} · {new Date(editingScoreMatch.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })}
+                </p>
+              </div>
+              <button onClick={() => setEditingScoreMatch(null)} className="text-2xl hover:text-red-400 p-1">✕</button>
+            </div>
+
+            <div className="px-5 py-5 space-y-4">
+              <div className="p-3 bg-amber-900/30 border border-amber-700 rounded-lg text-xs text-amber-300">
+                ⚠️ <strong>Let op:</strong> het bijwerken van de uitslag wordt niet automatisch verwerkt in de spelersranglijst of spelersstatistieken. Pas dit handmatig aan via de Spelerskaarten.
+              </div>
+
+              <div className="flex items-center gap-4 justify-center">
+                <div className="text-center">
+                  <div className="text-xs text-gray-400 mb-2">Wij</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setScoreGoalsFor(v => v === null || v === 0 ? null : v - 1)}
+                      className="w-9 h-9 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-xl font-bold flex items-center justify-center"
+                      disabled={scoreGoalsFor === null}
+                    >−</button>
+                    <span className="text-3xl font-black w-8 text-center tabular-nums">
+                      {scoreGoalsFor ?? '–'}
+                    </span>
+                    <button
+                      onClick={() => setScoreGoalsFor(v => (v ?? -1) + 1)}
+                      className="w-9 h-9 rounded-full bg-green-600 hover:bg-green-700 text-white text-xl font-bold flex items-center justify-center"
+                    >+</button>
+                  </div>
+                </div>
+                <div className="text-gray-400 font-black text-2xl">–</div>
+                <div className="text-center">
+                  <div className="text-xs text-gray-400 mb-2">Tegenstander</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setScoreGoalsAgainst(v => v === null || v === 0 ? null : v - 1)}
+                      className="w-9 h-9 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-xl font-bold flex items-center justify-center"
+                      disabled={scoreGoalsAgainst === null}
+                    >−</button>
+                    <span className="text-3xl font-black w-8 text-center tabular-nums">
+                      {scoreGoalsAgainst ?? '–'}
+                    </span>
+                    <button
+                      onClick={() => setScoreGoalsAgainst(v => (v ?? -1) + 1)}
+                      className="w-9 h-9 rounded-full bg-green-600 hover:bg-green-700 text-white text-xl font-bold flex items-center justify-center"
+                    >+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 px-5 pb-5">
+              <button
+                onClick={() => setEditingScoreMatch(null)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleSaveScore}
+                className="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded font-bold text-sm"
+              >
+                ✓ Opslaan
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="bg-gray-800 rounded-lg overflow-hidden">
@@ -163,42 +248,10 @@ export default function MatchesManageView({
                     <span>📅 {matchDate.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     <span>📋 {formationLabels[gameFormat]?.[match.formation] ?? match.formation}</span>
                   </div>
-                  {/* Inline score editor */}
-                  {isFinalized && editingScoreId === match.id && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <input
-                        type="number" min="0" max="99"
-                        value={scoreGoalsFor}
-                        onChange={(e) => setScoreGoalsFor(e.target.value)}
-                        className="w-14 px-2 py-1 bg-gray-700 border border-gray-500 rounded text-white text-center font-black text-sm"
-                        placeholder="–"
-                      />
-                      <span className="text-gray-400 font-bold">–</span>
-                      <input
-                        type="number" min="0" max="99"
-                        value={scoreGoalsAgainst}
-                        onChange={(e) => setScoreGoalsAgainst(e.target.value)}
-                        className="w-14 px-2 py-1 bg-gray-700 border border-gray-500 rounded text-white text-center font-black text-sm"
-                        placeholder="–"
-                      />
-                      <button
-                        onClick={() => handleSaveScore(match.id)}
-                        className="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs font-bold"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={() => setEditingScoreId(null)}
-                        className="px-2 py-1 bg-gray-600 hover:bg-gray-700 rounded text-xs font-bold"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                  {isFinalized && (
+                  {isFinalized ? (
                     <button
                       onClick={() => openScoreEdit(match)}
                       className="px-2 sm:px-3 py-1.5 bg-yellow-700 hover:bg-yellow-600 rounded text-xs sm:text-sm font-bold"
@@ -206,23 +259,22 @@ export default function MatchesManageView({
                     >
                       ⚽
                     </button>
+                  ) : (
+                    <button
+                      onClick={() => setEditingMatch(match)}
+                      className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold"
+                      title="Bewerken"
+                    >
+                      ✏️
+                    </button>
                   )}
-                  {!isFinalized && (
-                    <>
-                      <button
-                        onClick={() => setEditingMatch(match)}
-                        className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleDelete(match)}
-                        className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold"
-                      >
-                        🗑️
-                      </button>
-                    </>
-                  )}
+                  <button
+                    onClick={() => handleDelete(match)}
+                    className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold"
+                    title="Verwijderen"
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             );
