@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { positionEmojis } from '../lib/constants';
-import type { Player } from '../lib/types';
+import type { Player, TeamSettings } from '../lib/types';
 
 interface StatsViewProps {
   players: Player[];
   isAdmin: boolean;
   onUpdateStat: (id: number, field: string, value: string) => void;
+  teamSettings?: TeamSettings | null;
 }
 
 type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'consumption_count' | 'yellow_cards' | 'red_cards' | 'min';
@@ -44,7 +45,7 @@ interface EditingCell {
   value: number;
 }
 
-export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewProps) {
+export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings }: StatsViewProps) {
   const [sortKey, setSortKey] = useState<SortKey>('goals');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [filterPosition, setFilterPosition] = useState<PositionFilter>('all');
@@ -107,17 +108,37 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
     setEditingCell(null);
   };
 
+  const trackGoals   = teamSettings?.track_goals   ?? true;
+  const trackAssists = teamSettings?.track_assists ?? true;
+  const trackMinutes = teamSettings?.track_minutes ?? true;
+  const trackCards   = teamSettings?.track_cards   ?? false;
+  const trackWasbeurt     = teamSettings?.track_wasbeurt     ?? true;
+  const trackConsumpties  = teamSettings?.track_consumpties  ?? true;
+
+  const statFields = useMemo(
+    () => (['goals', 'assists', 'wash_count', 'consumption_count', 'yellow_cards', 'red_cards', 'min'] as const).filter(f => {
+      if (f === 'goals')             return trackGoals;
+      if (f === 'assists')           return trackAssists;
+      if (f === 'yellow_cards' || f === 'red_cards') return trackCards;
+      if (f === 'min')               return trackMinutes;
+      if (f === 'wash_count')        return trackWasbeurt;
+      if (f === 'consumption_count') return trackConsumpties;
+      return true;
+    }),
+    [trackGoals, trackAssists, trackCards, trackMinutes, trackWasbeurt, trackConsumpties]
+  );
+
   const columns: { key: SortKey; label: string }[] = [
     { key: 'name', label: 'Speler' },
     { key: 'position', label: 'Positie' },
     { key: 'injured', label: 'Status' },
-    { key: 'goals', label: 'Goals' },
-    { key: 'assists', label: 'Assists' },
-    { key: 'wash_count', label: '🧼 Was' },
-    { key: 'consumption_count', label: '🥤 Cons.' },
-    { key: 'yellow_cards', label: '🟨 Geel' },
-    { key: 'red_cards', label: '🟥 Rood' },
-    { key: 'min', label: 'Wissel' },
+    ...(trackGoals   ? [{ key: 'goals'            as SortKey, label: 'Goals'      }] : []),
+    ...(trackAssists ? [{ key: 'assists'           as SortKey, label: 'Assists'    }] : []),
+    ...(trackWasbeurt    ? [{ key: 'wash_count'        as SortKey, label: '🧼 Was'    }] : []),
+    ...(trackConsumpties ? [{ key: 'consumption_count' as SortKey, label: '🥤 Cons.'  }] : []),
+    ...(trackCards   ? [{ key: 'yellow_cards'      as SortKey, label: '🟨 Geel'   }] : []),
+    ...(trackCards   ? [{ key: 'red_cards'         as SortKey, label: '🟥 Rood'   }] : []),
+    ...(trackMinutes ? [{ key: 'min'               as SortKey, label: 'Wissel'    }] : []),
   ];
 
   return (
@@ -189,7 +210,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat }: StatsViewP
                       : <span className="text-green-500">✓</span>
                     }
                   </td>
-                  {(['goals', 'assists', 'wash_count', 'consumption_count', 'yellow_cards', 'red_cards', 'min'] as const).map(field => (
+                  {statFields.map(field => (
                     <StatCell
                       key={field}
                       isEditing={isEditing}

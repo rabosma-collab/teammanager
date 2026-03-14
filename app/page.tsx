@@ -46,6 +46,7 @@ import { usePeriodOverrides } from './hooks/usePeriodOverrides';
 import { useMatchStats } from './hooks/useMatchStats';
 import { useLineupPresence } from './hooks/useLineupPresence';
 import { useActivityLog } from './hooks/useActivityLog';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
 
 // Components
 import Navbar from './components/Navbar';
@@ -359,6 +360,20 @@ export default function FootballApp() {
   }, [gameFormat]);
 
   const playerCount = GAME_FORMATS[gameFormat]?.players ?? 11;
+
+  useRealtimeSync({
+    currentTeam,
+    selectedMatchId: selectedMatch?.id ?? null,
+    isEditingLineup: isEditingLineup,
+    players,
+    playerCount,
+    onPlayersChange: fetchPlayers,
+    onMatchesChange: fetchMatches,
+    onLineupChange: loadLineup,
+    onSubstitutionsChange: fetchSubstitutions,
+    onAbsencesChange: fetchAbsences,
+    onPeriodOverridesChange: fetchPeriodOverrides,
+  });
 
   useEffect(() => {
     if (selectedMatch && players.length > 0) {
@@ -1165,7 +1180,6 @@ export default function FootballApp() {
         <DashboardView
           players={players}
           matches={matches}
-          fieldOccupants={fieldOccupants}
           gameFormat={gameFormat}
           onToggleAbsence={toggleAbsence}
           onToggleInjury={toggleInjury}
@@ -1183,6 +1197,7 @@ export default function FootballApp() {
           trackResults={teamSettings?.track_results ?? true}
           trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
           trackConsumpties={teamSettings?.track_consumpties ?? true}
+          trackSpdw={teamSettings?.track_spdw ?? true}
           activities={activities}
           onActivityRead={markAsRead}
           onOpenActivity={() => { setShowActivity(true); fetchActivities(); }}
@@ -1602,7 +1617,7 @@ export default function FootballApp() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} />
+          <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} teamSettings={teamSettings} />
         </div>
       )}
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult, MatchPlayerStats } from '../lib/types';
-import { getPositionCategory } from '../lib/constants';
+import { getPositionCategory, GAME_FORMATS } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import { logActivity } from '../lib/logActivity';
@@ -21,7 +21,6 @@ import type { ActivityLogItem } from '../hooks/useActivityLog';
 interface DashboardViewProps {
   players: Player[];
   matches: Match[];
-  fieldOccupants: (Player | null)[];
   gameFormat: string;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
   onToggleInjury: (playerId: number) => Promise<boolean>;
@@ -40,6 +39,7 @@ interface DashboardViewProps {
   trackResults?: boolean;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
+  trackSpdw?: boolean;
   activities?: ActivityLogItem[];
   onActivityRead?: (id: number) => void;
   onOpenActivity?: () => void;
@@ -48,7 +48,6 @@ interface DashboardViewProps {
 export default function DashboardView({
   players,
   matches,
-  fieldOccupants,
   gameFormat,
   onToggleAbsence,
   onToggleInjury,
@@ -66,6 +65,7 @@ export default function DashboardView({
   trackResults = true,
   trackWasbeurt = true,
   trackConsumpties = true,
+  trackSpdw = true,
   activities = [],
   onActivityRead,
   onOpenActivity,
@@ -108,11 +108,15 @@ export default function DashboardView({
   // POTW-overwinningen berekenen voor de ingelogde speler
   const [potwWins, setPotwWins] = useState(0);
 
+  // Eigen opstelling-state voor het dashboard (onafhankelijk van pitch-tab selectedMatch)
+  const [dashboardOccupants, setDashboardOccupants] = useState<(Player | null)[]>(Array(11).fill(null));
+
   // Loading gates: wacht tot alle lokale fetches klaar zijn zodat alles tegelijk verschijnt
   const [absencesReady, setAbsencesReady] = useState(false);
   const [instructionsReady, setInstructionsReady] = useState(false);
   const [potwReady, setPotwReady] = useState(false);
-  const isReady = absencesReady && instructionsReady && potwReady;
+  const [occupantsReady, setOccupantsReady] = useState(false);
+  const isReady = absencesReady && instructionsReady && potwReady && occupantsReady;
   // Na de eerste volledige load nooit meer de skeleton tonen (voorkomt flits bij re-renders)
   const hasLoadedOnce = useRef(false);
   if (isReady) hasLoadedOnce.current = true;
@@ -132,8 +136,8 @@ export default function DashboardView({
 
   const playerPositionIndex = useMemo(() => {
     if (!currentPlayerId) return -1;
-    return fieldOccupants.findIndex(p => p?.id === currentPlayerId);
-  }, [currentPlayerId, fieldOccupants]);
+    return dashboardOccupants.findIndex(p => p?.id === currentPlayerId);
+  }, [currentPlayerId, dashboardOccupants]);
 
   const playerMatchInstruction = useMemo(() => {
     if (playerPositionIndex === -1) return null;
@@ -162,6 +166,42 @@ export default function DashboardView({
         setAbsencesReady(true);
       });
   }, [dashboardMatch?.id]);
+
+  // Laad de opstelling voor dashboardMatch onafhankelijk van de pitch-tab state
+  useEffect(() => {
+    setOccupantsReady(false);
+    if (!dashboardMatch) {
+      setDashboardOccupants(Array(11).fill(null));
+      setOccupantsReady(true);
+      return;
+    }
+    const playerCount = GAME_FORMATS[gameFormat]?.players ?? 11;
+    (async () => {
+      const [lineupResult, guestResult] = await Promise.all([
+        supabase.from('lineups').select('position, player_id').eq('match_id', dashboardMatch.id),
+        supabase.from('guest_players').select('id, lineup_position').eq('match_id', dashboardMatch.id).not('lineup_position', 'is', null),
+      ]);
+      const lineup: (Player | null)[] = Array(playerCount).fill(null);
+      if (lineupResult.data) {
+        for (const entry of lineupResult.data) {
+          if (entry.position >= 0 && entry.position < playerCount && entry.player_id) {
+            const player = players.find((p: Player) => p.id === entry.player_id && !p.is_guest);
+            if (player) lineup[entry.position] = player;
+          }
+        }
+      }
+      if (guestResult.data) {
+        for (const guest of guestResult.data) {
+          if (guest.lineup_position >= 0 && guest.lineup_position < playerCount) {
+            const player = players.find((p: Player) => p.id === guest.id && p.is_guest);
+            if (player) lineup[guest.lineup_position] = player;
+          }
+        }
+      }
+      setDashboardOccupants(lineup);
+      setOccupantsReady(true);
+    })();
+  }, [dashboardMatch?.id, players, gameFormat]);
 
   const refreshAbsences = useCallback(async (): Promise<number[]> => {
     if (!dashboardMatch) return [];
@@ -284,7 +324,7 @@ export default function DashboardView({
           <NextMatchCard
             match={dashboardMatch}
             matchAbsences={dashboardAbsences}
-            fieldOccupants={fieldOccupants}
+            fieldOccupants={dashboardOccupants}
             currentPlayerId={currentPlayerId}
             isManager={isManager}
             players={players}
@@ -300,7 +340,7 @@ export default function DashboardView({
         </div>
 
         {/* Speler van de week — boven selectie aanwezigheid */}
-        {votingMatches.length === 0 && lastSpdwResult ? (
+        {trackSpdw && (votingMatches.length === 0 && lastSpdwResult ? (
           <SpdwResultCard result={lastSpdwResult} />
         ) : (
           <VotingSection
@@ -312,7 +352,7 @@ export default function DashboardView({
             onSelectCurrentPlayer={onSelectVotingPlayer}
             onVote={onVote}
           />
-        )}
+        ))}
 
         {/* Selectie aanwezigheid — zichtbaar voor iedereen */}
         {dashboardMatch && (
