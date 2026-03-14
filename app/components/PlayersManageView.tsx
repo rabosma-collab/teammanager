@@ -490,10 +490,10 @@ export default function PlayersManageView({
           <h2 className="text-xl sm:text-2xl font-bold">🧑‍💼 Stafleden</h2>
           <button
             onClick={() => setShowStaffInviteModal(true)}
-            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded font-bold text-sm flex items-center gap-1.5"
           >
             <span>➕</span>
-            <span className="hidden sm:inline">Staflid uitnodigen</span>
+            <span>Staflid uitnodigen</span>
           </button>
         </div>
 
