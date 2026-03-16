@@ -39,6 +39,9 @@ interface DashboardViewProps {
   trackResults?: boolean;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
+  trackAssemblyTime?: boolean;
+  trackMatchTime?: boolean;
+  trackLocationDetails?: boolean;
   trackSpdw?: boolean;
   activities?: ActivityLogItem[];
   onActivityRead?: (id: number) => void;
@@ -65,6 +68,9 @@ export default function DashboardView({
   trackResults = true,
   trackWasbeurt = true,
   trackConsumpties = true,
+  trackAssemblyTime = false,
+  trackMatchTime = false,
+  trackLocationDetails = false,
   trackSpdw = true,
   activities = [],
   onActivityRead,
@@ -332,6 +338,9 @@ export default function DashboardView({
             positionName={playerMatchInstruction?.position_name || lineupPositionName}
             trackWasbeurt={trackWasbeurt}
             trackConsumpties={trackConsumpties}
+            trackAssemblyTime={trackAssemblyTime}
+            trackMatchTime={trackMatchTime}
+            trackLocationDetails={trackLocationDetails}
             onToggleAbsence={handleToggleAbsence}
             onToggleInjury={handleToggleInjury}
             onNavigateToWedstrijd={onNavigateToWedstrijd}

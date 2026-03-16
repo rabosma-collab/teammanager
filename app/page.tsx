@@ -65,6 +65,7 @@ import InvitesManageView from './components/InvitesManageView';
 import MededelingenView from './components/MededelingenView';
 import TeamSettingsView from './components/TeamSettingsView';
 import FeedbackView from './components/FeedbackView';
+import LineupLockedView from './components/LineupLockedView';
 
 // PDF
 import { generateMatchPdf } from './utils/generateMatchPdf';
@@ -184,6 +185,8 @@ export default function FootballApp() {
   const isFinalized = selectedMatch?.match_status === 'afgerond';
   const isLineupPublished = selectedMatch?.lineup_published === true;
   const activelyEditing = editable && isEditingLineup;
+  // Spelers mogen de opstelling alleen zien als: manager, opstelling gepubliceerd, of wedstrijd afgerond
+  const canSeeLineup = isManager || isLineupPublished || isFinalized;
 
   // Wasbeurt berekening voor PitchView toolbar
   const wasbeurtEligible = useMemo(() =>
@@ -1140,6 +1143,9 @@ export default function FootballApp() {
           matches={matches}
           gameFormat={gameFormat}
           defaultFormation={teamSettings?.default_formation}
+          trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
+          trackMatchTime={teamSettings?.track_match_time ?? false}
+          trackLocationDetails={teamSettings?.track_location_details ?? false}
           onAddMatch={addMatch}
           onUpdateMatch={updateMatch}
           onUpdateScore={updateMatchScore}
@@ -1197,6 +1203,9 @@ export default function FootballApp() {
           trackResults={teamSettings?.track_results ?? true}
           trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
           trackConsumpties={teamSettings?.track_consumpties ?? true}
+          trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
+          trackMatchTime={teamSettings?.track_match_time ?? false}
+          trackLocationDetails={teamSettings?.track_location_details ?? false}
           trackSpdw={teamSettings?.track_spdw ?? true}
           activities={activities}
           onActivityRead={markAsRead}
@@ -1473,7 +1482,9 @@ export default function FootballApp() {
             </div>
 
             {/* Veld + Bank + Wissels */}
-            <DndContext
+            {!canSeeLineup ? (
+              <LineupLockedView match={selectedMatch} />
+            ) : <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
               modifiers={[snapBenchCenterToCursor]}
@@ -1572,10 +1583,10 @@ export default function FootballApp() {
                   </div>
                 ) : null}
               </DragOverlay>
-            </DndContext>
+            </DndContext>}
 
             {/* Taken: wasbeurt + consumpties */}
-            {selectedMatch && !isFinalized && (
+            {canSeeLineup && selectedMatch && !isFinalized && (
               <div className="max-w-4xl mx-auto w-full">
               <TakenBlok
                 trackWasbeurt={teamSettings?.track_wasbeurt ?? true}

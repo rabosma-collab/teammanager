@@ -113,11 +113,12 @@ export function useSubstitutions() {
         is_extra: false
       }));
 
-      const { error } = await supabase
-        .from('substitutions')
-        .insert(subsToInsert);
-
-      if (error) throw error;
+      if (subsToInsert.length > 0) {
+        const { error } = await supabase
+          .from('substitutions')
+          .insert(subsToInsert);
+        if (error) throw error;
+      }
 
       await fetchSubstitutions(matchId);
       setShowSubModal(null);

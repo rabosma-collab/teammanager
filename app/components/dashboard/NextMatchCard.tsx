@@ -16,10 +16,18 @@ interface NextMatchCardProps {
   positionName?: string;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
+  trackAssemblyTime?: boolean;
+  trackMatchTime?: boolean;
+  trackLocationDetails?: boolean;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
   onToggleInjury: (playerId: number) => Promise<boolean>;
   onNavigateToWedstrijd: (match: Match) => void;
   onNavigateToMatches?: () => void;
+}
+
+function formatTime(timeStr: string): string {
+  // timeStr is "HH:MM:SS" or "HH:MM" — return "HH:MM"
+  return timeStr.slice(0, 5);
 }
 
 function formatDate(dateStr: string): string {
@@ -53,6 +61,9 @@ export default function NextMatchCard({
   positionName,
   trackWasbeurt = true,
   trackConsumpties = true,
+  trackAssemblyTime = false,
+  trackMatchTime = false,
+  trackLocationDetails = false,
   onToggleAbsence,
   onToggleInjury,
   onNavigateToWedstrijd,
@@ -178,6 +189,28 @@ export default function NextMatchCard({
           </div>
         )}
         <div className="text-xs text-gray-500 mt-1">{formationLabel}</div>
+        {(trackAssemblyTime && match.assembly_time) || (trackMatchTime && match.match_time) || (trackLocationDetails && match.location_details) ? (
+          <div className="mt-2 space-y-1">
+            {trackAssemblyTime && match.assembly_time && (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span>🕐</span>
+                <span className="text-gray-300">Verzamelen: <span className="font-bold text-white">{formatTime(match.assembly_time)}</span></span>
+              </div>
+            )}
+            {trackMatchTime && match.match_time && (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span>⚽</span>
+                <span className="text-gray-300">Aanvang: <span className="font-bold text-white">{formatTime(match.match_time)}</span></span>
+              </div>
+            )}
+            {trackLocationDetails && match.location_details && (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span>📍</span>
+                <span className="text-gray-300">Kleedkamer: <span className="font-bold text-white">{match.location_details}</span></span>
+              </div>
+            )}
+          </div>
+        ) : null}
         {!isFinalized && (trackWasbeurt || trackConsumpties) && (
           <div className="mt-2 space-y-1">
             {trackWasbeurt && nextWasbeurt && (

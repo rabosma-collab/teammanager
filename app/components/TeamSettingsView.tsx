@@ -66,8 +66,11 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
         track_clean_sheets:settings.track_clean_sheets ?? false,
         track_spdw:        settings.track_spdw         ?? true,
         track_results:     settings.track_results      ?? true,
-        track_wasbeurt:    settings.track_wasbeurt     ?? true,
-        track_consumpties: settings.track_consumpties  ?? true,
+        track_wasbeurt:         settings.track_wasbeurt         ?? true,
+        track_consumpties:      settings.track_consumpties      ?? true,
+        track_assembly_time:    settings.track_assembly_time    ?? false,
+        track_match_time:       settings.track_match_time       ?? false,
+        track_location_details: settings.track_location_details ?? false,
       });
     }
   }, [settings]);
@@ -350,14 +353,17 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
           </div>
         </section>
 
-        {/* ── Wedstrijdtaken ── */}
+        {/* ── Wedstrijdbeheer ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3">
-          <h2 className="font-bold text-base text-gray-200">Wedstrijdtaken</h2>
-          <p className="text-sm text-gray-400">Kies welke taken bijgehouden en getoond worden.</p>
+          <h2 className="font-bold text-base text-gray-200">Wedstrijdbeheer</h2>
+          <p className="text-sm text-gray-400">Kies welke informatie bijgehouden en getoond wordt bij wedstrijden.</p>
           <div className="space-y-2">
             {[
-              { key: 'track_wasbeurt',    label: '🧺 Wasbeurt' },
-              { key: 'track_consumpties', label: '🥤 Consumpties' },
+              { key: 'track_wasbeurt',          label: '🧺 Wasbeurt' },
+              { key: 'track_consumpties',        label: '🥤 Consumpties' },
+              { key: 'track_assembly_time',      label: '🕐 Verzameltijd' },
+              { key: 'track_match_time',         label: '⚽ Speeltijd (aanvang)' },
+              { key: 'track_location_details',   label: '📍 Kleedkamer / locatie' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
                 <span className="text-sm font-medium">{label}</span>
