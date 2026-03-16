@@ -66,8 +66,11 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
         track_clean_sheets:settings.track_clean_sheets ?? false,
         track_spdw:        settings.track_spdw         ?? true,
         track_results:     settings.track_results      ?? true,
-        track_wasbeurt:    settings.track_wasbeurt     ?? true,
-        track_consumpties: settings.track_consumpties  ?? true,
+        track_wasbeurt:         settings.track_wasbeurt         ?? true,
+        track_consumpties:      settings.track_consumpties      ?? true,
+        track_assembly_time:    settings.track_assembly_time    ?? false,
+        track_match_time:       settings.track_match_time       ?? false,
+        track_location_details: settings.track_location_details ?? false,
       });
     }
   }, [settings]);
