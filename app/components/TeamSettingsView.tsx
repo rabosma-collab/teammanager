@@ -350,14 +350,17 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
           </div>
         </section>
 
-        {/* ── Wedstrijdtaken ── */}
+        {/* ── Wedstrijdbeheer ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3">
-          <h2 className="font-bold text-base text-gray-200">Wedstrijdtaken</h2>
-          <p className="text-sm text-gray-400">Kies welke taken bijgehouden en getoond worden.</p>
+          <h2 className="font-bold text-base text-gray-200">Wedstrijdbeheer</h2>
+          <p className="text-sm text-gray-400">Kies welke informatie bijgehouden en getoond wordt bij wedstrijden.</p>
           <div className="space-y-2">
             {[
-              { key: 'track_wasbeurt',    label: '🧺 Wasbeurt' },
-              { key: 'track_consumpties', label: '🥤 Consumpties' },
+              { key: 'track_wasbeurt',          label: '🧺 Wasbeurt' },
+              { key: 'track_consumpties',        label: '🥤 Consumpties' },
+              { key: 'track_assembly_time',      label: '🕐 Verzameltijd' },
+              { key: 'track_match_time',         label: '⚽ Speeltijd (aanvang)' },
+              { key: 'track_location_details',   label: '📍 Kleedkamer / locatie' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
                 <span className="text-sm font-medium">{label}</span>

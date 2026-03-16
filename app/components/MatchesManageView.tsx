@@ -10,6 +10,9 @@ interface MatchesManageViewProps {
   matches: Match[];
   gameFormat: string;
   defaultFormation?: string;
+  trackAssemblyTime?: boolean;
+  trackMatchTime?: boolean;
+  trackLocationDetails?: boolean;
   onAddMatch: (data: MatchFormData) => Promise<boolean>;
   onUpdateMatch: (id: number, data: MatchFormData) => Promise<boolean>;
   onUpdateScore: (id: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
@@ -21,6 +24,9 @@ export default function MatchesManageView({
   matches,
   gameFormat,
   defaultFormation,
+  trackAssemblyTime = false,
+  trackMatchTime = false,
+  trackLocationDetails = false,
   onAddMatch,
   onUpdateMatch,
   onUpdateScore,
@@ -113,6 +119,9 @@ export default function MatchesManageView({
           match={editingMatch === 'new' ? null : editingMatch}
           gameFormat={gameFormat}
           defaultFormation={defaultFormation}
+          trackAssemblyTime={trackAssemblyTime}
+          trackMatchTime={trackMatchTime}
+          trackLocationDetails={trackLocationDetails}
           onSave={handleSave}
           onClose={() => setEditingMatch(null)}
         />

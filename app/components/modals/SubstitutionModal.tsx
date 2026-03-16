@@ -200,10 +200,9 @@ export default function SubstitutionModal({
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <button
             onClick={() => onSave(isFreeSubstitution ? customMinute : undefined)}
-            disabled={tempSubs.length === 0}
-            className="flex-1 px-4 sm:px-6 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded font-bold text-sm sm:text-base"
+            className="flex-1 px-4 sm:px-6 py-3 bg-green-600 hover:bg-green-700 rounded font-bold text-sm sm:text-base"
           >
-            ✅ Opslaan ({tempSubs.length})
+            {tempSubs.length === 0 ? '🗑️ Wissels wissen' : `✅ Opslaan (${tempSubs.length})`}
           </button>
           <button
             onClick={onClose}

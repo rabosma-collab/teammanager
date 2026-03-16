@@ -44,6 +44,9 @@ export interface Player {
     lineup_published?: boolean;
     wasbeurt_player_id?: number | null;
     consumpties_player_id?: number | null;
+    assembly_time?: string | null;
+    match_time?: string | null;
+    location_details?: string | null;
   }
 
   export interface SubstitutionScheme {
@@ -144,6 +147,9 @@ export interface Player {
     track_results: boolean;
     track_wasbeurt: boolean;
     track_consumpties: boolean;
+    track_assembly_time: boolean;
+    track_match_time: boolean;
+    track_location_details: boolean;
   }
 
   export interface TeamMember {
