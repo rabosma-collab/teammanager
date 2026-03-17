@@ -72,6 +72,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
         track_assembly_time:    settings.track_assembly_time    ?? false,
         track_match_time:       settings.track_match_time       ?? false,
         track_location_details: settings.track_location_details ?? false,
+        track_played_minutes:   settings.track_played_minutes   ?? false,
       });
     }
   }, [settings]);
@@ -408,7 +409,8 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
             {[
               { key: 'track_goals',        label: '⚽ Doelpunten' },
               { key: 'track_assists',      label: '🎯 Assists' },
-              { key: 'track_minutes',      label: '⏱️ Speeltijd (bankminuten)' },
+              { key: 'track_minutes',        label: '⏱️ Wisselminuten' },
+              { key: 'track_played_minutes', label: '⏱️ Gespeelde minuten' },
               { key: 'track_spdw',         label: '🏆 SPDW (speler van de week)' },
               { key: 'track_cards',        label: '🟨 Kaarten (geel/rood)' },
             ].map(({ key, label }) => (

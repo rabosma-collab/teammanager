@@ -27,7 +27,7 @@ const STEP_LABELS = [
 ];
 
 type SettingsState = Pick<TeamSettings,
-  'track_goals' | 'track_assists' | 'track_minutes' | 'track_spdw' |
+  'track_goals' | 'track_assists' | 'track_minutes' | 'track_played_minutes' | 'track_spdw' |
   'track_results' | 'track_cards' | 'track_clean_sheets'
 >;
 
@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   track_goals: true,
   track_assists: true,
   track_minutes: true,
+  track_played_minutes: false,
   track_spdw: true,
   track_results: true,
   track_cards: false,

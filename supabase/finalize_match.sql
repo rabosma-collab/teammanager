@@ -110,7 +110,14 @@ BEGIN
       AND NOT pt.is_guest
       AND (90 - (pt.end_min - pt.start_min)) > 0;
 
-    -- Zelfde voor gastspelers
+    -- Gespeelde minuten bijwerken voor reguliere spelers
+    UPDATE players p
+    SET played_min = p.played_min + (pt.end_min - pt.start_min)
+    FROM _pt pt
+    WHERE p.id = pt.player_id
+      AND NOT pt.is_guest;
+
+    -- Bankminuten voor gastspelers
     UPDATE guest_players gp
     SET min = gp.min + (90 - (pt.end_min - pt.start_min))
     FROM _pt pt
