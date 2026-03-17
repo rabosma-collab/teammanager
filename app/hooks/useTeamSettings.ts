@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: Omit<TeamSettings, 'team_id'> = {
   track_assembly_time: false,
   track_match_time: false,
   track_location_details: false,
+  track_played_minutes: false,
 };
 
 

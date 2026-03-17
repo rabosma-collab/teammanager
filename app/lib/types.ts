@@ -10,6 +10,7 @@ export interface Player {
     red_cards: number;
     own_goals?: number;
     min: number;
+    played_min: number;
     injured: boolean;
     pac: number;
     sho: number;
@@ -152,6 +153,7 @@ export interface Player {
     track_assembly_time: boolean;
     track_match_time: boolean;
     track_location_details: boolean;
+    track_played_minutes: boolean;
   }
 
   export interface TeamMember {

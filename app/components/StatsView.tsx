@@ -9,7 +9,7 @@ interface StatsViewProps {
   teamSettings?: TeamSettings | null;
 }
 
-type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'consumption_count' | 'yellow_cards' | 'red_cards' | 'min';
+type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'consumption_count' | 'yellow_cards' | 'red_cards' | 'min' | 'played_min';
 type SortDir = 'asc' | 'desc';
 type PositionFilter = 'all' | 'Keeper' | 'Verdediger' | 'Middenvelder' | 'Aanvaller';
 
@@ -36,6 +36,7 @@ const STAT_LABELS: Record<string, string> = {
   yellow_cards: '🟨 Gele kaarten',
   red_cards: '🟥 Rode kaarten',
   min: '🔄 Wissels',
+  played_min: '⏱️ Ges. min',
 };
 
 interface EditingCell {
@@ -108,37 +109,40 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
     setEditingCell(null);
   };
 
-  const trackGoals   = teamSettings?.track_goals   ?? true;
-  const trackAssists = teamSettings?.track_assists ?? true;
-  const trackMinutes = teamSettings?.track_minutes ?? true;
-  const trackCards   = teamSettings?.track_cards   ?? false;
-  const trackWasbeurt     = teamSettings?.track_wasbeurt     ?? true;
-  const trackConsumpties  = teamSettings?.track_consumpties  ?? true;
+  const trackGoals          = teamSettings?.track_goals          ?? true;
+  const trackAssists        = teamSettings?.track_assists        ?? true;
+  const trackMinutes        = teamSettings?.track_minutes        ?? true;
+  const trackPlayedMinutes  = teamSettings?.track_played_minutes ?? false;
+  const trackCards          = teamSettings?.track_cards          ?? false;
+  const trackWasbeurt       = teamSettings?.track_wasbeurt       ?? true;
+  const trackConsumpties    = teamSettings?.track_consumpties    ?? true;
 
   const statFields = useMemo(
-    () => (['goals', 'assists', 'wash_count', 'consumption_count', 'yellow_cards', 'red_cards', 'min'] as const).filter(f => {
+    () => (['goals', 'assists', 'wash_count', 'consumption_count', 'yellow_cards', 'red_cards', 'min', 'played_min'] as const).filter(f => {
       if (f === 'goals')             return trackGoals;
       if (f === 'assists')           return trackAssists;
       if (f === 'yellow_cards' || f === 'red_cards') return trackCards;
       if (f === 'min')               return trackMinutes;
+      if (f === 'played_min')        return trackPlayedMinutes;
       if (f === 'wash_count')        return trackWasbeurt;
       if (f === 'consumption_count') return trackConsumpties;
       return true;
     }),
-    [trackGoals, trackAssists, trackCards, trackMinutes, trackWasbeurt, trackConsumpties]
+    [trackGoals, trackAssists, trackCards, trackMinutes, trackPlayedMinutes, trackWasbeurt, trackConsumpties]
   );
 
   const columns: { key: SortKey; label: string }[] = [
     { key: 'name', label: 'Speler' },
     { key: 'position', label: 'Positie' },
     { key: 'injured', label: 'Status' },
-    ...(trackGoals   ? [{ key: 'goals'            as SortKey, label: 'Goals'      }] : []),
-    ...(trackAssists ? [{ key: 'assists'           as SortKey, label: 'Assists'    }] : []),
-    ...(trackWasbeurt    ? [{ key: 'wash_count'        as SortKey, label: '🧼 Was'    }] : []),
-    ...(trackConsumpties ? [{ key: 'consumption_count' as SortKey, label: '🥤 Cons.'  }] : []),
-    ...(trackCards   ? [{ key: 'yellow_cards'      as SortKey, label: '🟨 Geel'   }] : []),
-    ...(trackCards   ? [{ key: 'red_cards'         as SortKey, label: '🟥 Rood'   }] : []),
-    ...(trackMinutes ? [{ key: 'min'               as SortKey, label: 'Wissel'    }] : []),
+    ...(trackGoals          ? [{ key: 'goals'            as SortKey, label: 'Goals'       }] : []),
+    ...(trackAssists        ? [{ key: 'assists'           as SortKey, label: 'Assists'     }] : []),
+    ...(trackWasbeurt       ? [{ key: 'wash_count'        as SortKey, label: '🧼 Was'     }] : []),
+    ...(trackConsumpties    ? [{ key: 'consumption_count' as SortKey, label: '🥤 Cons.'   }] : []),
+    ...(trackCards          ? [{ key: 'yellow_cards'      as SortKey, label: '🟨 Geel'    }] : []),
+    ...(trackCards          ? [{ key: 'red_cards'         as SortKey, label: '🟥 Rood'    }] : []),
+    ...(trackMinutes        ? [{ key: 'min'               as SortKey, label: 'Wissel'     }] : []),
+    ...(trackPlayedMinutes  ? [{ key: 'played_min'        as SortKey, label: 'Ges. min'   }] : []),
   ];
 
   return (

@@ -425,7 +425,7 @@ export default function PlayerCard({
                       { label: '⚽ Goals',   value: player.goals || 0 },
                       { label: '🎯 Assists', value: player.assists || 0 },
                       { label: '🟨 Geel',   value: player.yellow_cards || 0 },
-                      { label: '⏱️ Min',    value: player.min || 0 },
+                      { label: '⏱️ Wissel', value: player.min || 0 },
                     ].map(({ label, value }) => (
                       <div key={label} className="bg-black/25 rounded px-1.5 py-1 text-center">
                         <div className="text-[9px] text-white/50 leading-none mb-0.5">{label}</div>
