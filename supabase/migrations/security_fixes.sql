@@ -73,18 +73,14 @@ $$;
 
 
 -- ============================================================
--- 2. PLAYERS UPDATE — split: manager alles / speler eigen rij
+-- 2. PLAYERS UPDATE — split: manager alles / speler eigen rij (naam+avatar)
 -- ============================================================
 --
--- Probleem: elke teamgenoot kon stats van alle spelers aanpassen.
---
--- Oplossing:
---   - players_update_manager : managers mogen alles (goals, FIFA-stats, etc.)
---   - players_update_self    : spelers mogen alleen hun eigen rij (naam, avatar)
---                              De kolom-beperking (alleen naam/avatar) is afgedwongen
---                              in de app (ProfileModal). Een extra RPC
---                              (update_own_profile) kan dit in de toekomst
---                              volledig server-side afdwingen.
+-- Spelers mogen hun eigen naam en avatar bijwerken (ProfileModal).
+-- FIFA-stats mogen alleen worden bijgewerkt via spend_credits_for_stats()
+-- of spend_credit_single() — beide SECURITY DEFINER RPCs die afdwingen
+-- dat credits worden betaald. Directe UPDATE op FIFA-stats van willekeurige
+-- rijen (ook eigen rij) zonder credits is daarmee niet mogelijk via de API.
 -- ============================================================
 
 DROP POLICY IF EXISTS "players_update" ON players;
@@ -93,6 +89,8 @@ CREATE POLICY "players_update_manager"
   ON players FOR UPDATE
   USING (is_team_manager(team_id));
 
+-- Spelers: eigen rij bijwerken (naam, avatar via ProfileModal)
+-- FIFA-stats via de credit-RPCs hieronder (SECURITY DEFINER, omzeilt RLS)
 CREATE POLICY "players_update_self"
   ON players FOR UPDATE
   USING (
@@ -104,6 +102,133 @@ CREATE POLICY "players_update_self"
         AND tm.status   = 'active'
     )
   );
+
+-- ============================================================
+-- 2b. CREDIT-SPENDING RPCs voor FIFA-stat-bewerking
+-- ============================================================
+--
+-- Spelers kunnen met credits de kaart van ELKE teamgenoot bewerken
+-- (eigen kaart of die van een ander). De RPCs zijn SECURITY DEFINER
+-- zodat ze de players-tabel mogen schrijven ongeacht de RLS-policy.
+-- Ingebouwde validaties:
+--   - spender is via team_members gekoppeld aan auth.uid()
+--   - target-speler zit in hetzelfde team
+--   - alleen FIFA-stat-kolommen (whitelist)
+--   - credits worden atomisch afgetrokken en gelogd
+-- ============================================================
+
+-- Bulk: meerdere stats tegelijk opslaan (PlayerCardsView "Opslaan"-knop)
+CREATE OR REPLACE FUNCTION public.spend_credits_for_stats(
+  p_spender_id       int,
+  p_target_player_id int,
+  p_team_id          uuid,
+  p_stats            jsonb,   -- bijv. {"pac": 75, "sho": 80}
+  p_total_cost       int,
+  p_new_balance      int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_key  text;
+  v_val  int;
+  v_team uuid;
+BEGIN
+  -- Spender moet gekoppeld zijn aan auth.uid()
+  IF NOT EXISTS (
+    SELECT 1 FROM team_members
+    WHERE user_id  = auth.uid()
+      AND team_id  = p_team_id
+      AND player_id = p_spender_id
+      AND status   = 'active'
+  ) THEN
+    RAISE EXCEPTION 'Spender is niet gekoppeld aan je account';
+  END IF;
+
+  -- Target moet in hetzelfde team zitten
+  SELECT team_id INTO v_team FROM players WHERE id = p_target_player_id;
+  IF v_team IS DISTINCT FROM p_team_id THEN
+    RAISE EXCEPTION 'Doelspeler zit niet in dit team';
+  END IF;
+
+  -- Pas elke stat toe (alleen whitelisted kolommen)
+  FOR v_key, v_val IN SELECT key, value::int FROM jsonb_each_text(p_stats)
+  LOOP
+    IF v_key NOT IN ('pac','sho','pas','dri','def','phy','div','han','kic','ref','spe','pos') THEN
+      RAISE EXCEPTION 'Ongeldige stat-kolom: %', v_key;
+    END IF;
+    EXECUTE format('UPDATE players SET %I = $1 WHERE id = $2', v_key)
+      USING v_val, p_target_player_id;
+  END LOOP;
+
+  -- Credits aftrekken
+  UPDATE stat_credits
+  SET balance = p_new_balance
+  WHERE player_id = p_spender_id
+    AND team_id   = p_team_id;
+
+  -- Transactie loggen
+  INSERT INTO stat_credit_transactions (team_id, player_id, target_player_id, balance_change, reason)
+  VALUES (p_team_id, p_spender_id, p_target_player_id, -p_total_cost, 'stat_change');
+END;
+$$;
+
+-- Enkelvoudig: +1 / -1 op één stat (PlayerCardsView inline knoppen)
+CREATE OR REPLACE FUNCTION public.spend_credit_single(
+  p_spender_id       int,
+  p_target_player_id int,
+  p_team_id          uuid,
+  p_stat             text,
+  p_new_stat_value   int,    -- al berekend door de client (huidig ± 1, geclampd 1-99)
+  p_new_balance      int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_team uuid;
+BEGIN
+  -- Spender moet gekoppeld zijn aan auth.uid()
+  IF NOT EXISTS (
+    SELECT 1 FROM team_members
+    WHERE user_id  = auth.uid()
+      AND team_id  = p_team_id
+      AND player_id = p_spender_id
+      AND status   = 'active'
+  ) THEN
+    RAISE EXCEPTION 'Spender is niet gekoppeld aan je account';
+  END IF;
+
+  -- Target moet in hetzelfde team zitten
+  SELECT team_id INTO v_team FROM players WHERE id = p_target_player_id;
+  IF v_team IS DISTINCT FROM p_team_id THEN
+    RAISE EXCEPTION 'Doelspeler zit niet in dit team';
+  END IF;
+
+  -- Alleen whitelisted stat-kolommen
+  IF p_stat NOT IN ('pac','sho','pas','dri','def','phy','div','han','kic','ref','spe','pos') THEN
+    RAISE EXCEPTION 'Ongeldige stat-kolom: %', p_stat;
+  END IF;
+
+  -- Stat bijwerken
+  EXECUTE format('UPDATE players SET %I = $1 WHERE id = $2', p_stat)
+    USING p_new_stat_value, p_target_player_id;
+
+  -- Credit aftrekken
+  UPDATE stat_credits
+  SET balance = p_new_balance
+  WHERE player_id = p_spender_id
+    AND team_id   = p_team_id;
+
+  -- Transactie loggen
+  INSERT INTO stat_credit_transactions (team_id, player_id, target_player_id, stat, balance_change, reason)
+  VALUES (p_team_id, p_spender_id, p_target_player_id, p_stat, -1, 'stat_change');
+END;
+$$;
 
 
 -- ============================================================

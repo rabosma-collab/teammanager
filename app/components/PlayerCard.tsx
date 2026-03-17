@@ -1,10 +1,17 @@
-import React from 'react';
+'use client';
+import React, { useState } from 'react';
 import type { Player } from '../lib/types';
+
+export type SeasonBadge = 'top-scorer' | 'top-assist' | 'most-minutes';
 
 interface PlayerCardProps {
   player: Player;
   onClick?: () => void;
   size?: 'sm' | 'md';
+  isFlippable?: boolean;
+  isSpdwWinner?: boolean;
+  seasonBadges?: SeasonBadge[];
+  isJustUpgraded?: boolean;
 }
 
 const positionAbbr: Record<string, string> = {
@@ -14,11 +21,98 @@ const positionAbbr: Record<string, string> = {
   'Aanvaller': 'AV',
 };
 
+const positionAccent: Record<string, { accent: string }> = {
+  'Keeper':       { accent: 'text-green-300' },
+  'Verdediger':   { accent: 'text-blue-300' },
+  'Middenvelder': { accent: 'text-yellow-200' },
+  'Aanvaller':    { accent: 'text-red-300' },
+};
+
+// Keep positionColors export for any consumers that import it
 const positionColors: Record<string, { from: string; to: string; accent: string; border: string }> = {
-  'Keeper': { from: 'from-green-700', to: 'to-green-900', accent: 'text-green-300', border: 'border-green-500' },
-  'Verdediger': { from: 'from-blue-700', to: 'to-blue-900', accent: 'text-blue-300', border: 'border-blue-500' },
+  'Keeper':       { from: 'from-green-700',  to: 'to-green-900',  accent: 'text-green-300',  border: 'border-green-500' },
+  'Verdediger':   { from: 'from-blue-700',   to: 'to-blue-900',   accent: 'text-blue-300',   border: 'border-blue-500' },
   'Middenvelder': { from: 'from-yellow-600', to: 'to-yellow-800', accent: 'text-yellow-200', border: 'border-yellow-500' },
-  'Aanvaller': { from: 'from-red-700', to: 'to-red-900', accent: 'text-red-300', border: 'border-red-500' },
+  'Aanvaller':    { from: 'from-red-700',    to: 'to-red-900',    accent: 'text-red-300',    border: 'border-red-500' },
+};
+
+type CardTier = 'bronze' | 'silver' | 'gold' | 'elite' | 'toty';
+
+function getCardTier(rating: number): CardTier {
+  if (rating >= 90) return 'toty';
+  if (rating >= 85) return 'elite';
+  if (rating >= 75) return 'gold';
+  if (rating >= 65) return 'silver';
+  return 'bronze';
+}
+
+const tierStyles: Record<CardTier, {
+  gradient: string;
+  border: string;
+  shimmer: string;
+  ratingColor: string;
+  glow: string;
+  label: string | null;
+  labelColor: string;
+}> = {
+  bronze: {
+    gradient: 'from-amber-900 via-amber-800 to-amber-950',
+    border: 'border-amber-600',
+    shimmer: 'from-amber-400/8 via-transparent to-amber-600/5',
+    ratingColor: 'text-amber-400',
+    glow: '',
+    label: null,
+    labelColor: '',
+  },
+  silver: {
+    gradient: 'from-gray-500 via-gray-600 to-gray-800',
+    border: 'border-gray-300',
+    shimmer: 'from-white/20 via-transparent to-white/5',
+    ratingColor: 'text-white',
+    glow: '',
+    label: null,
+    labelColor: '',
+  },
+  gold: {
+    gradient: 'from-yellow-700 via-yellow-800 to-yellow-950',
+    border: 'border-yellow-400',
+    shimmer: 'from-yellow-300/20 via-transparent to-yellow-400/8',
+    ratingColor: 'text-yellow-300',
+    glow: '',
+    label: null,
+    labelColor: '',
+  },
+  elite: {
+    gradient: 'from-violet-900 via-purple-900 to-indigo-950',
+    border: 'border-violet-400',
+    shimmer: 'from-violet-400/25 via-transparent to-cyan-400/10',
+    ratingColor: 'text-violet-200',
+    glow: '0 0 20px rgba(167,139,250,0.45)',
+    label: 'ELITE',
+    labelColor: '#a78bfa',
+  },
+  toty: {
+    gradient: 'from-gray-900 via-slate-900 to-gray-950',
+    border: 'border-cyan-400',
+    shimmer: 'from-cyan-400/15 via-transparent to-yellow-400/10',
+    ratingColor: 'text-cyan-300',
+    glow: '0 0 28px rgba(34,211,238,0.5)',
+    label: 'TOTY',
+    labelColor: '#22d3ee',
+  },
+};
+
+const badgeConfig: Record<SeasonBadge, { emoji: string; title: string; bg: string }> = {
+  'top-scorer':   { emoji: '⚽', title: 'Topschutter',     bg: 'bg-yellow-600' },
+  'top-assist':   { emoji: '🎯', title: 'Meeste assists',  bg: 'bg-blue-600' },
+  'most-minutes': { emoji: '⏱️', title: 'Meeste minuten', bg: 'bg-green-700' },
+};
+
+const positionSilhouette: Record<string, string> = {
+  'Keeper':       '🧤',
+  'Verdediger':   '🛡️',
+  'Middenvelder': '⚙️',
+  'Aanvaller':    '⚡',
 };
 
 function calcRating(player: Player): number {
@@ -41,11 +135,87 @@ function calcRating(player: Player): number {
 
 export { calcRating, positionAbbr, positionColors };
 
-export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardProps) {
-  const rating = calcRating(player);
-  const colors = positionColors[player.position] || positionColors['Middenvelder'];
-  const abbr = positionAbbr[player.position] || 'SP';
+// Hexagon radar chart (SVG)
+function HexRadar({ stats, tier, size }: {
+  stats: { label: string; value: number }[];
+  tier: CardTier;
+  size: 'sm' | 'md';
+}) {
+  const dim = size === 'sm' ? 96 : 112;
+  const cx = dim / 2;
+  const cy = dim / 2;
+  const r = dim * 0.36;
+  const n = stats.length;
 
+  const getCoord = (i: number, scale: number) => {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    return {
+      x: cx + scale * r * Math.cos(angle),
+      y: cy + scale * r * Math.sin(angle),
+    };
+  };
+
+  const gridPolygon = (scale: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const p = getCoord(i, scale);
+      return `${p.x},${p.y}`;
+    }).join(' ');
+
+  const statPolygon = stats.map((s, i) => {
+    const p = getCoord(i, Math.max(0.05, s.value / 99));
+    return `${p.x},${p.y}`;
+  }).join(' ');
+
+  const isSpecial = tier === 'elite' || tier === 'toty';
+  const fillColor = isSpecial ? 'rgba(167,139,250,0.28)' : 'rgba(250,204,21,0.28)';
+  const strokeColor = isSpecial ? 'rgb(167,139,250)' : 'rgb(250,204,21)';
+  const labelR = r * 1.28;
+
+  return (
+    <svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`}>
+      {[0.33, 0.66, 1].map(scale => (
+        <polygon key={scale} points={gridPolygon(scale)}
+          fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.6" />
+      ))}
+      {Array.from({ length: n }, (_, i) => {
+        const p = getCoord(i, 1);
+        return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y}
+          stroke="rgba(255,255,255,0.12)" strokeWidth="0.6" />;
+      })}
+      <polygon points={statPolygon} fill={fillColor} stroke={strokeColor} strokeWidth="1.5" />
+      {stats.map((s, i) => {
+        const lp = getCoord(i, labelR / r);
+        return (
+          <text key={i} x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle"
+            fill="rgba(255,255,255,0.75)" fontSize={size === 'sm' ? '7' : '8'} fontWeight="bold">
+            {s.label}
+          </text>
+        );
+      })}
+      {stats.map((s, i) => {
+        const p = getCoord(i, Math.max(0.05, s.value / 99));
+        return <circle key={`dot-${i}`} cx={p.x} cy={p.y} r="2.5" fill={strokeColor} />;
+      })}
+    </svg>
+  );
+}
+
+export default function PlayerCard({
+  player,
+  onClick,
+  size = 'md',
+  isFlippable = false,
+  isSpdwWinner = false,
+  seasonBadges = [],
+  isJustUpgraded = false,
+}: PlayerCardProps) {
+  const [flipped, setFlipped] = useState(false);
+
+  const rating = calcRating(player);
+  const tier = getCardTier(rating);
+  const ts = tierStyles[tier];
+  const accent = positionAccent[player.position] || positionAccent['Middenvelder'];
+  const abbr = positionAbbr[player.position] || 'SP';
   const isSm = size === 'sm';
 
   const stats = player.position === 'Keeper'
@@ -66,65 +236,209 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
         { label: 'PHY', value: player.phy ?? 70 },
       ];
 
+  const initials = player.name
+    .split(' ')
+    .map(w => w[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleClick = () => {
+    if (isFlippable) setFlipped(f => !f);
+    onClick?.();
+  };
+
+  const cardW = isSm ? 'w-[155px]' : 'w-[180px] sm:w-[210px]';
+
+  const upgradedStyle: React.CSSProperties = isJustUpgraded
+    ? { boxShadow: '0 0 0 3px #4ade80, 0 0 18px rgba(74,222,128,0.6)' }
+    : {};
+
+  // Shared card shell classes
+  const shellClass = `bg-gradient-to-b ${ts.gradient} ${cardW} border-2 ${ts.border} shadow-lg relative overflow-hidden`;
+  const roundClass = isSm ? 'rounded-xl' : 'rounded-2xl';
+
   return (
     <div
-      onClick={onClick}
-      className={`relative select-none ${onClick ? 'cursor-pointer hover:scale-105 active:scale-95' : ''} transition-transform touch-manipulation`}
+      className={`relative select-none ${(onClick || isFlippable) ? 'cursor-pointer' : ''} touch-manipulation`}
+      style={{ perspective: '1000px', width: 'fit-content' }}
+      onClick={handleClick}
     >
-      <div className={`bg-gradient-to-b ${colors.from} ${colors.to} ${isSm ? 'rounded-xl p-3 w-[155px]' : 'rounded-2xl p-3 sm:p-4 w-[180px] sm:w-[210px]'} border-2 ${colors.border} shadow-lg relative overflow-hidden`}>
-        {/* Gold shimmer */}
-        <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-transparent to-yellow-400/5 pointer-events-none" />
+      {/* SPDW crown */}
+      {isSpdwWinner && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 text-xl drop-shadow-lg pointer-events-none">
+          👑
+        </div>
+      )}
 
-        {/* Rating + Position + Avatar */}
-        <div className="flex justify-between items-start mb-1 relative z-0">
-          <div className="text-center">
-            <div className={`${isSm ? 'text-3xl' : 'text-3xl sm:text-4xl'} font-black text-yellow-400 leading-none`}>
-              {rating}
+      {/* Season badges */}
+      {seasonBadges.length > 0 && (
+        <div className="absolute -top-1 -right-1 z-20 flex flex-col gap-0.5 pointer-events-none">
+          {seasonBadges.map(badge => (
+            <div
+              key={badge}
+              className={`${badgeConfig[badge].bg} rounded-full w-5 h-5 flex items-center justify-center shadow-md`}
+              title={badgeConfig[badge].title}
+              style={{ fontSize: '10px' }}
+            >
+              {badgeConfig[badge].emoji}
             </div>
-            <div className={`${isSm ? 'text-xs' : 'text-xs'} font-bold ${colors.accent} mt-0.5`}>
-              {abbr}
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            {player.avatar_url ? (
-              <div className={`${isSm ? 'w-12 h-12' : 'w-12 h-12 sm:w-14 sm:h-14'} rounded-full overflow-hidden border-2 border-yellow-400/50 flex-shrink-0`}>
-                <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
+          ))}
+        </div>
+      )}
+
+      {/* Upgrade glow */}
+      {isJustUpgraded && (
+        <div className={`absolute inset-0 ${roundClass} z-10 pointer-events-none animate-pulse`}
+          style={{ boxShadow: '0 0 0 3px #4ade80, 0 0 20px rgba(74,222,128,0.5)', borderRadius: 'inherit' }} />
+      )}
+
+      {/* Flip container */}
+      <div
+        style={{
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.55s cubic-bezier(0.4,0.2,0.2,1)',
+          transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          position: 'relative',
+        }}
+      >
+        {/* ── FRONT ── */}
+        <div style={{ backfaceVisibility: 'hidden' }}>
+          <div
+            className={`${shellClass} ${roundClass} ${isSm ? 'p-3' : 'p-3 sm:p-4'}`}
+            style={ts.glow ? { ...upgradedStyle, boxShadow: ts.glow } : upgradedStyle}
+          >
+            {/* Shimmer overlay */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${ts.shimmer} pointer-events-none`} />
+
+            {/* Elite / TOTY label */}
+            {ts.label && (
+              <div
+                className="absolute top-1.5 left-1/2 -translate-x-1/2 text-[8px] font-black tracking-[0.2em] opacity-50 z-10 pointer-events-none"
+                style={{ color: ts.labelColor }}
+              >
+                {ts.label}
               </div>
-            ) : null}
-            {player.is_guest && (
-              <span className="text-xs bg-purple-600 px-1.5 py-0.5 rounded font-bold">GAST</span>
+            )}
+
+            {/* Rating + Abbr | Avatar */}
+            <div className="flex justify-between items-start mb-1 relative z-0">
+              <div className="text-center">
+                <div className={`${isSm ? 'text-3xl' : 'text-3xl sm:text-4xl'} font-black ${ts.ratingColor} leading-none`}>
+                  {rating}
+                </div>
+                <div className={`text-xs font-bold ${accent.accent} mt-0.5`}>
+                  {abbr}
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                {player.avatar_url ? (
+                  <div className={`${isSm ? 'w-12 h-12' : 'w-12 h-12 sm:w-14 sm:h-14'} rounded-full overflow-hidden border-2 border-white/20 flex-shrink-0`}>
+                    <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className={`${isSm ? 'w-12 h-12' : 'w-12 h-12 sm:w-14 sm:h-14'} rounded-full flex-shrink-0 flex flex-col items-center justify-center border-2 border-white/20 bg-black/25`}>
+                    <span className="text-xs font-black text-white/80 leading-none">{initials}</span>
+                    <span className="leading-none mt-0.5" style={{ fontSize: '11px' }}>
+                      {positionSilhouette[player.position] ?? '👤'}
+                    </span>
+                  </div>
+                )}
+                {player.is_guest && (
+                  <span className="text-xs bg-purple-600 px-1.5 py-0.5 rounded font-bold">GAST</span>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-white/20 my-1.5" />
+
+            {/* Name */}
+            <div className={`${isSm ? 'text-base' : 'text-base sm:text-lg'} font-black text-center text-white truncate leading-tight`}>
+              {player.name}
+            </div>
+
+            <div className="border-t border-white/20 my-1.5" />
+
+            {/* Stat bars */}
+            <div className="space-y-0.5">
+              {stats.map(({ label, value }) => (
+                <div key={label} className="flex items-center justify-between text-xs">
+                  <span className="font-bold opacity-70 w-8">{label}</span>
+                  <div className="flex-1 mx-1.5 h-1.5 bg-black/30 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        value >= 80 ? 'bg-green-400' : value >= 60 ? 'bg-yellow-400' : value >= 40 ? 'bg-orange-400' : 'bg-red-400'
+                      }`}
+                      style={{ width: `${value}%` }}
+                    />
+                  </div>
+                  <span className={`font-black w-6 text-right ${ts.ratingColor}`}>{value}</span>
+                </div>
+              ))}
+            </div>
+
+            {isFlippable && (
+              <div className="mt-1.5 text-center text-[9px] text-white/30 font-bold tracking-wide">
+                ↻ tik voor details
+              </div>
             )}
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-yellow-400/30 my-1.5" />
+        {/* ── BACK ── */}
+        {isFlippable && (
+          <div
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+            }}
+          >
+            <div
+              className={`${shellClass} ${roundClass} p-3 flex flex-col`}
+              style={ts.glow ? { boxShadow: ts.glow } : undefined}
+            >
+              <div className={`absolute inset-0 bg-gradient-to-br ${ts.shimmer} pointer-events-none`} />
 
-        {/* Name */}
-        <div className={`${isSm ? 'text-base' : 'text-base sm:text-lg'} font-black text-center text-white truncate leading-tight`}>
-          {player.name}
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-yellow-400/30 my-1.5" />
-
-        {/* FIFA stats with mini bars */}
-        <div className={`${isSm ? 'space-y-0.5' : 'space-y-0.5'}`}>
-          {stats.map(({ label, value }) => (
-            <div key={label} className="flex items-center justify-between text-xs">
-              <span className="font-bold opacity-70 w-8">{label}</span>
-              <div className="flex-1 mx-1.5 h-1.5 bg-black/30 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    value >= 80 ? 'bg-green-400' : value >= 60 ? 'bg-yellow-400' : value >= 40 ? 'bg-orange-400' : 'bg-red-400'
-                  }`}
-                  style={{ width: `${value}%` }}
-                />
+              {/* Header */}
+              <div className="text-center relative z-0 mb-1">
+                <div className="text-sm font-black text-white truncate leading-tight">{player.name}</div>
+                <div className={`text-[10px] font-bold ${accent.accent}`}>{abbr} · {rating}</div>
               </div>
-              <span className="font-black text-yellow-300 w-6 text-right">{value}</span>
+
+              <div className="border-t border-white/20 mb-1" />
+
+              {/* Hex radar */}
+              <div className="flex justify-center relative z-0">
+                <HexRadar stats={stats} tier={tier} size={size} />
+              </div>
+
+              <div className="border-t border-white/20 my-1" />
+
+              {/* Career stats */}
+              <div className="grid grid-cols-2 gap-1 relative z-0">
+                {[
+                  { label: '⚽ Goals',   value: player.goals || 0 },
+                  { label: '🎯 Assists', value: player.assists || 0 },
+                  { label: '🟨 Geel',   value: player.yellow_cards || 0 },
+                  { label: '⏱️ Min',    value: player.min || 0 },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-black/25 rounded px-1.5 py-1 text-center">
+                    <div className="text-[9px] text-white/50 leading-none mb-0.5">{label}</div>
+                    <div className="text-xs font-black text-white">{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-1.5 text-center text-[9px] text-white/30 font-bold tracking-wide">
+                ↻ tik voor stats
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

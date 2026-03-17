@@ -117,51 +117,83 @@ export function useStatCredits() {
           rankIdx += tied.length;
         }
 
-        // Credit each qualifying player
-        // Gebruikt award_player_credits() RPC (SECURITY DEFINER) zodat elk teamlid
-        // credits kan uitbetalen aan anderen, zonder dat de RLS-policy verruimd hoeft te worden.
-        let winnerLogged = false;
-        for (const [pid, pts] of Object.entries(creditMap)) {
-          const playerId = parseInt(pid);
-          const currentBal = await ensureBalance(playerId);
-          const newBal = currentBal + pts;
+        // Batch fetch: balances + spelernamen parallel ophalen
+        const playerIds = Object.keys(creditMap).map(Number);
+        const [balancesResult, playerNamesResult] = await Promise.all([
+          supabase
+            .from('stat_credits')
+            .select('player_id, balance')
+            .in('player_id', playerIds)
+            .eq('team_id', currentTeam.id),
+          supabase
+            .from('players')
+            .select('id, name')
+            .in('id', playerIds),
+        ]);
 
-          await supabase.rpc('award_player_credits', {
-            p_player_id:   playerId,
-            p_team_id:     currentTeam.id,
-            p_new_balance: newBal,
-            p_change:      pts,
-            p_reason:      'spdw',
-            p_match_id:    match.id,
-          });
+        const balanceMap = new Map(
+          (balancesResult.data ?? []).map(r => [r.player_id, r.balance])
+        );
+        const nameMap = new Map(
+          (playerNamesResult.data ?? []).map(p => [p.id, p.name])
+        );
 
-          // Log de winnaar (hoogste pts = rang 1)
-          if (!winnerLogged && pts === POINTS_BY_RANK[0]) {
-            const { data: playerData } = await supabase
-              .from('players')
-              .select('name')
-              .eq('id', playerId)
-              .single();
+        // Batch insert voor spelers zonder balance-rij
+        const missingIds = playerIds.filter(id => !balanceMap.has(id));
+        if (missingIds.length > 0) {
+          await supabase.from('stat_credits').insert(
+            missingIds.map(id => ({ player_id: id, team_id: currentTeam.id, balance: INITIAL_BALANCE }))
+          );
+          await supabase.from('stat_credit_transactions').insert(
+            missingIds.map(id => ({
+              team_id: currentTeam.id,
+              player_id: id,
+              balance_change: INITIAL_BALANCE,
+              reason: 'initial',
+            }))
+          );
+          for (const id of missingIds) balanceMap.set(id, INITIAL_BALANCE);
+        }
 
-            logActivity({
-              teamId: currentTeam.id,
-              type: 'spdw_winner',
-              subjectId: playerId,
-              matchId: match.id,
-              payload: {
-                subject_name: playerData?.name ?? 'Onbekend',
-                opponent: match.opponent ?? '',
-                home_away: match.home_away ?? '',
-              },
+        // Parallel RPC-calls voor credit-uitkering
+        // Gebruikt award_player_credits() (SECURITY DEFINER) zodat elk teamlid
+        // credits kan uitbetalen aan anderen zonder verruimde RLS-policy.
+        await Promise.all(
+          Object.entries(creditMap).map(([pid, pts]) => {
+            const playerId = parseInt(pid);
+            const currentBal = balanceMap.get(playerId) ?? INITIAL_BALANCE;
+            return supabase.rpc('award_player_credits', {
+              p_player_id:   playerId,
+              p_team_id:     currentTeam.id,
+              p_new_balance: currentBal + pts,
+              p_change:      pts,
+              p_reason:      'spdw',
+              p_match_id:    match.id,
             });
-            winnerLogged = true;
-          }
+          })
+        );
+
+        // Log de winnaar (hoogste pts = rang 1)
+        const winnerEntry = Object.entries(creditMap).find(([, pts]) => pts === POINTS_BY_RANK[0]);
+        if (winnerEntry) {
+          const winnerId = parseInt(winnerEntry[0]);
+          logActivity({
+            teamId: currentTeam.id,
+            type: 'spdw_winner',
+            subjectId: winnerId,
+            matchId: match.id,
+            payload: {
+              subject_name: nameMap.get(winnerId) ?? 'Onbekend',
+              opponent: match.opponent ?? '',
+              home_away: match.home_away ?? '',
+            },
+          });
         }
       }
     } catch (e) {
       console.error('Error awarding SPDW credits:', e);
     }
-  }, [currentTeam, ensureBalance]);
+  }, [currentTeam]);
 
   // Spend multiple credits to save draft stat changes for a player
   const spendCreditsForStats = useCallback(async (
@@ -176,29 +208,20 @@ export function useStatCredits() {
     if (!currentTeam || balance === null || balance < totalCost || totalCost <= 0) return false;
 
     try {
-      const { error: statError } = await supabase
-        .from('players')
-        .update(finalStats)
-        .eq('id', targetPlayerId);
-
-      if (statError) throw statError;
-
       const newBalance = balance - totalCost;
-      const { error: creditError } = await supabase
-        .from('stat_credits')
-        .update({ balance: newBalance })
-        .eq('player_id', spenderId)
-        .eq('team_id', currentTeam.id);
 
-      if (creditError) throw creditError;
-
-      await supabase.from('stat_credit_transactions').insert({
-        team_id: currentTeam.id,
-        player_id: spenderId,
-        target_player_id: targetPlayerId,
-        balance_change: -totalCost,
-        reason: 'stat_change',
+      // SECURITY DEFINER RPC: valideert spender-koppeling, target-team en stat-whitelist,
+      // en trekt credits atomisch af. Voorkomt stat-wijzigingen zonder credits via directe API.
+      const { error: rpcError } = await supabase.rpc('spend_credits_for_stats', {
+        p_spender_id:       spenderId,
+        p_target_player_id: targetPlayerId,
+        p_team_id:          currentTeam.id,
+        p_stats:            finalStats,
+        p_total_cost:       totalCost,
+        p_new_balance:      newBalance,
       });
+
+      if (rpcError) throw rpcError;
 
       // Log elke gewijzigde stat als activiteit
       if (prevStats) {
@@ -253,33 +276,19 @@ export function useStatCredits() {
       const next = Math.max(1, Math.min(99, current + change));
       if (next === current) return false; // already at boundary
 
-      // Update stat
-      const { error: statError } = await supabase
-        .from('players')
-        .update({ [stat]: next })
-        .eq('id', targetPlayerId);
-
-      if (statError) throw statError;
-
-      // Deduct credit
       const newBalance = balance - 1;
-      const { error: creditError } = await supabase
-        .from('stat_credits')
-        .update({ balance: newBalance })
-        .eq('player_id', spenderId)
-        .eq('team_id', currentTeam.id);
 
-      if (creditError) throw creditError;
-
-      // Log transaction
-      await supabase.from('stat_credit_transactions').insert({
-        team_id: currentTeam.id,
-        player_id: spenderId,
-        target_player_id: targetPlayerId,
-        stat,
-        balance_change: -1,
-        reason: 'stat_change',
+      // SECURITY DEFINER RPC: valideert spender-koppeling, stat-whitelist en trekt credit atomisch af.
+      const { error: rpcError } = await supabase.rpc('spend_credit_single', {
+        p_spender_id:       spenderId,
+        p_target_player_id: targetPlayerId,
+        p_team_id:          currentTeam.id,
+        p_stat:             stat,
+        p_new_stat_value:   next,
+        p_new_balance:      newBalance,
       });
+
+      if (rpcError) throw rpcError;
 
       setBalance(newBalance);
       return true;

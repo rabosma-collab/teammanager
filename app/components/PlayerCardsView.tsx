@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
+import type { SeasonBadge } from './PlayerCard';
 import PlayerCard, { calcRating } from './PlayerCard';
 import PlayerStatsEditModal from './modals/PlayerStatsEditModal';
 
@@ -33,6 +34,26 @@ interface PlayerCardsViewProps {
   currentPlayerId?: number | null;
   creditBalance?: number | null;
   onSaveStatDraft?: (targetPlayerId: number, finalStats: Record<string, number>, totalCost: number, actorName?: string, subjectName?: string, prevStats?: Record<string, number>) => Promise<boolean>;
+  spdwWinnerPlayerId?: number | null;
+}
+
+function computeSeasonBadges(players: Player[]): Record<number, SeasonBadge[]> {
+  const regular = players.filter(p => !p.is_guest);
+  if (regular.length === 0) return {};
+
+  const maxGoals   = Math.max(...regular.map(p => p.goals || 0));
+  const maxAssists = Math.max(...regular.map(p => p.assists || 0));
+  const maxMin     = Math.max(...regular.map(p => p.min || 0));
+
+  const result: Record<number, SeasonBadge[]> = {};
+  for (const p of regular) {
+    const badges: SeasonBadge[] = [];
+    if (maxGoals   > 0 && (p.goals   || 0) === maxGoals)   badges.push('top-scorer');
+    if (maxAssists > 0 && (p.assists || 0) === maxAssists) badges.push('top-assist');
+    if (maxMin     > 0 && (p.min     || 0) === maxMin)     badges.push('most-minutes');
+    if (badges.length > 0) result[p.id] = badges;
+  }
+  return result;
 }
 
 export default function PlayerCardsView({
@@ -42,19 +63,29 @@ export default function PlayerCardsView({
   currentPlayerId,
   creditBalance,
   onSaveStatDraft,
+  spdwWinnerPlayerId,
 }: PlayerCardsViewProps) {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [creditEditingId, setCreditEditingId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'position' | 'rating'>('position');
   const [showInfo, setShowInfo] = useState(false);
+  const [justUpgradedId, setJustUpgradedId] = useState<number | null>(null);
+  const upgradeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Draft-modus state
   const [originalStats, setOriginalStats] = useState<Record<string, number> | null>(null);
   const [draftStats, setDraftStats] = useState<Record<string, number> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    return () => {
+      if (upgradeTimerRef.current) clearTimeout(upgradeTimerRef.current);
+    };
+  }, []);
+
   const regularPlayers = players.filter(p => !p.is_guest);
   const hasCredits = currentPlayerId != null && creditBalance != null;
+  const seasonBadges = computeSeasonBadges(regularPlayers);
 
   const sortedPlayers = [...regularPlayers].sort((a, b) => {
     if (sortBy === 'rating') {
@@ -108,7 +139,13 @@ export default function PlayerCardsView({
         player.name,
         originalStats
       );
-      if (success) closeCreditPanel();
+      if (success) {
+        closeCreditPanel();
+        // Trigger upgrade glow
+        setJustUpgradedId(player.id);
+        if (upgradeTimerRef.current) clearTimeout(upgradeTimerRef.current);
+        upgradeTimerRef.current = setTimeout(() => setJustUpgradedId(null), 2200);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -205,10 +242,17 @@ export default function PlayerCardsView({
   const renderCard = (player: Player) => (
     <div key={player.id} className="flex flex-col items-center">
       <div className="relative">
-        <PlayerCard player={player} size="sm" />
+        <PlayerCard
+          player={player}
+          size="sm"
+          isFlippable
+          isSpdwWinner={spdwWinnerPlayerId != null && player.id === spdwWinnerPlayerId}
+          seasonBadges={seasonBadges[player.id] ?? []}
+          isJustUpgraded={justUpgradedId === player.id}
+        />
         {isAdmin && (
           <button
-            onClick={() => setEditingPlayer(player)}
+            onClick={e => { e.stopPropagation(); setEditingPlayer(player); }}
             className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
           >
             ✏️
@@ -273,9 +317,31 @@ export default function PlayerCardsView({
         </div>
       </div>
 
+      {/* Tier legenda */}
+      <div className="mb-4 flex flex-wrap gap-2 items-center">
+        {[
+          { tier: 'bronze', label: 'Bronze',  color: 'bg-amber-700',   text: '< 65' },
+          { tier: 'silver', label: 'Silver',  color: 'bg-gray-500',    text: '65–74' },
+          { tier: 'gold',   label: 'Goud',    color: 'bg-yellow-600',  text: '75–84' },
+          { tier: 'elite',  label: 'Elite',   color: 'bg-violet-700',  text: '85–89' },
+          { tier: 'toty',   label: 'TOTY',    color: 'bg-cyan-700',    text: '90+' },
+        ].map(({ label, color, text }) => (
+          <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${color}`} />
+            <span className="font-bold text-white">{label}</span>
+            <span>{text}</span>
+          </span>
+        ))}
+        <span className="flex items-center gap-1 text-xs text-gray-400 ml-1">
+          <span>👑</span><span>SPDW-winnaar</span>
+        </span>
+        <span className="flex items-center gap-1 text-xs text-gray-400">
+          <span>↻</span><span>tik = flip voor details</span>
+        </span>
+      </div>
+
       {showInfo && (
         <div className="mb-6 p-4 bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-300 space-y-5">
-          {/* Rating berekening */}
           <div>
             <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
               <span>⚡</span> Hoe wordt de rating berekend?
@@ -329,10 +395,7 @@ export default function PlayerCardsView({
                       <div key={label} className="flex items-center gap-2">
                         <span className="text-gray-400 text-xs w-8">{label}</span>
                         <div className="flex-1 bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full"
-                            style={{ width: `${pct}%` }}
-                          />
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-gray-300 text-xs w-7 text-right">{pct}%</span>
                       </div>
@@ -343,7 +406,6 @@ export default function PlayerCardsView({
             </div>
           </div>
 
-          {/* Credit systeem */}
           <div className="border-t border-gray-700 pt-4">
             <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
               <span>💰</span> Hoe werkt het creditsysteem?
@@ -386,7 +448,6 @@ export default function PlayerCardsView({
           {positionOrder.map(position => {
             const posPlayers = sortedPlayers.filter(p => p.position === position);
             if (posPlayers.length === 0) return null;
-
             return (
               <div key={position}>
                 <h3 className="font-bold text-gray-400 mb-3 flex items-center gap-2 text-sm">

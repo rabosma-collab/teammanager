@@ -42,29 +42,28 @@ export default function Navbar({
   // Ref zodat de auth-listener altijd de meest recente versie aanroept (geen stale closure)
   const loadProfileInfoRef = useRef<() => Promise<void>>(async () => {});
 
-  // Laad avatar centraal uit user_metadata
+  // Laad avatar: players tabel is de primary source (altijd up-to-date na upload),
+  // user_metadata is fallback voor gebruikers zonder spelerrecord.
   const loadProfileInfo = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Avatar altijd uit user_metadata (centraal, geldt voor alle teams)
-    setProfileAvatar(user.user_metadata?.avatar_url ?? null);
+    let avatar: string | null = user.user_metadata?.avatar_url ?? null;
+    let initials = user.email?.substring(0, 2).toUpperCase() ?? '?';
 
-    // Initialen en avatar fallback: spelersnaam/avatar als beschikbaar, anders email
     if (currentPlayerId) {
       const { data } = await supabase
         .from('players')
         .select('name, avatar_url')
         .eq('id', currentPlayerId)
         .single();
-      setProfileInitials(data?.name ? data.name.substring(0, 2).toUpperCase() : (user.email?.substring(0, 2).toUpperCase() ?? '?'));
-      // Gebruik player.avatar_url als fallback als user_metadata stale/leeg is
-      if (!user.user_metadata?.avatar_url && data?.avatar_url) {
-        setProfileAvatar(data.avatar_url);
-      }
-    } else {
-      setProfileInitials(user.email?.substring(0, 2).toUpperCase() ?? '?');
+      if (data?.name) initials = data.name.substring(0, 2).toUpperCase();
+      // Players tabel is primary source — voorkomt stale user_metadata na token refresh
+      if (data?.avatar_url) avatar = data.avatar_url;
     }
+
+    setProfileInitials(initials);
+    setProfileAvatar(avatar);
   };
 
   // Update ref op elke render zodat de auth-listener nooit een stale closure aanroept
@@ -78,7 +77,7 @@ export default function Navbar({
   // Gebruik de ref zodat altijd de meest recente loadProfileInfo (met correcte currentPlayerId) wordt aangeroepen.
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: string) => {
-      if (event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+      if (event === 'INITIAL_SESSION' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
         loadProfileInfoRef.current();
       }
     });

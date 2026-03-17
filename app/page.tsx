@@ -1195,6 +1195,7 @@ export default function FootballApp() {
           currentPlayerId={teamPlayerId}
           creditBalance={creditBalance}
           onSaveStatDraft={handleSaveStatDraft}
+          spdwWinnerPlayerId={lastSpdwResult?.podium[0]?.player_id ?? null}
         />
       ) : view === 'uitslagen' ? (
         <UitslagenView
