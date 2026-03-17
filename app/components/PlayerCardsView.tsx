@@ -43,14 +43,12 @@ function computeSeasonBadges(players: Player[]): Record<number, SeasonBadge[]> {
 
   const maxGoals   = Math.max(...regular.map(p => p.goals || 0));
   const maxAssists = Math.max(...regular.map(p => p.assists || 0));
-  const maxMin     = Math.max(...regular.map(p => p.min || 0));
 
   const result: Record<number, SeasonBadge[]> = {};
   for (const p of regular) {
     const badges: SeasonBadge[] = [];
     if (maxGoals   > 0 && (p.goals   || 0) === maxGoals)   badges.push('top-scorer');
     if (maxAssists > 0 && (p.assists || 0) === maxAssists) badges.push('top-assist');
-    if (maxMin     > 0 && (p.min     || 0) === maxMin)     badges.push('most-minutes');
     if (badges.length > 0) result[p.id] = badges;
   }
   return result;
@@ -334,6 +332,14 @@ export default function PlayerCardsView({
         ))}
         <span className="flex items-center gap-1 text-xs text-gray-400 ml-1">
           <span>👑</span><span>SPDW-winnaar</span>
+        </span>
+        <span className="flex items-center gap-1 text-xs text-gray-400">
+          <span className="w-4 h-4 rounded-full bg-yellow-600 flex items-center justify-center" style={{ fontSize: '9px' }}>⚽</span>
+          <span>Topschutter</span>
+        </span>
+        <span className="flex items-center gap-1 text-xs text-gray-400">
+          <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center" style={{ fontSize: '9px' }}>🎯</span>
+          <span>Meeste assists</span>
         </span>
         <span className="flex items-center gap-1 text-xs text-gray-400">
           <span>↻</span><span>tik = flip voor details</span>

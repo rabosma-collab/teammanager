@@ -2,13 +2,14 @@
 import React, { useState } from 'react';
 import type { Player } from '../lib/types';
 
-export type SeasonBadge = 'top-scorer' | 'top-assist' | 'most-minutes';
+export type SeasonBadge = 'top-scorer' | 'top-assist';
 
 interface PlayerCardProps {
   player: Player;
   onClick?: () => void;
   size?: 'sm' | 'md';
   isFlippable?: boolean;
+  backContent?: 'full' | 'radar-only';
   isSpdwWinner?: boolean;
   seasonBadges?: SeasonBadge[];
   isJustUpgraded?: boolean;
@@ -103,9 +104,8 @@ const tierStyles: Record<CardTier, {
 };
 
 const badgeConfig: Record<SeasonBadge, { emoji: string; title: string; bg: string }> = {
-  'top-scorer':   { emoji: '⚽', title: 'Topschutter',     bg: 'bg-yellow-600' },
-  'top-assist':   { emoji: '🎯', title: 'Meeste assists',  bg: 'bg-blue-600' },
-  'most-minutes': { emoji: '⏱️', title: 'Meeste minuten', bg: 'bg-green-700' },
+  'top-scorer': { emoji: '⚽', title: 'Topschutter',    bg: 'bg-yellow-600' },
+  'top-assist': { emoji: '🎯', title: 'Meeste assists', bg: 'bg-blue-600' },
 };
 
 const positionSilhouette: Record<string, string> = {
@@ -205,6 +205,7 @@ export default function PlayerCard({
   onClick,
   size = 'md',
   isFlippable = false,
+  backContent = 'full',
   isSpdwWinner = false,
   seasonBadges = [],
   isJustUpgraded = false,
@@ -416,22 +417,24 @@ export default function PlayerCard({
                 <HexRadar stats={stats} tier={tier} size={size} />
               </div>
 
-              <div className="border-t border-white/20 my-1" />
-
-              {/* Career stats */}
-              <div className="grid grid-cols-2 gap-1 relative z-0">
-                {[
-                  { label: '⚽ Goals',   value: player.goals || 0 },
-                  { label: '🎯 Assists', value: player.assists || 0 },
-                  { label: '🟨 Geel',   value: player.yellow_cards || 0 },
-                  { label: '⏱️ Min',    value: player.min || 0 },
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-black/25 rounded px-1.5 py-1 text-center">
-                    <div className="text-[9px] text-white/50 leading-none mb-0.5">{label}</div>
-                    <div className="text-xs font-black text-white">{value}</div>
+              {backContent === 'full' && (
+                <>
+                  <div className="border-t border-white/20 my-1" />
+                  <div className="grid grid-cols-2 gap-1 relative z-0">
+                    {[
+                      { label: '⚽ Goals',   value: player.goals || 0 },
+                      { label: '🎯 Assists', value: player.assists || 0 },
+                      { label: '🟨 Geel',   value: player.yellow_cards || 0 },
+                      { label: '⏱️ Min',    value: player.min || 0 },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-black/25 rounded px-1.5 py-1 text-center">
+                        <div className="text-[9px] text-white/50 leading-none mb-0.5">{label}</div>
+                        <div className="text-xs font-black text-white">{value}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
 
               <div className="mt-1.5 text-center text-[9px] text-white/30 font-bold tracking-wide">
                 ↻ tik voor stats

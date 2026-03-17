@@ -56,7 +56,7 @@ export default function PersonalCard({
         </InfoButton>
       </div>
       <div className="flex justify-center mb-4">
-        <PlayerCard player={player} size="md" />
+        <PlayerCard player={player} size="md" isFlippable backContent="radar-only" />
       </div>
       <div className="grid grid-cols-4 gap-1.5 text-center">
         <div className="bg-gray-700/40 rounded-lg p-2">
