@@ -289,7 +289,7 @@ export default function FootballApp() {
       const playerKey = (p: import('./lib/types').Player | null) => p ? `${p.is_guest ? 'g' : 'r'}_${p.id}` : null;
       const computedIds = new Set(computedLineup.map(playerKey).filter(Boolean));
       const overrideIds = new Set(override.map(playerKey).filter(Boolean));
-      const setsMatch = computedIds.size === overrideIds.size && [...computedIds].every(id => overrideIds.has(id));
+      const setsMatch = computedIds.size === overrideIds.size && Array.from(computedIds).every(id => overrideIds.has(id));
       if (setsMatch) return override;
     }
     return computedLineup;
