@@ -1,15 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Match, Player, MatchPlayerStats, TeamSettings } from '../lib/types';
+import type { Match, Player, MatchPlayerStats, TeamSettings, Season } from '../lib/types';
 import { useMatchStats } from '../hooks/useMatchStats';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
+import { supabase } from '../lib/supabase';
 
 interface UitslagenViewProps {
   matches: Match[];
   players: Player[];
   teamSettings: TeamSettings | null;
+  seasons: Season[];
+  activeSeasonId: number | null;
   onRefreshPlayers: () => void;
 }
 
@@ -165,8 +168,8 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
 }
 
 // ─── Hoofd component ──────────────────────────────────────────
-export default function UitslagenView({ matches, players, teamSettings, onRefreshPlayers }: UitslagenViewProps) {
-  const { isManager } = useTeamContext();
+export default function UitslagenView({ matches, players, teamSettings, seasons, activeSeasonId, onRefreshPlayers }: UitslagenViewProps) {
+  const { isManager, currentTeam } = useTeamContext();
   const toast = useToast();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
 
@@ -175,10 +178,39 @@ export default function UitslagenView({ matches, players, teamSettings, onRefres
   const trackCards   = teamSettings?.track_cards    ?? false;
   const trackResults = teamSettings?.track_results  ?? true;
 
+  const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(activeSeasonId);
+  const [seasonMatches, setSeasonMatches] = useState<Match[]>(matches);
+  const [seasonLoading, setSeasonLoading] = useState(false);
+
+  // Sync naar activeSeasonId als die verandert (bijv. nieuw seizoen gestart)
+  useEffect(() => {
+    setSelectedSeasonId(activeSeasonId);
+  }, [activeSeasonId]);
+
+  // Bij actief seizoen: gebruik matches van parent; bij oud seizoen: fetch zelf
+  useEffect(() => {
+    if (selectedSeasonId === activeSeasonId) {
+      setSeasonMatches(matches);
+      return;
+    }
+    if (!currentTeam || selectedSeasonId == null) return;
+    setSeasonLoading(true);
+    supabase
+      .from('matches')
+      .select('*')
+      .eq('team_id', currentTeam.id)
+      .eq('season_id', selectedSeasonId)
+      .order('date', { ascending: false })
+      .then(({ data }: { data: Match[] | null }) => {
+        setSeasonMatches(data || []);
+        setSeasonLoading(false);
+      });
+  }, [selectedSeasonId, activeSeasonId, matches, currentTeam]);
+
   // Alleen afgeronde wedstrijden, nieuwste eerst
   const finishedMatches = useMemo(
-    () => matches.filter(m => m.match_status === 'afgerond').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [matches]
+    () => seasonMatches.filter(m => m.match_status === 'afgerond').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [seasonMatches]
   );
 
   const [statsMap, setStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
@@ -214,13 +246,36 @@ export default function UitslagenView({ matches, players, teamSettings, onRefres
     }
   }, [saveMatchStats, fetchStatsForMatches, onRefreshPlayers, toast]);
 
-  if (finishedMatches.length === 0) {
+  const seasonSelector = seasons.length > 1 && (
+    <div className="flex items-center gap-2 mb-4">
+      <label className="text-xs text-gray-400 shrink-0">Seizoen:</label>
+      <select
+        value={selectedSeasonId ?? ''}
+        onChange={e => setSelectedSeasonId(Number(e.target.value))}
+        className="bg-gray-700 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+      >
+        {seasons.map(s => (
+          <option key={s.id} value={s.id}>
+            {s.name}{s.is_active ? ' (actief)' : ''}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  if (finishedMatches.length === 0 && !seasonLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-500 p-8">
-        <div className="text-center">
-          <div className="text-4xl mb-3">📋</div>
-          <div className="font-bold">Nog geen afgesloten wedstrijden</div>
-          <div className="text-sm mt-1">Uitslagen verschijnen hier zodra wedstrijden zijn afgesloten.</div>
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-lg font-bold mb-4">📋 Uitslagen</h2>
+          {seasonSelector}
+          <div className="flex items-center justify-center text-gray-500 py-16">
+            <div className="text-center">
+              <div className="text-4xl mb-3">📋</div>
+              <div className="font-bold">Nog geen afgesloten wedstrijden</div>
+              <div className="text-sm mt-1">Uitslagen verschijnen hier zodra wedstrijden zijn afgesloten.</div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -230,6 +285,7 @@ export default function UitslagenView({ matches, players, teamSettings, onRefres
     <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
       <div className="max-w-2xl mx-auto">
         <h2 className="text-lg font-bold mb-4">📋 Uitslagen</h2>
+        {seasonSelector}
 
         {loading && (
           <div className="text-center text-gray-500 py-4 text-sm">Statistieken laden…</div>

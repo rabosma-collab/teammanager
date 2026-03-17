@@ -11,18 +11,24 @@ export function useMatches() {
   const [matchAbsences, setMatchAbsences] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchMatches = useCallback(async () => {
+  const fetchMatches = useCallback(async (seasonId?: number | null) => {
     if (!currentTeam) {
       setLoading(false);
       return;
     }
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('matches')
         .select('*')
         .eq('team_id', currentTeam.id)
         .order('date', { ascending: false });
+
+      if (seasonId != null) {
+        query = query.eq('season_id', seasonId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setMatches(data || []);
@@ -133,7 +139,7 @@ export function useMatches() {
   }, [selectedMatch]);
 
   const addMatch = useCallback(async (
-    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: 'competitie' | 'oefenwedstrijd'; assembly_time?: string | null; match_time?: string | null; location_details?: string | null }
+    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: 'competitie' | 'oefenwedstrijd'; assembly_time?: string | null; match_time?: string | null; location_details?: string | null; season_id?: number | null }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
