@@ -118,24 +118,21 @@ export function useStatCredits() {
         }
 
         // Credit each qualifying player
+        // Gebruikt award_player_credits() RPC (SECURITY DEFINER) zodat elk teamlid
+        // credits kan uitbetalen aan anderen, zonder dat de RLS-policy verruimd hoeft te worden.
         let winnerLogged = false;
         for (const [pid, pts] of Object.entries(creditMap)) {
           const playerId = parseInt(pid);
           const currentBal = await ensureBalance(playerId);
           const newBal = currentBal + pts;
 
-          await supabase
-            .from('stat_credits')
-            .update({ balance: newBal })
-            .eq('player_id', playerId)
-            .eq('team_id', currentTeam.id);
-
-          await supabase.from('stat_credit_transactions').insert({
-            team_id: currentTeam.id,
-            player_id: playerId,
-            balance_change: pts,
-            reason: 'spdw',
-            match_id: match.id,
+          await supabase.rpc('award_player_credits', {
+            p_player_id:   playerId,
+            p_team_id:     currentTeam.id,
+            p_new_balance: newBal,
+            p_change:      pts,
+            p_reason:      'spdw',
+            p_match_id:    match.id,
           });
 
           // Log de winnaar (hoogste pts = rang 1)

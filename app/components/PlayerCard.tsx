@@ -75,13 +75,6 @@ export default function PlayerCard({ player, onClick, size = 'md' }: PlayerCardP
         {/* Gold shimmer */}
         <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 via-transparent to-yellow-400/5 pointer-events-none" />
 
-        {/* Injured overlay */}
-        {player.injured && (
-          <div className="absolute inset-0 bg-red-900/40 z-10 flex items-center justify-center pointer-events-none">
-            <span className={`${isSm ? 'text-3xl' : 'text-4xl'} opacity-80`}>🏥</span>
-          </div>
-        )}
-
         {/* Rating + Position + Avatar */}
         <div className="flex justify-between items-start mb-1 relative z-0">
           <div className="text-center">

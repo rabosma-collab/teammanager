@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
@@ -132,6 +132,7 @@ export default function BenchPanel({
   }, [benchPlayers]);
 
   const hasUnavailable = unavailablePlayers.injured.length > 0 || unavailablePlayers.absent.length > 0;
+  const [showInfo, setShowInfo] = useState(false);
 
   return (
     <div className="w-full lg:flex lg:flex-col">
@@ -141,9 +142,27 @@ export default function BenchPanel({
           isBenchOver ? 'border-yellow-400 bg-amber-800/50' : ''
         } ${periodLocked ? 'opacity-60' : ''}`}
       >
-        <h3 className="text-center font-bold text-lg sm:text-xl mb-3 text-amber-200 select-none">
-          🪑 Wissels ({benchPlayers.length})
-        </h3>
+        <div className="relative flex items-center justify-center mb-3">
+          <h3 className="font-bold text-lg sm:text-xl text-amber-200 select-none">
+            🪑 Wissels ({benchPlayers.length})
+          </h3>
+          <button
+            onClick={() => setShowInfo(v => !v)}
+            className="ml-2 text-amber-400 hover:text-amber-200 text-sm leading-none touch-manipulation"
+            aria-label="Info wisselbank"
+          >
+            ⓘ
+          </button>
+          {showInfo && (
+            <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 w-72 bg-gray-900 border border-amber-700 rounded-xl p-3 text-xs text-gray-200 shadow-xl text-left">
+              <p className="font-bold text-amber-300 mb-1">Wisselbank</p>
+              <p className="mb-2">Hier staan de spelers die niet in de basisopstelling staan, gegroepeerd op positie.</p>
+              <p className="mb-2">Spelers zijn gesorteerd op <span className="font-semibold text-amber-300">wisselminuten</span> — het totaal aantal minuten dat iemand dit seizoen op de bank heeft gezeten. Wie het meest op de bank heeft gestaan, staat bovenaan.</p>
+              <p>Spelers die <span className="font-semibold text-red-400">niet beschikbaar</span> zijn (geblesseerd of afwezig) worden apart weergegeven.</p>
+              <button onClick={() => setShowInfo(false)} className="mt-2 text-amber-400 hover:text-amber-200 text-xs">Sluiten</button>
+            </div>
+          )}
+        </div>
 
         {periodLocked && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-amber-950/70 border border-amber-700 text-center">

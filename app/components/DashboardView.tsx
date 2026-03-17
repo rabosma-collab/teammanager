@@ -260,9 +260,6 @@ export default function DashboardView({
     return success;
   }, [onToggleAbsence, refreshAbsences, players, currentTeam, dashboardMatch]);
 
-  const handleToggleInjury = useCallback(async (playerId: number): Promise<boolean> => {
-    return onToggleInjury(playerId);
-  }, [onToggleInjury]);
 
   useEffect(() => {
     setPotwReady(false);
@@ -406,7 +403,7 @@ export default function DashboardView({
             trackMatchTime={trackMatchTime}
             trackLocationDetails={trackLocationDetails}
             onToggleAbsence={handleToggleAbsence}
-            onToggleInjury={handleToggleInjury}
+            onToggleInjury={onToggleInjury}
             onNavigateToWedstrijd={onNavigateToWedstrijd}
             onNavigateToMatches={onNavigateToMatches}
           />
@@ -451,25 +448,23 @@ export default function DashboardView({
           </div>
         )}
 
-        {/* Seizoensgrafiek — alleen als er uitslagen zijn */}
+        {/* Seizoensgrafiek + recente uitslagen */}
         {trackResults && (
-          <div className="mt-4">
-            <SeasonChart
-              matches={matches}
-              onNavigateToUitslagen={onNavigateToUitslagen}
-            />
-          </div>
-        )}
-
-        {/* Recente uitslagen */}
-        {trackResults && (
-          <div className="mt-4">
-            <RecentResults
-              matches={matches}
-              statsMap={recentStatsMap}
-              onNavigateToUitslagen={onNavigateToUitslagen}
-            />
-          </div>
+          <>
+            <div className="mt-4">
+              <SeasonChart
+                matches={matches}
+                onNavigateToUitslagen={onNavigateToUitslagen}
+              />
+            </div>
+            <div className="mt-4">
+              <RecentResults
+                matches={matches}
+                statsMap={recentStatsMap}
+                onNavigateToUitslagen={onNavigateToUitslagen}
+              />
+            </div>
+          </>
         )}
 
         {/* Activiteitenfeed (preview — max 5 items) */}

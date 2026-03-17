@@ -194,10 +194,9 @@ export default function TeamSetupWizard() {
 
   // ── Stap 2: Spelvorm opslaan ──────────────────────────────
   const handleSaveGameFormat = async (fmt: string) => {
-    const chosen = fmt;
-    setGameFormat(chosen);
+    setGameFormat(fmt);
     // Reset formation naar default voor de gekozen spelvorm
-    const defaultFormation = DEFAULT_FORMATIONS[chosen] ?? '4-3-3-aanvallend';
+    const defaultFormation = DEFAULT_FORMATIONS[fmt] ?? '4-3-3-aanvallend';
     setFormation(defaultFormation);
 
     if (teamId) {
@@ -205,7 +204,7 @@ export default function TeamSetupWizard() {
         .from('team_settings')
         .upsert({
           team_id: teamId,
-          game_format: chosen,
+          game_format: fmt,
           periods,
           match_duration: matchDuration,
           default_formation: defaultFormation,

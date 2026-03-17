@@ -102,13 +102,13 @@ export async function logActivity(options: LogActivityOptions): Promise<void> {
       }
     }
 
-    await supabase.from('activity_log').insert({
-      team_id: teamId,
-      type,
-      actor_id: actorId ?? null,
-      subject_id: subjectId ?? null,
-      match_id: matchId ?? null,
-      payload,
+    // actor_id wordt server-side afgeleid via de RPC (voorkomt spoofing)
+    await supabase.rpc('insert_activity', {
+      p_team_id:    teamId,
+      p_type:       type,
+      p_subject_id: subjectId ?? null,
+      p_match_id:   matchId ?? null,
+      p_payload:    payload,
     });
   } catch (e) {
     // Logging is non-critical — stil mislukken

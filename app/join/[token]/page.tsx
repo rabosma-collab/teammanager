@@ -166,11 +166,16 @@ export default function JoinPage() {
 
       if (memberError) throw memberError;
 
-      // Mark token as used
-      await supabase
-        .from('invite_tokens')
-        .update({ used_at: new Date().toISOString(), used_by: user.id })
-        .eq('token', token);
+      // Mark token as used — atomisch via RPC (voorkomt race condition bij gelijktijdige acceptaties)
+      const { data: acceptResult } = await supabase.rpc('accept_invite', { p_token: token });
+      if (acceptResult?.error) {
+        const msg: Record<string, string> = {
+          used: 'Deze uitnodiging is al gebruikt.',
+          expired: 'Deze uitnodiging is verlopen.',
+          invalid: 'Ongeldige uitnodiging.',
+        };
+        throw new Error(msg[acceptResult.error] ?? 'Uitnodiging accepteren mislukt.');
+      }
 
       localStorage.removeItem(STORAGE_KEY);
       await refreshTeam();
