@@ -23,11 +23,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Velden ontbreken' }, { status: 400 });
   }
 
-  const supabaseUrl = `https://supabase.com/dashboard/project/hyjewtsmytpfojdvdsta/editor`;
+  const supabaseUrl = process.env.SUPABASE_DASHBOARD_URL ?? 'https://supabase.com/dashboard';
 
   const { error } = await resend.emails.send({
     from: 'Team Manager <onboarding@resend.dev>',
-    to: 'rabosma@gmail.com',
+    to: process.env.ADMIN_NOTIFY_EMAIL!,
     subject: `Nieuw teamverzoek: ${teamName}`,
     html: `
       <h2>Nieuw teamverzoek</h2>

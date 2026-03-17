@@ -2,6 +2,7 @@ import React from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { formations, getPositionCategory } from '../lib/constants';
 import type { Player, PositionInstruction } from '../lib/types';
+import InfoButton from './InfoButton';
 
 interface PitchViewProps {
   gameFormat: string;
@@ -189,11 +190,11 @@ const PitchView = React.memo(function PitchView({
 
   return (
     <div className="flex flex-col items-center w-full">
-      {!isEditable && (
-        <p className="text-center text-gray-500 text-xs mb-2">
+      <div className="self-end mb-1">
+        <InfoButton align="right">
           Tik op een speler voor info &amp; instructies
-        </p>
-      )}
+        </InfoButton>
+      </div>
       <div
         className="relative w-full max-w-[420px] sm:max-w-[500px] lg:w-[580px] aspect-[3/4] bg-green-700 border-4 border-white rounded-2xl overflow-hidden flex-shrink-0"
         style={{

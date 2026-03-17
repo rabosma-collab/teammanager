@@ -278,11 +278,21 @@ export default function FootballApp() {
   }), [players, matchAbsences]);
 
   // Opstelling voor de geselecteerde periode (period 1 = startopstelling, period N = na N-1 wisselmomenten)
-  // Prioriteit: manager-override > berekende opstelling > startopstelling
+  // Prioriteit: manager-override (alleen als spelers overeenkomen met wissels) > berekende opstelling > startopstelling
   const displayedOccupants = useMemo(() => {
     if (selectedPeriod <= 1) return fieldOccupants;
-    if (periodOverrides[selectedPeriod]) return periodOverrides[selectedPeriod];
-    return computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
+    const computedLineup = computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
+    const override = periodOverrides[selectedPeriod];
+    if (override) {
+      // Gebruik de override alleen als dezelfde spelers op het veld staan als de berekende opstelling.
+      // Als de override verouderd is (bijv. wissel na override aangemaakt), negeer hem.
+      const playerKey = (p: import('./lib/types').Player | null) => p ? `${p.is_guest ? 'g' : 'r'}_${p.id}` : null;
+      const computedIds = new Set(computedLineup.map(playerKey).filter(Boolean));
+      const overrideIds = new Set(override.map(playerKey).filter(Boolean));
+      const setsMatch = computedIds.size === overrideIds.size && Array.from(computedIds).every(id => overrideIds.has(id));
+      if (setsMatch) return override;
+    }
+    return computedLineup;
   }, [selectedPeriod, fieldOccupants, substitutions, players, periodOverrides]);
 
   // Formatie voor de geselecteerde periode (periode 1 = wedstrijdformatie, periode N = periodieke override)
@@ -1185,6 +1195,7 @@ export default function FootballApp() {
           currentPlayerId={teamPlayerId}
           creditBalance={creditBalance}
           onSaveStatDraft={handleSaveStatDraft}
+          spdwWinnerPlayerId={lastSpdwResult?.podium[0]?.player_id ?? null}
         />
       ) : view === 'uitslagen' ? (
         <UitslagenView
@@ -1343,13 +1354,11 @@ export default function FootballApp() {
               {activelyEditing && (
                 <div className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded px-2 py-1">
                   <span className="text-xs text-gray-400 mr-1"># periodes:</span>
-                  {/* Vrij = 0 wisselmomenten, 2-5 = aantal periodes (= n-1 wisselmomenten) */}
-                  {(['Vrij', 2, 3, 4, 5] as const).map((val) => {
-                    const n = val === 'Vrij' ? 0 : (val as number) - 1; // aantal wisselmomenten opgeslagen in subMoments
+                  {/* 2-5 = aantal periodes (= n-1 wisselmomenten); vrij wisselen is altijd mogelijk */}
+                  {([2, 3, 4, 5] as const).map((val) => {
+                    const n = val - 1; // aantal wisselmomenten opgeslagen in subMoments
                     const isActive = subMoments === n;
-                    const preview = n === 0
-                      ? 'Vrije wissels (kies zelf de minuut)'
-                      : `${val} periodes — wisselmoment${n > 1 ? 'en' : ''}: ${computeSubMomentMinutes(n, matchDuration).join("', ")}' `;
+                    const preview = `${val} periodes — wisselmoment${n > 1 ? 'en' : ''}: ${computeSubMomentMinutes(n, matchDuration).join("', ")}' `;
                     return (
                       <button
                         key={n}
@@ -1365,6 +1374,7 @@ export default function FootballApp() {
                       </button>
                     );
                   })}
+                  <PeriodesInfoButton />
                 </div>
               )}
 
@@ -1654,6 +1664,32 @@ export default function FootballApp() {
       )}
 
 
+    </div>
+  );
+}
+
+function PeriodesInfoButton() {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="ml-1 w-4 h-4 rounded-full bg-gray-600 text-gray-300 hover:bg-gray-500 hover:text-white text-xs flex items-center justify-center leading-none"
+        title="Uitleg periodes"
+      >
+        i
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-6 z-50 w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-3 text-xs text-gray-300 space-y-2">
+            <p className="font-semibold text-white">Wat doen periodes?</p>
+            <p>Het aantal periodes bepaalt hoe de wedstrijd wordt opgedeeld. Bij 2 periodes speelt iedereen de eerste helft in dezelfde opstelling, bij 3 periodes zijn er drie blokken, enzovoort.</p>
+            <p>Per periode kun je een aparte opstelling instellen én krijg je automatisch een wisselmoment aan het begin van elk nieuw blok. Zo kun je voor de tweede helft een andere speler op een positie zetten en worden de wissels op het juiste moment gesignaleerd.</p>
+            <p className="text-gray-400">Vrije wissels zijn altijd mogelijk — je kunt op elk willekeurig moment een wissel doorvoeren, ongeacht het aantal periodes.</p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
