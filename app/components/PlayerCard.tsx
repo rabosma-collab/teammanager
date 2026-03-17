@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { Player } from '../lib/types';
 
-export type SeasonBadge = 'top-scorer' | 'top-assist' | 'most-minutes';
+export type SeasonBadge = 'top-scorer' | 'top-assist';
 
 interface PlayerCardProps {
   player: Player;
@@ -103,9 +103,8 @@ const tierStyles: Record<CardTier, {
 };
 
 const badgeConfig: Record<SeasonBadge, { emoji: string; title: string; bg: string }> = {
-  'top-scorer':   { emoji: '⚽', title: 'Topschutter',     bg: 'bg-yellow-600' },
-  'top-assist':   { emoji: '🎯', title: 'Meeste assists',  bg: 'bg-blue-600' },
-  'most-minutes': { emoji: '⏱️', title: 'Meeste minuten', bg: 'bg-green-700' },
+  'top-scorer': { emoji: '⚽', title: 'Topschutter',    bg: 'bg-yellow-600' },
+  'top-assist': { emoji: '🎯', title: 'Meeste assists', bg: 'bg-blue-600' },
 };
 
 const positionSilhouette: Record<string, string> = {
