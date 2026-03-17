@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 
 interface InfoButtonProps {
   children: React.ReactNode;
-  align?: 'left' | 'right';
+  align?: 'left' | 'right' | 'center';
 }
 
 export default function InfoButton({ children, align = 'left' }: InfoButtonProps) {
@@ -39,7 +39,7 @@ export default function InfoButton({ children, align = 'left' }: InfoButtonProps
       {open && (
         <div
           className={`absolute top-full mt-1.5 z-50 w-72 p-3 bg-gray-800 border border-gray-600 rounded-xl shadow-xl text-xs text-gray-300 space-y-1.5 ${
-            align === 'right' ? 'right-0' : 'left-0'
+            align === 'right' ? 'right-0' : align === 'center' ? 'left-1/2 -translate-x-1/2' : 'left-0'
           }`}
         >
           {children}
