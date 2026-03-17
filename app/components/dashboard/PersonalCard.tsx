@@ -3,6 +3,7 @@
 import React from 'react';
 import type { Player, PositionInstruction } from '../../lib/types';
 import PlayerCard from '../PlayerCard';
+import InfoButton from '../InfoButton';
 
 interface PersonalCardProps {
   player: Player | null;
@@ -46,7 +47,14 @@ export default function PersonalCard({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 mb-3">Mijn profiel</h3>
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Mijn profiel</h3>
+        <InfoButton>
+          <p className="font-semibold text-white mb-1">Jouw statistieken</p>
+          <p><span className="text-white font-semibold">SVDW</span> = aantal keer gewonnen als Speler van de Week.</p>
+          <p className="mt-1"><span className="text-yellow-300 font-semibold">💰 Statcredits</span> verdien je door te winnen bij de SPDW-stemming. Gebruik ze op de <span className="text-white font-semibold">Spelerskaarten</span>-pagina om FIFA-stats aan te passen.</p>
+        </InfoButton>
+      </div>
       <div className="flex justify-center mb-4">
         <PlayerCard player={player} size="md" />
       </div>

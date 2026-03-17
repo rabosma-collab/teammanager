@@ -128,6 +128,7 @@ export interface Player {
     team_size: number;
     color: string;
     setup_done: boolean;
+    status: 'pending' | 'active' | 'rejected';
     created_at: string;
     updated_at: string;
   }
@@ -189,6 +190,7 @@ export interface Player {
     isStaff: boolean;
     isLoading: boolean;
     teams: Team[];
+    hasPendingTeam: boolean;
     currentPlayerId: number | null;
     currentUserId: string | null;
     switchTeam: (teamId: string) => Promise<void>;

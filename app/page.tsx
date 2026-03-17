@@ -88,7 +88,7 @@ export default function FootballApp() {
   const router = useRouter();
   const toast = useToast();
   const [authChecking, setAuthChecking] = useState(true);
-  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId } = useTeamContext();
+  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, hasPendingTeam } = useTeamContext();
 
   // ---- AUTH CHECK ----
   useEffect(() => {
@@ -841,6 +841,10 @@ export default function FootballApp() {
     if (pendingInvite) {
       router.replace(`/join/${pendingInvite}`);
       return null;
+    }
+
+    if (hasPendingTeam) {
+      return <PendingApprovalScreen onLogout={handleLogout} />;
     }
 
     return <WelcomeScreen onLogout={handleLogout} onNavigateToNew={() => router.push('/team/new')} />;
@@ -1633,6 +1637,26 @@ export default function FootballApp() {
       )}
 
 
+    </div>
+  );
+}
+
+function PendingApprovalScreen({ onLogout }: { onLogout: () => void }) {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white p-4">
+      <div className="max-w-sm w-full text-center">
+        <div className="text-6xl mb-6">⏳</div>
+        <h1 className="text-2xl font-black mb-4">Aanvraag in behandeling</h1>
+        <div className="p-4 bg-blue-900/30 border border-blue-700/50 rounded-xl text-sm text-blue-200 leading-relaxed text-left mb-8">
+          Je teamaanvraag is ingediend bij de beheerder van de app. Op dit moment beperken we nog het aantal teams omdat de app nog in ontwikkeling is. Zodra je verzoek is goedgekeurd, kun je aan de slag.
+        </div>
+        <button
+          onClick={onLogout}
+          className="text-sm text-gray-500 hover:text-gray-300 transition"
+        >
+          Uitloggen
+        </button>
+      </div>
     </div>
   );
 }

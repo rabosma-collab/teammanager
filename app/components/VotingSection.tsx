@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Player, VotingMatch } from '../lib/types';
 import { useToast } from '../contexts/ToastContext';
+import InfoButton from './InfoButton';
 
 const POINTS_BY_RANK = [5, 3, 2];
 
@@ -41,7 +42,20 @@ export default function VotingSection({
   return (
     <div className="w-full max-w-[900px] mx-auto mt-6">
       <div className="bg-gradient-to-br from-yellow-900/40 to-amber-950/40 rounded-xl p-4 sm:p-6 border-2 border-yellow-700/50">
-        <h2 className="text-lg sm:text-2xl font-bold mb-4">🏆 Speler van de Week</h2>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-lg sm:text-2xl font-bold">🏆 Speler van de Week</h2>
+          <InfoButton>
+            <p className="font-semibold text-white mb-1">Hoe werkt de stemming?</p>
+            <p>Na elke afgeronde wedstrijd open je een stemming van <span className="text-yellow-300 font-semibold">7 dagen</span>.</p>
+            <p className="mt-1">Je kunt niet op jezelf stemmen. De top 3 ontvangt statcredits:</p>
+            <div className="mt-1.5 space-y-0.5">
+              <div className="flex gap-1.5">🥇 <span><span className="text-yellow-300 font-bold">5 credits</span> voor de winnaar</span></div>
+              <div className="flex gap-1.5">🥈 <span><span className="text-yellow-300 font-bold">3 credits</span> voor de tweede</span></div>
+              <div className="flex gap-1.5">🥉 <span><span className="text-yellow-300 font-bold">2 credits</span> voor de derde</span></div>
+            </div>
+            <p className="mt-1.5 text-gray-500">Credits gebruik je op de Spelerskaarten-pagina om FIFA-stats aan te passen.</p>
+          </InfoButton>
+        </div>
 
         {/* Wie ben jij? selector — alleen voor spelers zonder bekend player_id; stafleden slaan dit over */}
         {!currentPlayerId && !isStaff && (

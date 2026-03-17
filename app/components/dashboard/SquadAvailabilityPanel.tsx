@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { positionEmojis, positionOrder } from '../../lib/constants';
+import InfoButton from '../InfoButton';
 
 interface PlayerRowProps {
   player: Player;
@@ -64,7 +65,17 @@ export default function SquadAvailabilityPanel({
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
       {/* Header */}
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Selectie aanwezigheid</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Selectie aanwezigheid</h3>
+          <InfoButton>
+            <p className="font-semibold text-white mb-1">Hoe werkt beschikbaarheid?</p>
+            <div className="space-y-1">
+              <div className="flex gap-1.5"><span>✅</span><span><span className="text-white font-semibold">Beschikbaar</span> — speler heeft niets opgegeven en is niet geblesseerd.</span></div>
+              <div className="flex gap-1.5"><span>❌</span><span><span className="text-white font-semibold">Afwezig</span> — speler heeft zichzelf als afwezig opgegeven via het Dashboard.</span></div>
+              <div className="flex gap-1.5"><span>🏥</span><span><span className="text-white font-semibold">Geblesseerd</span> — ingesteld door de manager via Spelers beheren.</span></div>
+            </div>
+          </InfoButton>
+        </div>
         <span className="text-xs text-gray-500">
           {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
         </span>

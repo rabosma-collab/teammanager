@@ -240,9 +240,8 @@ export default function TeamSetupWizard() {
   const handleFinish = async () => {
     if (!teamId) return;
     setFinishLoading(true);
-    await supabase.from('teams').update({ setup_done: true }).eq('id', teamId);
+    await supabase.from('teams').update({ setup_done: true, status: 'pending' }).eq('id', teamId);
     localStorage.removeItem('team_manager_wizard');
-    await switchTeam(teamId);
     router.push('/');
   };
 
@@ -251,7 +250,7 @@ export default function TeamSetupWizard() {
   const handleStartOver = async () => {
     setStartingOver(true);
     if (teamId) {
-      await supabase.from('teams').update({ setup_done: true }).eq('id', teamId);
+      await supabase.from('teams').update({ setup_done: true, status: 'pending' }).eq('id', teamId);
     }
     localStorage.removeItem('team_manager_wizard');
     setTeamId(null);
