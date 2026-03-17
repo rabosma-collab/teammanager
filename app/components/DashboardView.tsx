@@ -27,6 +27,8 @@ interface DashboardViewProps {
   onNavigateToWedstrijd: (match: Match) => void;
   onNavigateToMatches: () => void;
   onNavigateToUitslagen: () => void;
+  onNavigateToPlayers?: () => void;
+  onNavigateToInvites?: () => void;
   // Voting (page-level currentPlayerId for manual "Wie ben jij?" override)
   votingMatches: VotingMatch[];
   isLoadingVotes: boolean;
@@ -57,6 +59,8 @@ export default function DashboardView({
   onNavigateToWedstrijd,
   onNavigateToMatches,
   onNavigateToUitslagen,
+  onNavigateToPlayers,
+  onNavigateToInvites,
   votingMatches,
   isLoadingVotes,
   votingCurrentPlayerId,
@@ -82,6 +86,16 @@ export default function DashboardView({
   const currentPlayer = currentPlayerId
     ? players.find(p => p.id === currentPlayerId && !p.is_guest) ?? null
     : null;
+
+  // Aan de slag: taken voor managers met een leeg team
+  const realPlayers = useMemo(() => players.filter(p => !p.is_guest), [players]);
+  const hasNoPlayers = isManager && realPlayers.length === 0;
+  const hasNoMatches = isManager && matches.length === 0;
+  const showGettingStarted = isManager && (hasNoPlayers || hasNoMatches);
+
+  // Profile nudge: spelers zonder avatar (dismissible)
+  const [profileNudgeDismissed, setProfileNudgeDismissed] = useState(false);
+  const showProfileNudge = !isManager && !isStaff && currentPlayerId !== null && !currentPlayer?.avatar_url && !profileNudgeDismissed;
 
   // Eerstvolgende wedstrijd = eerste concept-wedstrijd met datum >= vandaag
   const dashboardMatch = useMemo((): Match | null => {
@@ -316,6 +330,56 @@ export default function DashboardView({
       <div className="max-w-4xl mx-auto">
 
         <AnnouncementBanner />
+
+        {/* Aan de slag — alleen voor managers met een leeg team */}
+        {showGettingStarted && (
+          <div className="mb-4 bg-blue-900/30 border border-blue-700/50 rounded-xl p-4">
+            <p className="text-sm font-bold text-blue-200 mb-3">Aan de slag met je team</p>
+            <div className="space-y-2">
+              {hasNoPlayers && (
+                <button
+                  onClick={onNavigateToInvites}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-800/40 hover:bg-blue-800/70 transition text-left"
+                >
+                  <span className="text-lg">📨</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Nodig spelers uit</p>
+                    <p className="text-xs text-blue-300">Stuur een uitnodigingslink naar je spelers</p>
+                  </div>
+                  <span className="ml-auto text-blue-400">›</span>
+                </button>
+              )}
+              {hasNoMatches && (
+                <button
+                  onClick={onNavigateToMatches}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-800/40 hover:bg-blue-800/70 transition text-left"
+                >
+                  <span className="text-lg">📅</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Plan een wedstrijd</p>
+                    <p className="text-xs text-blue-300">Voeg je eerste wedstrijd toe aan het schema</p>
+                  </div>
+                  <span className="ml-auto text-blue-400">›</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Profile nudge — voor spelers zonder profielfoto */}
+        {showProfileNudge && (
+          <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl">
+            <span className="text-xl">👤</span>
+            <p className="text-sm text-gray-300 flex-1">Voeg een profielfoto toe via het menu rechtsboven.</p>
+            <button
+              onClick={() => setProfileNudgeDismissed(true)}
+              className="text-gray-500 hover:text-gray-300 text-lg leading-none transition"
+              aria-label="Sluiten"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Top row: PersonalCard + NextMatchCard */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">

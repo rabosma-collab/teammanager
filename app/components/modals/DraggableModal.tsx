@@ -22,6 +22,13 @@ export default function DraggableModal({ onClose, children, className = '' }: Dr
   const offset = useRef({ x: 0, y: 0 });
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Blokkeer body-scroll terwijl modal open is (voorkomt scrollen op mobiel)
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   // Registreer globale move/end-listeners éénmalig (via refs – geen stale-closure problemen)
   useEffect(() => {
     const onMove = (clientX: number, clientY: number) => {
@@ -66,7 +73,7 @@ export default function DraggableModal({ onClose, children, className = '' }: Dr
 
   const style = pos
     ? { left: pos.x, top: pos.y, transform: 'none' }
-    : { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' };
+    : { left: '50%', top: '50dvh', transform: 'translate(-50%, -50%)' };
 
   return (
     <>

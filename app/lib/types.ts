@@ -47,6 +47,7 @@ export interface Player {
     assembly_time?: string | null;
     match_time?: string | null;
     location_details?: string | null;
+    season_id?: number | null;
   }
 
   export interface SubstitutionScheme {
@@ -181,6 +182,31 @@ export interface Player {
 
   export interface MatchWithStats extends Match {
     stats?: MatchPlayerStats[];
+  }
+
+  export interface Season {
+    id: number;
+    team_id: string;
+    name: string;
+    start_date: string | null;
+    end_date: string | null;
+    is_active: boolean;
+    created_at: string;
+  }
+
+  export interface PlayerSeasonStats {
+    id?: number;
+    player_id: number;
+    season_id: number;
+    team_id: string;
+    goals: number;
+    assists: number;
+    yellow_cards: number;
+    red_cards: number;
+    own_goals: number;
+    min: number;
+    wash_count: number;
+    consumption_count: number;
   }
 
   export interface TeamContext {

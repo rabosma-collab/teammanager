@@ -47,6 +47,7 @@ import { useMatchStats } from './hooks/useMatchStats';
 import { useLineupPresence } from './hooks/useLineupPresence';
 import { useActivityLog } from './hooks/useActivityLog';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
+import { useSeasons } from './hooks/useSeasons';
 
 // Components
 import Navbar from './components/Navbar';
@@ -64,6 +65,7 @@ import UitslagenView from './components/UitslagenView';
 import InvitesManageView from './components/InvitesManageView';
 import MededelingenView from './components/MededelingenView';
 import TeamSettingsView from './components/TeamSettingsView';
+import SeasonSettingsView from './components/SeasonSettingsView';
 import FeedbackView from './components/FeedbackView';
 import LineupLockedView from './components/LineupLockedView';
 
@@ -142,6 +144,8 @@ export default function FootballApp() {
     toggleAbsence, isMatchEditable,
     addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, deleteMatch
   } = useMatches();
+
+  const { seasons, activeSeason, fetchSeasons } = useSeasons();
 
   const {
     fieldOccupants, setFieldOccupants,
@@ -318,10 +322,11 @@ export default function FootballApp() {
 
   // ---- DATA LADEN ----
   useEffect(() => {
+    fetchSeasons();
     fetchMatches();
     fetchSchemes(currentTeam?.id);
     fetchActivities();
-  }, [fetchMatches, fetchSchemes, fetchActivities, currentTeam?.id]);
+  }, [fetchMatches, fetchSchemes, fetchActivities, fetchSeasons, currentTeam?.id]);
 
   useEffect(() => {
     if (currentTeam?.id) {
@@ -363,6 +368,12 @@ export default function FootballApp() {
   }, [gameFormat]);
 
   const playerCount = GAME_FORMATS[gameFormat]?.players ?? 11;
+
+  // Wedstrijden van het actieve seizoen (voor dashboard/pitch views)
+  const activeSeasonMatches = useMemo(
+    () => activeSeason ? matches.filter(m => m.season_id === activeSeason.id) : matches,
+    [matches, activeSeason]
+  );
 
   useRealtimeSync({
     currentTeam,
@@ -1150,7 +1161,7 @@ export default function FootballApp() {
           trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
           trackMatchTime={teamSettings?.track_match_time ?? false}
           trackLocationDetails={teamSettings?.track_location_details ?? false}
-          onAddMatch={addMatch}
+          onAddMatch={(data) => addMatch({ ...data, season_id: activeSeason?.id ?? null })}
           onUpdateMatch={updateMatch}
           onUpdateScore={updateMatchScore}
           onDeleteMatch={deleteMatch}
@@ -1164,6 +1175,8 @@ export default function FootballApp() {
         <FeedbackView />
       ) : view === 'team-settings' && isManager ? (
         <TeamSettingsView onSettingsSaved={() => currentTeam && fetchTeamSettings(currentTeam.id)} />
+      ) : view === 'season-settings' && isManager ? (
+        <SeasonSettingsView />
       ) : view === 'cards' ? (
         <PlayerCardsView
           players={players}
@@ -1175,9 +1188,11 @@ export default function FootballApp() {
         />
       ) : view === 'uitslagen' ? (
         <UitslagenView
-          matches={matches}
+          matches={activeSeasonMatches}
           players={players}
           teamSettings={teamSettings}
+          seasons={seasons}
+          activeSeasonId={activeSeason?.id ?? null}
           onRefreshPlayers={() => {
             selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers();
             const finishedIds = matches.filter(m => m.match_status === 'afgerond').map(m => m.id);
@@ -1189,13 +1204,15 @@ export default function FootballApp() {
       ) : view === 'dashboard' ? (
         <DashboardView
           players={players}
-          matches={matches}
+          matches={activeSeasonMatches}
           gameFormat={gameFormat}
           onToggleAbsence={toggleAbsence}
           onToggleInjury={toggleInjury}
           onNavigateToWedstrijd={(match) => { setSelectedMatch(match); setView('pitch'); }}
           onNavigateToMatches={() => setView('matches-manage')}
           onNavigateToUitslagen={() => setView('uitslagen')}
+          onNavigateToPlayers={() => setView('players-manage')}
+          onNavigateToInvites={() => setView('invites')}
           votingMatches={votingMatches}
           isLoadingVotes={isLoadingVotes}
           votingCurrentPlayerId={currentPlayerId}
