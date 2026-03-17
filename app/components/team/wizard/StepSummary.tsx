@@ -52,8 +52,7 @@ export default function StepSummary({ data, onFinish, onBack, isLoading }: Props
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-black mb-1">Klaar! 🎉</h2>
-        <p className="text-gray-400 text-sm">Je team is aangemaakt. Hier is een overzicht:</p>
+        <h2 className="text-xl font-black mb-1">Aanvraag ingediend ⏳</h2>
       </div>
 
       {/* Team badge */}
@@ -62,24 +61,9 @@ export default function StepSummary({ data, onFinish, onBack, isLoading }: Props
         <span className="font-black text-lg">{data.name}</span>
       </div>
 
-      {/* Checklist */}
-      <div className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.label} className="flex items-center justify-between py-2.5 px-3 bg-gray-700/30 rounded-lg">
-            <span className="text-sm text-gray-300">{row.label}</span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">{row.value}</span>
-              <span className={row.done ? 'text-green-400' : 'text-gray-600'}>
-                {row.done ? '✅' : '➖'}
-              </span>
-            </div>
-          </div>
-        ))}
+      <div className="p-4 bg-blue-900/30 border border-blue-700/50 rounded-xl text-sm text-blue-200 leading-relaxed">
+        Je teamaanvraag is ingediend bij de beheerder van de app. Op dit moment beperken we nog het aantal teams omdat de app nog in ontwikkeling is. Zodra je verzoek is goedgekeurd, kun je aan de slag.
       </div>
-
-      <p className="text-xs text-gray-500 text-center">
-        Je kan alles daarna wijzigen via Beheer → Teaminstellingen.
-      </p>
 
       <div className="flex gap-3">
         <button
@@ -92,9 +76,9 @@ export default function StepSummary({ data, onFinish, onBack, isLoading }: Props
         <button
           onClick={onFinish}
           disabled={isLoading}
-          className="flex-1 py-3.5 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl text-base transition active:scale-95"
+          className="flex-1 py-3.5 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white font-black rounded-xl text-base transition active:scale-95"
         >
-          {isLoading ? 'Laden...' : '🏠 Open mijn team'}
+          {isLoading ? 'Laden...' : 'Begrepen'}
         </button>
       </div>
     </div>

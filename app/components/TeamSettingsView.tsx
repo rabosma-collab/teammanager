@@ -6,6 +6,7 @@ import { useTeamSettings } from '../hooks/useTeamSettings';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { formationLabels, GAME_FORMATS, DEFAULT_FORMATIONS } from '../lib/constants';
+import InfoButton from './InfoButton';
 import type { TeamSettings } from '../lib/types';
 
 const PRESET_COLORS = [
@@ -388,7 +389,19 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
 
         {/* ── Statistieken bijhouden ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3">
-          <h2 className="font-bold text-base text-gray-200">Statistieken bijhouden</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-base text-gray-200">Statistieken bijhouden</h2>
+            <InfoButton>
+              <p className="font-semibold text-white mb-1">Wat doen deze toggles?</p>
+              <div className="space-y-1">
+                <div><span className="text-white font-semibold">⚽ Doelpunten / 🎯 Assists</span> — zichtbaar op de ranglijst en spelerskaarten.</div>
+                <div><span className="text-white font-semibold">⏱️ Speeltijd</span> — telt bankminuten bij; zichtbaar op de ranglijst.</div>
+                <div><span className="text-white font-semibold">🏆 SPDW</span> — toont de Speler van de Week-stemming op het Dashboard en ranglijst.</div>
+                <div><span className="text-white font-semibold">🟨 Kaarten</span> — gele en rode kaarten bijhouden bij het afronden van een wedstrijd.</div>
+              </div>
+              <p className="mt-1.5 text-gray-500">Uitgeschakelde stats worden niet meer getoond, maar eerder ingevoerde data blijft bewaard.</p>
+            </InfoButton>
+          </div>
           <p className="text-sm text-gray-400">Kies welke stats zichtbaar zijn op de ranglijst.</p>
 
           <div className="space-y-2">

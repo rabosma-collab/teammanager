@@ -21,6 +21,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<TeamMember['role'] | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [hasPendingTeam, setHasPendingTeam] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const fetchIdRef = useRef(0);
 
@@ -44,7 +45,9 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     }
 
     const rows = data as unknown as Array<{ team_id: string; role: TeamMember['role']; player_id: number | null; teams: Team }>;
-    const loadedTeams = rows.map((r) => r.teams);
+    const allTeams = rows.map((r) => r.teams);
+    const loadedTeams = allTeams.filter((t) => t.status === 'active' || !t.status);
+    setHasPendingTeam(allTeams.some((t) => t.status === 'pending'));
     setTeams(loadedTeams);
 
     // Restore previously selected team or pick the first one
@@ -135,7 +138,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <TeamContext.Provider
-      value={{ currentTeam, userRole, isManager, isStaff, isLoading, teams, currentPlayerId, currentUserId, switchTeam, refreshTeam }}
+      value={{ currentTeam, userRole, isManager, isStaff, isLoading, teams, hasPendingTeam, currentPlayerId, currentUserId, switchTeam, refreshTeam }}
     >
       {children}
     </TeamContext.Provider>
