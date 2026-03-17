@@ -190,17 +190,17 @@ const PitchView = React.memo(function PitchView({
 
   return (
     <div className="flex flex-col items-center w-full">
-      <div className="self-end mb-1">
-        <InfoButton align="right">
-          Tik op een speler voor info &amp; instructies
-        </InfoButton>
-      </div>
       <div
         className="relative w-full max-w-[420px] sm:max-w-[500px] lg:w-[580px] aspect-[3/4] bg-green-700 border-4 border-white rounded-2xl overflow-hidden flex-shrink-0"
         style={{
           backgroundImage: 'repeating-linear-gradient(0deg, #2d5f2e, #2d5f2e 40px, #246824 40px, #246824 80px)'
         }}
       >
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
+          <InfoButton align="right">
+            Tik op een speler voor info &amp; instructies
+          </InfoButton>
+        </div>
         {positionsList.map((pos, i) => {
           const player = fieldOccupants[i];
           const showWarning = player && !isPlayerAvailable(player, matchAbsences);
