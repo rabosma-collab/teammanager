@@ -131,11 +131,11 @@ export function useStatCredits() {
             .in('id', playerIds),
         ]);
 
-        const balanceMap = new Map(
-          (balancesResult.data ?? []).map(r => [r.player_id, r.balance])
+        const balanceMap = new Map<number, number>(
+          (balancesResult.data ?? []).map((r: { player_id: number; balance: number }) => [r.player_id, r.balance])
         );
         const nameMap = new Map(
-          (playerNamesResult.data ?? []).map(p => [p.id, p.name])
+          (playerNamesResult.data ?? []).map((p: { id: number; name: string }) => [p.id, p.name])
         );
 
         // Batch insert voor spelers zonder balance-rij
