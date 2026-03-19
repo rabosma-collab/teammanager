@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { Player } from '../lib/types';
 
 interface TaakRijProps {
@@ -110,11 +110,29 @@ export default function TakenBlok({
   onConsumptiesChange,
   isEditing,
 }: TakenBlokProps) {
+  const [showInfo, setShowInfo] = useState(false);
+
   if (!trackWasbeurt && !trackConsumpties) return null;
 
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 px-4 py-3 my-3 space-y-3">
-      <div className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Taken</div>
+      <div className="flex items-center gap-2">
+        <span className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Taken</span>
+        <button
+          onClick={() => setShowInfo(v => !v)}
+          className="text-gray-500 hover:text-gray-300 transition-colors touch-manipulation"
+          aria-label="Uitleg taken"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+      {showInfo && (
+        <div className="text-xs text-gray-400 bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 leading-relaxed">
+          De speler met het minste aantal beurten is automatisch aan de beurt. Bij een gelijk aantal gaat het <span className="text-white font-medium">alfabetisch</span>. <span className="text-white font-medium">Wasbeurt</span>: deze speler regelt het wassen van de shirts na de wedstrijd. <span className="text-white font-medium">Consumpties</span>: deze speler zorgt voor de drank na afloop. De manager kan handmatig een andere speler aanwijzen.
+        </div>
+      )}
       {trackWasbeurt && (
         <TaakRij
           emoji="🧺"

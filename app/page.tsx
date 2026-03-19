@@ -109,6 +109,7 @@ export default function FootballApp() {
   const [subMoments, setSubMoments] = useState<number>(1);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(1);
   const [swapTarget, setSwapTarget] = useState<{ player: import('./lib/types').Player; positionIndex: number } | null>(null);
+  const [periodPositionPick, setPeriodPositionPick] = useState<{ player: import('./lib/types').Player; positionIndex: number } | null>(null);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
   const [isEditingLineup, setIsEditingLineup] = useState(false);
   const wasPublishedBeforeEdit = useRef(false);
@@ -363,6 +364,7 @@ export default function FootballApp() {
       fetchPlayers(selectedMatch.id);
       setIsEditingLineup(false);
       setSelectedPeriod(1);
+      setPeriodPositionPick(null);
       clearPeriodOverrides();
     } else {
       // No match selected yet, fetch players without match context
@@ -641,15 +643,28 @@ export default function FootballApp() {
       return;
     }
 
+    // Bouw een map van player_id → Player voor snelle lookup (geen gastspelers)
+    const playerMap = new Map(players.filter(p => !p.is_guest).map(p => [p.id, p]));
+
     for (const match of previousMatches) {
       const { data } = await supabase
         .from('lineups')
         .select('position, player_id')
-        .eq('match_id', match.id)
-        .limit(1);
+        .eq('match_id', match.id);
 
       if (data && data.length > 0) {
-        await loadLineup(match.id, players, playerCount);
+        // Kopieer alleen posities van spelers die ook nu aanwezig zijn
+        const lineup: (Player | null)[] = Array(playerCount).fill(null);
+        data.forEach((entry: { position: number; player_id: number }) => {
+          if (entry.position >= 0 && entry.position < playerCount) {
+            const player = playerMap.get(entry.player_id);
+            if (player) {
+              lineup[entry.position] = player;
+            }
+          }
+        });
+
+        setFieldOccupants(lineup);
         const dateStr = new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
         toast.success(`📋 Opstelling van ${dateStr} - ${match.opponent} geladen`);
         return;
@@ -657,7 +672,7 @@ export default function FootballApp() {
     }
 
     toast.warning('Geen eerdere opstelling gevonden');
-  }, [selectedMatch, matches, currentTeam, players, playerCount, loadLineup]);
+  }, [selectedMatch, matches, currentTeam, players, playerCount, setFieldOccupants]);
 
   const handleSaveLineup = async (): Promise<boolean> => {
     if (!selectedMatch) return false;
@@ -1335,7 +1350,7 @@ export default function FootballApp() {
               {selectedMatch && !isFreeSubstitution && subMoments > 0 && (
                 <select
                   value={selectedPeriod}
-                  onChange={e => setSelectedPeriod(Number(e.target.value))}
+                  onChange={e => { setSelectedPeriod(Number(e.target.value)); setPeriodPositionPick(null); }}
                   className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white text-sm sm:text-base"
                 >
                   <option value={1}>1e periode (Startopstelling)</option>
@@ -1362,7 +1377,7 @@ export default function FootballApp() {
                     return (
                       <button
                         key={n}
-                        onClick={() => { setSubMoments(n); setSelectedPeriod(1); }}
+                        onClick={() => { setSubMoments(n); setSelectedPeriod(1); setPeriodPositionPick(null); }}
                         title={preview}
                         className={`px-2 py-0.5 rounded text-sm font-bold transition ${
                           isActive
@@ -1528,7 +1543,7 @@ export default function FootballApp() {
                 gameFormat={gameFormat}
                 formation={displayedFormation}
                 fieldOccupants={displayedOccupants}
-                selectedPosition={selectedPeriod === 1 ? selectedPosition : null}
+                selectedPosition={selectedPeriod === 1 ? selectedPosition : (periodPositionPick?.positionIndex ?? null)}
                 selectedPlayer={selectedPeriod === 1 ? selectedPlayer : null}
                 isEditable={activelyEditing && selectedPeriod === 1}
                 isManagerEdit={isManager && !!selectedMatch && !isFinalized && selectedPeriod === 1}
@@ -1540,7 +1555,28 @@ export default function FootballApp() {
                   selectedPeriod > 1 && isManager && !isFinalized && !isFreeSubstitution
                     ? (posIdx) => {
                         const p = displayedOccupants[posIdx];
-                        if (p) setSwapTarget({ player: p, positionIndex: posIdx });
+                        if (!p) { setPeriodPositionPick(null); return; }
+                        if (periodPositionPick) {
+                          if (periodPositionPick.positionIndex === posIdx) {
+                            // Zelfde speler opnieuw getikt → wisselmodal openen
+                            setSwapTarget({ player: p, positionIndex: posIdx });
+                            setPeriodPositionPick(null);
+                          } else {
+                            // Andere veldspeler getikt → posities omwisselen
+                            const baseLineup = periodOverrides[selectedPeriod]
+                              ?? computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
+                            const newLineup = [...baseLineup];
+                            [newLineup[periodPositionPick.positionIndex], newLineup[posIdx]] =
+                              [newLineup[posIdx], newLineup[periodPositionPick.positionIndex]];
+                            if (selectedMatch && currentTeam) {
+                              applyPeriodOverride(selectedMatch.id, currentTeam.id, selectedPeriod, newLineup);
+                            }
+                            setPeriodPositionPick(null);
+                          }
+                        } else {
+                          // Eerste klik → speler selecteren (geen modal)
+                          setPeriodPositionPick({ player: p, positionIndex: posIdx });
+                        }
                       }
                     : undefined
                 }

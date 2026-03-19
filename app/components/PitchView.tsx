@@ -119,6 +119,8 @@ function PositionSlot({
           player
             ? showWarning
               ? 'bg-yellow-500 text-black border-red-500'
+              : isSelected
+              ? 'bg-yellow-500 text-black border-blue-400 ring-2 ring-blue-400'
               : isOver
               ? 'bg-yellow-400 text-black border-white'
               : 'bg-yellow-500 text-black border-white'

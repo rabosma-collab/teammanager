@@ -83,17 +83,20 @@ export default function SquadAvailabilityPanel({
 
       {/* Totalen */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="flex flex-col items-center p-2 bg-green-900/30 rounded-lg border border-green-700/30">
-          <span className="font-display font-bold text-xl text-green-300 leading-none">{availableCount}</span>
-          <span className="text-xs text-green-400 font-medium">✅ Beschikbaar</span>
+        <div className="flex flex-col items-center justify-center gap-1 py-3 px-2 bg-green-900/30 rounded-lg border border-green-700/30">
+          <span className="text-base leading-none">✅</span>
+          <span className="font-display font-bold text-2xl text-green-300 leading-none">{availableCount}</span>
+          <span className="text-xs text-green-400 font-medium text-center leading-tight">Beschikbaar</span>
         </div>
-        <div className="flex flex-col items-center p-2 bg-orange-900/30 rounded-lg border border-orange-700/30">
-          <span className="font-display font-bold text-xl text-orange-300 leading-none">{absentCount}</span>
-          <span className="text-xs text-orange-400 font-medium">❌ Afwezig</span>
+        <div className="flex flex-col items-center justify-center gap-1 py-3 px-2 bg-orange-900/30 rounded-lg border border-orange-700/30">
+          <span className="text-base leading-none">❌</span>
+          <span className="font-display font-bold text-2xl text-orange-300 leading-none">{absentCount}</span>
+          <span className="text-xs text-orange-400 font-medium text-center leading-tight">Afwezig</span>
         </div>
-        <div className="flex flex-col items-center p-2 bg-red-900/30 rounded-lg border border-red-700/30">
-          <span className="font-display font-bold text-xl text-red-300 leading-none">{injuredCount}</span>
-          <span className="text-xs text-red-400 font-medium">🏥 Geblesseerd</span>
+        <div className="flex flex-col items-center justify-center gap-1 py-3 px-2 bg-red-900/30 rounded-lg border border-red-700/30">
+          <span className="text-base leading-none">🏥</span>
+          <span className="font-display font-bold text-2xl text-red-300 leading-none">{injuredCount}</span>
+          <span className="text-xs text-red-400 font-medium text-center leading-tight">Geblesseerd</span>
         </div>
       </div>
 
