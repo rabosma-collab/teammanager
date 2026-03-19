@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Player, Substitution } from '../lib/types';
 
 interface SubstitutionCardsProps {
@@ -13,6 +13,30 @@ interface SubstitutionCardsProps {
   onEditSub: (subNumber: number, minute?: number) => void;
   onAddExtraSub: () => void;
   onDeleteExtraSub: (subId: number) => void;
+}
+
+function InfoHeader({ showInfo, onToggle }: { showInfo: boolean; onToggle: () => void }) {
+  return (
+    <div className="mb-1">
+      <div className="flex items-center gap-2">
+        <span className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Wissels</span>
+        <button
+          onClick={onToggle}
+          className="text-gray-500 hover:text-gray-300 transition-colors touch-manipulation"
+          aria-label="Uitleg wissels"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+      {showInfo && (
+        <div className="mt-1.5 mb-2 text-xs text-gray-400 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 leading-relaxed">
+          Hier stel je de wissels in voor deze wedstrijd. Kies het aantal wisselmomenten via de toolbar bovenaan (1 / 2 / 3 / 4). De minuten worden automatisch gelijkmatig verdeeld over de wedstrijd. Wissels buiten de vaste momenten voeg je toe via <span className="text-white font-medium">Extra wissels</span>.
+        </div>
+      )}
+    </div>
+  );
 }
 
 const colorSchemes = ['blue', 'purple', 'emerald', 'orange', 'rose'] as const;
@@ -38,6 +62,7 @@ export default function SubstitutionCards({
   onAddExtraSub,
   onDeleteExtraSub,
 }: SubstitutionCardsProps) {
+  const [showInfo, setShowInfo] = useState(false);
   const isFreeSubstitution = subMoments === 0;
 
   const regularSubs = substitutions.filter(s => !s.is_extra);
@@ -117,6 +142,7 @@ export default function SubstitutionCards({
 
     return (
       <div className="w-full">
+        <InfoHeader showInfo={showInfo} onToggle={() => setShowInfo(v => !v)} />
         <div className="flex flex-col gap-3">
           {sortedGroups.map(([subNumber, subs], idx) => {
             const minute = subs[0]?.custom_minute ?? subs[0]?.minute ?? 0;
@@ -183,6 +209,7 @@ export default function SubstitutionCards({
   // Vaste wisselmomenten: één kaart per moment
   return (
     <div className="flex flex-col gap-3 w-full">
+      <InfoHeader showInfo={showInfo} onToggle={() => setShowInfo(v => !v)} />
       <div className="flex flex-col gap-3">
         {subMomentMinutes.map((minute, idx) => {
           const subNumber = idx + 1;

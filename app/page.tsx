@@ -641,15 +641,28 @@ export default function FootballApp() {
       return;
     }
 
+    // Bouw een map van player_id → Player voor snelle lookup (geen gastspelers)
+    const playerMap = new Map(players.filter(p => !p.is_guest).map(p => [p.id, p]));
+
     for (const match of previousMatches) {
       const { data } = await supabase
         .from('lineups')
         .select('position, player_id')
-        .eq('match_id', match.id)
-        .limit(1);
+        .eq('match_id', match.id);
 
       if (data && data.length > 0) {
-        await loadLineup(match.id, players, playerCount);
+        // Kopieer alleen posities van spelers die ook nu aanwezig zijn
+        const lineup: (Player | null)[] = Array(playerCount).fill(null);
+        data.forEach((entry: { position: number; player_id: number }) => {
+          if (entry.position >= 0 && entry.position < playerCount) {
+            const player = playerMap.get(entry.player_id);
+            if (player) {
+              lineup[entry.position] = player;
+            }
+          }
+        });
+
+        setFieldOccupants(lineup);
         const dateStr = new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
         toast.success(`📋 Opstelling van ${dateStr} - ${match.opponent} geladen`);
         return;
@@ -657,7 +670,7 @@ export default function FootballApp() {
     }
 
     toast.warning('Geen eerdere opstelling gevonden');
-  }, [selectedMatch, matches, currentTeam, players, playerCount, loadLineup]);
+  }, [selectedMatch, matches, currentTeam, players, playerCount, setFieldOccupants]);
 
   const handleSaveLineup = async (): Promise<boolean> => {
     if (!selectedMatch) return false;
