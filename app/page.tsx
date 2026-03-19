@@ -41,7 +41,6 @@ import { useInstructions } from './hooks/useInstructions';
 import { useSubstitutionSchemes } from './hooks/useSubstitutionSchemes';
 import { useVoting } from './hooks/useVoting';
 import { useStatCredits } from './hooks/useStatCredits';
-import { useTeamSettings } from './hooks/useTeamSettings';
 import { usePeriodOverrides } from './hooks/usePeriodOverrides';
 import { useMatchStats } from './hooks/useMatchStats';
 import { useLineupPresence } from './hooks/useLineupPresence';
@@ -90,7 +89,7 @@ export default function FootballApp() {
   const router = useRouter();
   const toast = useToast();
   const [authChecking, setAuthChecking] = useState(true);
-  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, hasPendingTeam } = useTeamContext();
+  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, hasPendingTeam, teamSettings, refreshTeamSettings } = useTeamContext();
 
   // ---- AUTH CHECK ----
   useEffect(() => {
@@ -143,7 +142,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, deleteMatch
+    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateMatchReport, deleteMatch
   } = useMatches();
 
   const { seasons, activeSeason, fetchSeasons } = useSeasons();
@@ -173,7 +172,6 @@ export default function FootballApp() {
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
-  const { settings: teamSettings, fetchSettings: fetchTeamSettings } = useTeamSettings();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
   const { overrides: periodOverrides, periodFormations, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, savePeriodFormation, clearOverrides: clearPeriodOverrides } = usePeriodOverrides();
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
@@ -339,11 +337,6 @@ export default function FootballApp() {
     fetchActivities();
   }, [fetchMatches, fetchSchemes, fetchActivities, fetchSeasons, currentTeam?.id]);
 
-  useEffect(() => {
-    if (currentTeam?.id) {
-      fetchTeamSettings(currentTeam.id);
-    }
-  }, [currentTeam?.id, fetchTeamSettings]);
 
   useEffect(() => {
     if (selectedMatch) {
@@ -716,6 +709,7 @@ export default function FootballApp() {
     goalsFor: number | null;
     goalsAgainst: number | null;
     stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>;
+    matchReport: string | null;
   }) => {
     if (!selectedMatch || !canFinalizeMatch()) return;
     setShowFinalizeModal(false);
@@ -735,6 +729,11 @@ export default function FootballApp() {
       // 2. Sla spelerstatistieken op (goals, assists, kaarten)
       if (params.stats.length > 0 && currentTeam) {
         await saveMatchStats(selectedMatch.id, params.stats);
+      }
+
+      // 3. Sla wedstrijdverslag op (indien ingevuld)
+      if (params.matchReport) {
+        await updateMatchReport(selectedMatch.id, params.matchReport);
       }
 
       // Update lokale state
@@ -1199,7 +1198,7 @@ export default function FootballApp() {
       ) : view === 'feedback' && isManager ? (
         <FeedbackView />
       ) : view === 'team-settings' && isManager ? (
-        <TeamSettingsView onSettingsSaved={() => currentTeam && fetchTeamSettings(currentTeam.id)} />
+        <TeamSettingsView onSettingsSaved={refreshTeamSettings} />
       ) : view === 'season-settings' && isManager ? (
         <SeasonSettingsView />
       ) : view === 'cards' ? (
@@ -1226,6 +1225,7 @@ export default function FootballApp() {
               fetchStatsForMatches(finishedIds).then(data => setRecentStatsMap(data));
             }
           }}
+          onUpdateMatchReport={updateMatchReport}
         />
       ) : view === 'dashboard' ? (
         <DashboardView

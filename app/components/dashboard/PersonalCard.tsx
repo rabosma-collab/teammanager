@@ -4,6 +4,7 @@ import React from 'react';
 import type { Player, PositionInstruction } from '../../lib/types';
 import PlayerCard from '../PlayerCard';
 import InfoButton from '../InfoButton';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 interface PersonalCardProps {
   player: Player | null;
@@ -22,6 +23,13 @@ export default function PersonalCard({
   creditBalance,
   matchInstruction,
 }: PersonalCardProps) {
+  const { teamSettings } = useTeamContext();
+  const trackGoals         = teamSettings?.track_goals          ?? true;
+  const trackAssists       = teamSettings?.track_assists        ?? true;
+  const trackMinutes       = teamSettings?.track_minutes        ?? true;
+  const trackPlayedMinutes = teamSettings?.track_played_minutes ?? false;
+  const trackSpdw          = teamSettings?.track_spdw           ?? true;
+
   // Staflid → welkomstscherm
   if (isStaff && !player) {
     return (
@@ -58,24 +66,17 @@ export default function PersonalCard({
       <div className="flex justify-center mb-4">
         <PlayerCard player={player} size="md" isFlippable backContent="radar-only" />
       </div>
-      <div className="grid grid-cols-4 gap-1.5 text-center">
-        <div className="bg-gray-700/40 rounded-lg p-2">
-          <div className="font-display font-bold text-2xl text-white leading-none">{player.goals}</div>
-          <div className="text-xs text-gray-500 mt-1">Goals</div>
-        </div>
-        <div className="bg-gray-700/40 rounded-lg p-2">
-          <div className="font-display font-bold text-2xl text-white leading-none">{player.assists}</div>
-          <div className="text-xs text-gray-500 mt-1">Assists</div>
-        </div>
-        <div className="bg-gray-700/40 rounded-lg p-2">
-          <div className="font-display font-bold text-2xl text-white leading-none">{player.min}</div>
-          <div className="text-xs text-gray-500 mt-1">Wissel</div>
-        </div>
-        <div className="bg-yellow-950/60 rounded-lg p-2 border border-yellow-800/40">
-          <div className="font-display font-bold text-2xl text-yellow-400 leading-none">{potwWins}</div>
-          <div className="text-xs text-yellow-700 mt-1">SVDW</div>
-        </div>
-      </div>
+      {(() => {
+        const items: React.ReactNode[] = [];
+        if (trackGoals)         items.push(<div key="goals"       className="bg-gray-700/40 rounded-lg p-2"><div className="font-display font-bold text-2xl text-white leading-none">{player.goals}</div><div className="text-xs text-gray-500 mt-1">Goals</div></div>);
+        if (trackAssists)       items.push(<div key="assists"     className="bg-gray-700/40 rounded-lg p-2"><div className="font-display font-bold text-2xl text-white leading-none">{player.assists}</div><div className="text-xs text-gray-500 mt-1">Assists</div></div>);
+        if (trackMinutes)       items.push(<div key="min"         className="bg-gray-700/40 rounded-lg p-2"><div className="font-display font-bold text-2xl text-white leading-none">{player.min}</div><div className="text-xs text-gray-500 mt-1">Wissel</div></div>);
+        if (trackPlayedMinutes) items.push(<div key="played_min"  className="bg-gray-700/40 rounded-lg p-2"><div className="font-display font-bold text-2xl text-white leading-none">{player.played_min ?? 0}</div><div className="text-xs text-gray-500 mt-1">Ges. min</div></div>);
+        if (trackSpdw)          items.push(<div key="spdw"        className="bg-yellow-950/60 rounded-lg p-2 border border-yellow-800/40"><div className="font-display font-bold text-2xl text-yellow-400 leading-none">{potwWins}</div><div className="text-xs text-yellow-700 mt-1">SVDW</div></div>);
+        if (items.length === 0) return null;
+        const cols = ['', 'grid-cols-1', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4', 'grid-cols-5'][items.length] ?? 'grid-cols-4';
+        return <div className={`grid ${cols} gap-1.5 text-center`}>{items}</div>;
+      })()}
       {creditBalance != null && (
         <div className="mt-2 flex items-center justify-center gap-1.5 py-1.5 px-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
           <span className="text-sm">💰</span>

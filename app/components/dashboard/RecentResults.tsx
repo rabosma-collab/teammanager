@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Match, MatchPlayerStats } from '../../lib/types';
+
+const REPORT_PREVIEW_LENGTH = 120;
 
 interface RecentResultsProps {
   matches: Match[];
@@ -17,6 +19,8 @@ function getResult(m: Match): 'W' | 'G' | 'V' | null {
 }
 
 export default function RecentResults({ matches, statsMap, onNavigateToUitslagen }: RecentResultsProps) {
+  const [expandedReportIds, setExpandedReportIds] = useState<Set<number>>(new Set());
+
   const recent = useMemo(
     () => matches
       .filter(m => m.match_status === 'afgerond')
@@ -26,6 +30,14 @@ export default function RecentResults({ matches, statsMap, onNavigateToUitslagen
   );
 
   if (recent.length === 0) return null;
+
+  const toggleReport = (id: number) => {
+    setExpandedReportIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="bg-gray-800 rounded-xl p-4">
@@ -44,6 +56,9 @@ export default function RecentResults({ matches, statsMap, onNavigateToUitslagen
           const result = getResult(match);
           const stats = statsMap[match.id] ?? [];
           const scorers = stats.filter(s => s.goals > 0);
+          const report = match.match_report;
+          const isExpanded = expandedReportIds.has(match.id);
+          const isTruncated = report && report.length > REPORT_PREVIEW_LENGTH;
 
           const resultColor = result === 'W' ? 'border-green-600 bg-green-900/20'
             : result === 'V' ? 'border-red-700 bg-red-900/20'
@@ -51,42 +66,63 @@ export default function RecentResults({ matches, statsMap, onNavigateToUitslagen
             : 'border-gray-700 bg-gray-700/20';
 
           return (
-            <div key={match.id} className={`flex items-center gap-3 p-2.5 rounded-lg border ${resultColor}`}>
-              {/* Datum */}
-              <div className="text-xs text-gray-400 w-14 flex-shrink-0">
-                {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
-              </div>
+            <div key={match.id} className={`rounded-lg border ${resultColor}`}>
+              <div className="flex items-center gap-3 p-2.5">
+                {/* Datum */}
+                <div className="text-xs text-gray-400 w-14 flex-shrink-0">
+                  {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                </div>
 
-              {/* Tegenstander */}
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{match.opponent}</div>
-                {scorers.length > 0 && (
-                  <div className="text-[10px] text-gray-500 truncate">
-                    ⚽ {scorers.map(s => s.player_name ?? `Speler ${s.player_id}`).join(', ')}
+                {/* Tegenstander */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{match.opponent}</div>
+                  {scorers.length > 0 && (
+                    <div className="text-[10px] text-gray-500 truncate">
+                      ⚽ {scorers.map(s => s.player_name ?? `Speler ${s.player_id}`).join(', ')}
+                    </div>
+                  )}
+                </div>
+
+                {/* Score */}
+                {match.goals_for != null && match.goals_against != null ? (
+                  <div className="text-sm font-black flex-shrink-0">
+                    <span className={result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400'}>
+                      {match.goals_for}
+                    </span>
+                    <span className="text-gray-500 mx-0.5">–</span>
+                    <span>{match.goals_against}</span>
                   </div>
+                ) : (
+                  <span className="text-xs text-gray-600">–</span>
+                )}
+
+                {/* W/G/V badge */}
+                {result && (
+                  <span className={`text-[10px] font-black w-5 text-center flex-shrink-0 ${
+                    result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400'
+                  }`}>
+                    {result}
+                  </span>
                 )}
               </div>
 
-              {/* Score */}
-              {match.goals_for != null && match.goals_against != null ? (
-                <div className="text-sm font-black flex-shrink-0">
-                  <span className={result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400'}>
-                    {match.goals_for}
-                  </span>
-                  <span className="text-gray-500 mx-0.5">–</span>
-                  <span>{match.goals_against}</span>
+              {/* Verslag snippet */}
+              {report && (
+                <div className="px-3 pb-2.5 pt-0">
+                  <p className="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">
+                    {isExpanded || !isTruncated
+                      ? report
+                      : report.slice(0, REPORT_PREVIEW_LENGTH) + '…'}
+                  </p>
+                  {isTruncated && (
+                    <button
+                      onClick={() => toggleReport(match.id)}
+                      className="text-[10px] text-gray-500 hover:text-yellow-400 transition mt-1"
+                    >
+                      {isExpanded ? 'minder ↑' : 'lees verder ↓'}
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <span className="text-xs text-gray-600">–</span>
-              )}
-
-              {/* W/G/V badge */}
-              {result && (
-                <span className={`text-[10px] font-black w-5 text-center flex-shrink-0 ${
-                  result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400'
-                }`}>
-                  {result}
-                </span>
               )}
             </div>
           );

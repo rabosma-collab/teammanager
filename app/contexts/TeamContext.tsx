@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { Team, TeamMember, TeamContext as TeamContextType } from '../lib/types';
 import { createClientComponentClient } from '../lib/supabase';
+import { useTeamSettings } from '../hooks/useTeamSettings';
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
@@ -16,6 +17,7 @@ export function useTeamContext(): TeamContextType {
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClientComponentClient();
+  const { settings: teamSettings, fetchSettings } = useTeamSettings();
   const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [userRole, setUserRole] = useState<TeamMember['role'] | null>(null);
@@ -136,9 +138,22 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   const isManager = userRole === 'manager';
   const isStaff = userRole === 'staff';
 
+  // Laad teaminstellingen automatisch wanneer het actieve team verandert
+  useEffect(() => {
+    if (currentTeam?.id) {
+      fetchSettings(currentTeam.id);
+    }
+  }, [currentTeam?.id, fetchSettings]);
+
+  const refreshTeamSettings = useCallback(async () => {
+    if (currentTeam?.id) {
+      await fetchSettings(currentTeam.id);
+    }
+  }, [currentTeam?.id, fetchSettings]);
+
   return (
     <TeamContext.Provider
-      value={{ currentTeam, userRole, isManager, isStaff, isLoading, teams, hasPendingTeam, currentPlayerId, currentUserId, switchTeam, refreshTeam }}
+      value={{ currentTeam, userRole, isManager, isStaff, isLoading, teams, hasPendingTeam, currentPlayerId, currentUserId, teamSettings, switchTeam, refreshTeam, refreshTeamSettings }}
     >
       {children}
     </TeamContext.Provider>
