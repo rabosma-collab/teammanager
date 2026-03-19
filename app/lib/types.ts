@@ -49,6 +49,7 @@ export interface Player {
     match_time?: string | null;
     location_details?: string | null;
     season_id?: number | null;
+    match_report?: string | null;
   }
 
   export interface SubstitutionScheme {
@@ -221,6 +222,8 @@ export interface Player {
     hasPendingTeam: boolean;
     currentPlayerId: number | null;
     currentUserId: string | null;
+    teamSettings: TeamSettings | null;
     switchTeam: (teamId: string) => Promise<void>;
     refreshTeam: () => Promise<void>;
+    refreshTeamSettings: () => Promise<void>;
   }

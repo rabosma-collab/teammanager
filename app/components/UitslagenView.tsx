@@ -14,6 +14,7 @@ interface UitslagenViewProps {
   seasons: Season[];
   activeSeasonId: number | null;
   onRefreshPlayers: () => void;
+  onUpdateMatchReport: (matchId: number, report: string | null) => Promise<boolean>;
 }
 
 // ─── Hulpfuncties ─────────────────────────────────────────────
@@ -168,7 +169,7 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
 }
 
 // ─── Hoofd component ──────────────────────────────────────────
-export default function UitslagenView({ matches, players, teamSettings, seasons, activeSeasonId, onRefreshPlayers }: UitslagenViewProps) {
+export default function UitslagenView({ matches, players, teamSettings, seasons, activeSeasonId, onRefreshPlayers, onUpdateMatchReport }: UitslagenViewProps) {
   const { isManager, currentTeam } = useTeamContext();
   const toast = useToast();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
@@ -216,7 +217,31 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
   const [statsMap, setStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingReportId, setEditingReportId] = useState<number | null>(null);
+  const [reportDraft, setReportDraft] = useState('');
+  const [savingReport, setSavingReport] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Lokale match_report overrides (na opslaan zonder page refresh)
+  const [reportOverrides, setReportOverrides] = useState<Record<number, string | null>>({});
+
+  const startEditReport = (match: Match) => {
+    setEditingReportId(match.id);
+    setReportDraft(reportOverrides[match.id] !== undefined ? (reportOverrides[match.id] ?? '') : (match.match_report ?? ''));
+  };
+
+  const handleSaveReport = async (matchId: number) => {
+    setSavingReport(true);
+    const ok = await onUpdateMatchReport(matchId, reportDraft.trim() || null);
+    if (ok) {
+      setReportOverrides(prev => ({ ...prev, [matchId]: reportDraft.trim() || null }));
+      toast.success('✅ Verslag opgeslagen!');
+      setEditingReportId(null);
+    } else {
+      toast.error('❌ Kon verslag niet opslaan');
+    }
+    setSavingReport(false);
+  };
 
   // Laad stats voor alle afgeronde wedstrijden
   useEffect(() => {
@@ -297,6 +322,8 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
             const stats = statsMap[match.id] ?? [];
             const isExpanded = expandedId === match.id;
             const isEditing = editingId === match.id;
+            const isEditingReport = editingReportId === match.id;
+            const reportText = reportOverrides[match.id] !== undefined ? reportOverrides[match.id] : match.match_report;
 
             return (
               <div key={match.id} className="bg-gray-800 rounded-xl overflow-hidden">
@@ -372,7 +399,60 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                       </>
                     )}
 
-                    {/* Manager: bewerkknop */}
+                    {/* Wedstrijdverslag */}
+                    {(reportText || (isManager && !isEditingReport)) && (
+                      <div className="mt-3">
+                        <div className="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1.5">Verslag</div>
+                        {isEditingReport ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={reportDraft}
+                              onChange={e => setReportDraft(e.target.value)}
+                              maxLength={2000}
+                              rows={5}
+                              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-500 resize-none focus:outline-none focus:border-yellow-500 transition"
+                            />
+                            <div className="text-xs text-gray-500 text-right">{reportDraft.length} / 2000</div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSaveReport(match.id)}
+                                disabled={savingReport}
+                                className="flex-1 py-1.5 bg-green-700 hover:bg-green-600 rounded text-xs font-bold transition disabled:opacity-50"
+                              >
+                                {savingReport ? 'Opslaan…' : '✅ Opslaan'}
+                              </button>
+                              <button
+                                onClick={() => setEditingReportId(null)}
+                                className="py-1.5 px-3 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold transition"
+                              >
+                                Annuleren
+                              </button>
+                            </div>
+                          </div>
+                        ) : reportText ? (
+                          <div className="text-sm text-gray-300 whitespace-pre-wrap bg-gray-700/20 rounded-lg p-3">
+                            {reportText}
+                            {isManager && (
+                              <button
+                                onClick={() => startEditReport(match)}
+                                className="block mt-2 text-xs text-gray-500 hover:text-yellow-400 transition"
+                              >
+                                ✏️ Verslag bewerken
+                              </button>
+                            )}
+                          </div>
+                        ) : isManager && (
+                          <button
+                            onClick={() => startEditReport(match)}
+                            className="text-xs text-gray-500 hover:text-yellow-400 transition"
+                          >
+                            + Verslag toevoegen
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Manager: bewerkknop statistieken */}
                     {isManager && !isEditing && (
                       <button
                         onClick={() => setEditingId(match.id)}

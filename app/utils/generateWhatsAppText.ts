@@ -1,0 +1,154 @@
+import type { Match, Player } from '../lib/types';
+import { formationLabels, DEFAULT_GAME_FORMAT } from '../lib/constants';
+
+const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
+const POSITION_EMOJIS: Record<string, string> = {
+  Keeper: '🧤',
+  Verdediger: '🛡️',
+  Middenvelder: '⚙️',
+  Aanvaller: '⚡',
+};
+
+export interface WhatsAppTextData {
+  match: Match;
+  players: Player[];
+  fieldOccupants: (Player | null)[];
+  matchAbsences: number[];
+  teamName?: string;
+  gameFormat?: string;
+  trackWasbeurt?: boolean;
+  trackConsumpties?: boolean;
+  trackAssemblyTime?: boolean;
+  trackMatchTime?: boolean;
+  trackLocationDetails?: boolean;
+}
+
+function formatTime(timeStr: string): string {
+  return timeStr.slice(0, 5);
+}
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('nl-NL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+export function generateWhatsAppText(data: WhatsAppTextData): string {
+  const {
+    match,
+    players,
+    fieldOccupants,
+    matchAbsences,
+    teamName,
+    gameFormat,
+    trackWasbeurt = true,
+    trackConsumpties = true,
+    trackAssemblyTime = false,
+    trackMatchTime = false,
+    trackLocationDetails = false,
+  } = data;
+
+  const fmt = gameFormat ?? DEFAULT_GAME_FORMAT;
+  const getFormationLabel = (formation: string) =>
+    formationLabels[fmt]?.[formation] ?? formation;
+
+  const lines: string[] = [];
+
+  // Header
+  const homeAway = match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit';
+  const matchTypeLabel = match.match_type === 'oefenwedstrijd' ? ' (oefenwedstrijd)' : '';
+  lines.push(`⚽ *${teamName ? teamName.toUpperCase() : 'WEDSTRIJDINFO'}*`);
+  lines.push('');
+  lines.push(`📅 ${formatDate(match.date)}`);
+  lines.push(`${homeAway} vs *${match.opponent}*${matchTypeLabel}`);
+
+  if (trackAssemblyTime && match.assembly_time) {
+    lines.push(`🕐 Verzamelen: *${formatTime(match.assembly_time)}*`);
+  }
+  if (trackMatchTime && match.match_time) {
+    lines.push(`⚽ Aanvang: *${formatTime(match.match_time)}*`);
+  }
+  if (trackLocationDetails && match.location_details) {
+    lines.push(`📍 Kleedkamer: *${match.location_details}*`);
+  }
+
+  // Opstelling — alleen tonen als gepubliceerd
+  if (match.lineup_published) {
+    const fieldPlayers = fieldOccupants.filter((p): p is Player => p !== null);
+    const fieldIds = new Set(fieldPlayers.map(p => p.id));
+
+    const groupedField = POSITION_ORDER.map(pos => ({
+      position: pos,
+      players: fieldPlayers.filter(p => p.position === pos),
+    })).filter(g => g.players.length > 0);
+
+    if (groupedField.length > 0) {
+      lines.push('');
+      lines.push(`👕 *OPSTELLING* (${getFormationLabel(match.formation)})`);
+      for (const group of groupedField) {
+        const emoji = POSITION_EMOJIS[group.position] ?? '';
+        const names = group.players.map(p => p.name).join(', ');
+        lines.push(`${emoji} ${names}`);
+      }
+
+      // Bank
+      const bankPlayers = players.filter(
+        p => !p.is_guest && !fieldIds.has(p.id) && !p.injured && !matchAbsences.includes(p.id)
+      );
+      if (bankPlayers.length > 0) {
+        lines.push(`🪑 Bank: ${bankPlayers.map(p => p.name).join(', ')}`);
+      }
+    }
+  } else {
+    lines.push('');
+    lines.push('_Opstelling volgt nog_');
+  }
+
+  // Wasbeurt / consumpties
+  const taskLines: string[] = [];
+
+  if (trackWasbeurt) {
+    const eligible = players
+      .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
+    const override = match.wasbeurt_player_id
+      ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
+      : null;
+    const wasbeurtSpeler = override ?? eligible[0] ?? null;
+    if (wasbeurtSpeler) taskLines.push(`🧺 Wasbeurt: *${wasbeurtSpeler.name}*`);
+  }
+
+  if (trackConsumpties) {
+    const eligible = players
+      .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
+    const override = match.consumpties_player_id
+      ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
+      : null;
+    const consumptiesSpeler = override ?? eligible[0] ?? null;
+    if (consumptiesSpeler) taskLines.push(`🥤 Consumpties: *${consumptiesSpeler.name}*`);
+  }
+
+  if (taskLines.length > 0) {
+    lines.push('');
+    lines.push(...taskLines);
+  }
+
+  // Afwezigen
+  const injuredPlayers = players.filter(p => !p.is_guest && p.injured);
+  const absentPlayers = players.filter(p => !p.is_guest && matchAbsences.includes(p.id) && !p.injured);
+
+  if (injuredPlayers.length > 0 || absentPlayers.length > 0) {
+    lines.push('');
+    lines.push('❌ *AFWEZIG*');
+    for (const p of injuredPlayers) lines.push(`🏥 ${p.name} (geblesseerd)`);
+    for (const p of absentPlayers) lines.push(`❌ ${p.name}`);
+  }
+
+  lines.push('');
+  lines.push('_Verstuurd via Team Manager_');
+
+  return lines.join('\n');
+}

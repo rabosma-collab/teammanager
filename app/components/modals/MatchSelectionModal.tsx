@@ -1,6 +1,7 @@
 import React from 'react';
 import { positionOrder, positionEmojis } from '../../lib/constants';
 import type { Player, Match, Substitution } from '../../lib/types';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 interface MatchSelectionModalProps {
   players: Player[];
@@ -28,6 +29,8 @@ export default function MatchSelectionModal({
   onAddGuest,
   onClose,
 }: MatchSelectionModalProps) {
+  const { teamSettings } = useTeamContext();
+  const trackMinutes = teamSettings?.track_minutes ?? true;
   const onFieldIds = React.useMemo(() => {
     const ids = new Set<number>();
     for (const p of fieldOccupants) {
@@ -120,7 +123,7 @@ export default function MatchSelectionModal({
                       <div className="flex items-center gap-2 text-xs text-gray-400 flex-shrink-0">
                         <span>{player.goals}⚽</span>
                         <span>{player.assists}🎯</span>
-                        {player.min > 0 && (
+                        {trackMinutes && player.min > 0 && (
                           <span className="text-amber-300 font-bold">{player.min}&apos;</span>
                         )}
                       </div>

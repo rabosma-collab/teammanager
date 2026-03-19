@@ -24,11 +24,12 @@ interface FinalizeMatchModalProps {
     goalsFor: number | null;
     goalsAgainst: number | null;
     stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>;
+    matchReport: string | null;
   }) => Promise<void>;
   onClose: () => void;
 }
 
-type Step = 'uitslag' | 'doelpunten' | 'kaarten' | 'bevestig';
+type Step = 'uitslag' | 'doelpunten' | 'kaarten' | 'verslag' | 'bevestig';
 
 function TallyCounter({
   value,
@@ -75,6 +76,7 @@ export default function FinalizeMatchModal({
     const s: Step[] = ['uitslag'];
     if (trackGoals) s.push('doelpunten');
     if (trackCards) s.push('kaarten');
+    s.push('verslag');
     s.push('bevestig');
     return s;
   }, [trackGoals, trackCards]);
@@ -98,6 +100,9 @@ export default function FinalizeMatchModal({
 
   // Step 3 — Kaarten
   const [cards, setCards] = useState<CardEntry[]>([{ player_id: null, card_type: 'yellow' }]);
+
+  // Step 4 — Verslag
+  const [matchReport, setMatchReport] = useState('');
 
   const [saving, setSaving] = useState(false);
 
@@ -161,6 +166,7 @@ export default function FinalizeMatchModal({
       goalsFor,
       goalsAgainst,
       stats: computedStats,
+      matchReport: matchReport.trim() || null,
     });
     setSaving(false);
   };
@@ -169,6 +175,7 @@ export default function FinalizeMatchModal({
     uitslag:    'Uitslag',
     doelpunten: 'Doelpunten',
     kaarten:    'Kaarten',
+    verslag:    'Verslag',
     bevestig:   'Bevestig',
   };
 
@@ -394,7 +401,27 @@ export default function FinalizeMatchModal({
             </div>
           )}
 
-          {/* ─── STAP 4: BEVESTIG ─── */}
+          {/* ─── STAP 4: VERSLAG ─── */}
+          {currentStep === 'verslag' && (
+            <div className="space-y-3 pt-1">
+              <div className="text-sm text-gray-400">
+                Schrijf een kort verslag over de wedstrijd. Dit is optioneel en wordt zichtbaar op het dashboard.
+              </div>
+              <textarea
+                value={matchReport}
+                onChange={e => setMatchReport(e.target.value)}
+                maxLength={2000}
+                rows={8}
+                placeholder="Bijv. Een spannende wedstrijd met een sterke tweede helft. We scoorden vroeg maar moesten lang wachten op de overwinning…"
+                className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-500 resize-none focus:outline-none focus:border-yellow-500 transition"
+              />
+              <div className="text-xs text-gray-500 text-right">
+                {matchReport.length} / 2000 tekens
+              </div>
+            </div>
+          )}
+
+          {/* ─── STAP 5: BEVESTIG ─── */}
           {currentStep === 'bevestig' && (
             <div className="space-y-4 pt-1">
               {/* Score samenvatting */}
@@ -436,6 +463,15 @@ export default function FinalizeMatchModal({
                 </div>
               ) : (
                 <p className="text-sm text-gray-500 text-center py-2">Geen spelerstatistieken ingevuld.</p>
+              )}
+
+              {matchReport.trim() && (
+                <div>
+                  <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-2">Verslag</div>
+                  <div className="p-3 bg-gray-700/30 rounded-lg text-sm text-gray-300 whitespace-pre-wrap">
+                    {matchReport.trim()}
+                  </div>
+                </div>
               )}
 
               <div className="p-2 bg-red-900/30 border border-red-700 rounded text-xs text-center text-red-300">

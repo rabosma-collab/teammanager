@@ -1,6 +1,7 @@
 import React, { useRef, useCallback } from 'react';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -37,6 +38,8 @@ export default function Sidebar({
   onAddGuest,
   onShowPlayerCard
 }: SidebarProps) {
+  const { teamSettings } = useTeamContext();
+  const trackMinutes = teamSettings?.track_minutes ?? true;
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressFired = useRef(false);
 
@@ -161,7 +164,7 @@ export default function Sidebar({
                         {player.name}
                         {player.is_guest && <span className="text-purple-400 text-xs ml-1">(Gast)</span>}
                       </div>
-                      <div className="text-xs opacity-70">{player.min} min</div>
+                      {trackMinutes && <div className="text-xs opacity-70">{player.min} min</div>}
                       {onField && <span className="text-green-500" title="Op het veld">⚽</span>}
                       {isInjured && <span className="text-red-500" title="Geblesseerd">🏥</span>}
                       {isAbsent && <span className="text-orange-500" title="Afwezig">❌</span>}

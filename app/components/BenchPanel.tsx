@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 interface BenchPanelProps {
   benchPlayers: Player[];
@@ -45,6 +46,8 @@ function BenchPlayerDraggable({
     disabled: !isEditable,
     data: { type: 'bench', player },
   });
+  const { teamSettings } = useTeamContext();
+  const trackMinutes = teamSettings?.track_minutes ?? true;
 
   return (
     <div
@@ -76,7 +79,7 @@ function BenchPlayerDraggable({
         <span className="text-xs opacity-50">
           {player.assists}🎯 {player.goals}⚽
         </span>
-        {player.min > 0 && (
+        {trackMinutes && player.min > 0 && (
           <span className="text-xs font-bold bg-amber-700/60 text-amber-200 rounded px-1.5 py-0.5">
             {player.min}&apos;
           </span>

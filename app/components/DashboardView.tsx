@@ -397,6 +397,7 @@ export default function DashboardView({
             players={players}
             gameFormat={gameFormat}
             positionName={playerMatchInstruction?.position_name || lineupPositionName}
+            teamName={currentTeam?.name}
             trackWasbeurt={trackWasbeurt}
             trackConsumpties={trackConsumpties}
             trackAssemblyTime={trackAssemblyTime}

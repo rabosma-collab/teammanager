@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { formationLabels } from '../../lib/constants';
 import LineupStatusBadge from './LineupStatusBadge';
+import { generateWhatsAppText } from '../../utils/generateWhatsAppText';
 
 interface NextMatchCardProps {
   match: Match | null;
@@ -14,6 +15,7 @@ interface NextMatchCardProps {
   players: Player[];
   gameFormat: string;
   positionName?: string;
+  teamName?: string;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
   trackAssemblyTime?: boolean;
@@ -59,6 +61,7 @@ export default function NextMatchCard({
   players,
   gameFormat,
   positionName,
+  teamName,
   trackWasbeurt = true,
   trackConsumpties = true,
   trackAssemblyTime = false,
@@ -71,6 +74,36 @@ export default function NextMatchCard({
 }: NextMatchCardProps) {
   const [loadingAbsence, setLoadingAbsence] = useState(false);
   const [loadingInjury, setLoadingInjury] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+
+  const handleShare = async () => {
+    if (!match) return;
+    const text = generateWhatsAppText({
+      match,
+      players,
+      fieldOccupants,
+      matchAbsences,
+      teamName,
+      gameFormat,
+      trackWasbeurt,
+      trackConsumpties,
+      trackAssemblyTime,
+      trackMatchTime,
+      trackLocationDetails,
+    });
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+      } catch {
+        // gebruiker heeft geannuleerd — geen actie nodig
+      }
+    } else {
+      await navigator.clipboard.writeText(text);
+      setShareToast('Gekopieerd naar klembord!');
+      setTimeout(() => setShareToast(null), 2500);
+    }
+  };
 
   if (!match) {
     return (
@@ -289,14 +322,30 @@ export default function NextMatchCard({
         </div>
       )}
 
-      {/* Bekijk opstelling knop */}
-      <button
-        onClick={() => onNavigateToWedstrijd(match)}
-        className="w-full px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg font-display font-bold text-sm uppercase tracking-wide transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
-      >
-        <span>{isManager && !isFinalized ? 'Bekijk / bewerk opstelling' : 'Bekijk opstelling'}</span>
-        <span>→</span>
-      </button>
+      {/* Deel + Bekijk knoppen */}
+      <div className="flex gap-2">
+        <button
+          onClick={handleShare}
+          className="flex-shrink-0 px-3 py-2.5 bg-green-700 hover:bg-green-600 text-white rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 flex items-center gap-1.5"
+          title="Deel wedstrijdinfo"
+        >
+          📤 Deel
+        </button>
+        <button
+          onClick={() => onNavigateToWedstrijd(match)}
+          className="flex-1 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg font-display font-bold text-sm uppercase tracking-wide transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
+        >
+          <span>{isManager && !isFinalized ? 'Bekijk / bewerk opstelling' : 'Bekijk opstelling'}</span>
+          <span>→</span>
+        </button>
+      </div>
+
+      {/* Kopieer-toast (desktop fallback) */}
+      {shareToast && (
+        <div className="text-center text-xs text-green-400 font-semibold animate-pulse">
+          ✅ {shareToast}
+        </div>
+      )}
     </div>
   );
 }

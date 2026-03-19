@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import type { Player } from '../lib/types';
+import { useTeamContext } from '../contexts/TeamContext';
 
 export type SeasonBadge = 'top-scorer' | 'top-assist';
 
@@ -211,6 +212,9 @@ export default function PlayerCard({
   isJustUpgraded = false,
 }: PlayerCardProps) {
   const [flipped, setFlipped] = useState(false);
+  const { teamSettings } = useTeamContext();
+  const trackMinutes       = teamSettings?.track_minutes        ?? true;
+  const trackPlayedMinutes = teamSettings?.track_played_minutes ?? false;
 
   const rating = calcRating(player);
   const tier = getCardTier(rating);
@@ -417,24 +421,28 @@ export default function PlayerCard({
                 <HexRadar stats={stats} tier={tier} size={size} />
               </div>
 
-              {backContent === 'full' && (
-                <>
-                  <div className="border-t border-white/20 my-1" />
-                  <div className="grid grid-cols-2 gap-1 relative z-0">
-                    {[
-                      { label: '⚽ Goals',   value: player.goals || 0 },
-                      { label: '🎯 Assists', value: player.assists || 0 },
-                      { label: '🟨 Geel',   value: player.yellow_cards || 0 },
-                      { label: '⏱️ Wissel', value: player.min || 0 },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="bg-black/25 rounded px-1.5 py-1 text-center">
-                        <div className="text-[9px] text-white/50 leading-none mb-0.5">{label}</div>
-                        <div className="text-xs font-black text-white">{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+              {backContent === 'full' && (() => {
+                const statItems = [
+                  { label: '⚽ Goals',     value: player.goals || 0 },
+                  { label: '🎯 Assists',   value: player.assists || 0 },
+                  { label: '🟨 Geel',     value: player.yellow_cards || 0 },
+                  ...(trackMinutes       ? [{ label: '⏱️ Wissel',   value: player.min || 0 }] : []),
+                  ...(trackPlayedMinutes ? [{ label: '⏱️ Ges. min', value: player.played_min || 0 }] : []),
+                ];
+                return (
+                  <>
+                    <div className="border-t border-white/20 my-1" />
+                    <div className="grid grid-cols-2 gap-1 relative z-0">
+                      {statItems.map(({ label, value }) => (
+                        <div key={label} className="bg-black/25 rounded px-1.5 py-1 text-center">
+                          <div className="text-[9px] text-white/50 leading-none mb-0.5">{label}</div>
+                          <div className="text-xs font-black text-white">{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
 
               <div className="mt-1.5 text-center text-[9px] text-white/30 font-bold tracking-wide">
                 ↻ tik voor stats
