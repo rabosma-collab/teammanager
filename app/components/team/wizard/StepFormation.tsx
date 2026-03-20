@@ -19,7 +19,7 @@ export default function StepFormation({ gameFormat, formation, onChangeFormation
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-black mb-1">Standaard formatie</h2>
-        <p className="text-gray-400 text-sm">Kies de formatie die je team het meest speelt. Je kan dit altijd aanpassen.</p>
+        <p className="text-gray-400 text-sm">Kies de formatie die je team het meest speelt. Dit wordt automatisch als standaard ingesteld bij nieuwe wedstrijden. Je kunt het per wedstrijd aanpassen.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

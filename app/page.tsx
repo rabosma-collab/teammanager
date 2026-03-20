@@ -142,7 +142,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateMatchReport, deleteMatch
+    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateMatchReport, cancelMatch, deleteMatch
   } = useMatches();
 
   const { seasons, activeSeason, fetchSeasons } = useSeasons();
@@ -1204,6 +1204,7 @@ export default function FootballApp() {
           onAddMatch={(data) => addMatch({ ...data, season_id: activeSeason?.id ?? null })}
           onUpdateMatch={updateMatch}
           onUpdateScore={updateMatchScore}
+          onCancelMatch={cancelMatch}
           onDeleteMatch={deleteMatch}
           onRefresh={fetchMatches}
         />
@@ -1212,7 +1213,7 @@ export default function FootballApp() {
       ) : view === 'mededelingen' && isManager ? (
         <MededelingenView />
       ) : view === 'feedback' && isManager ? (
-        <FeedbackView />
+        <FeedbackView isManager={isManager} />
       ) : view === 'team-settings' && isManager ? (
         <TeamSettingsView onSettingsSaved={refreshTeamSettings} />
       ) : view === 'season-settings' && isManager ? (
@@ -1225,7 +1226,7 @@ export default function FootballApp() {
           currentPlayerId={teamPlayerId}
           creditBalance={creditBalance}
           onSaveStatDraft={handleSaveStatDraft}
-          spdwWinnerPlayerId={lastSpdwResult?.podium[0]?.player_id ?? null}
+          spdwWinnerPlayerIds={lastSpdwResult?.podium.filter(e => e.rank === 1).map(e => e.player_id) ?? []}
         />
       ) : view === 'uitslagen' ? (
         <UitslagenView
@@ -1686,6 +1687,10 @@ export default function FootballApp() {
                 consumptiesAllPlayers={consumptiesAllPlayers}
                 consumptiesOverrideId={consumptiesOverrideId}
                 onConsumptiesChange={(id) => updateConsumptiesPlayer(selectedMatch.id, id)}
+                match={selectedMatch}
+                trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
+                trackMatchTime={teamSettings?.track_match_time ?? false}
+                trackLocationDetails={teamSettings?.track_location_details ?? false}
                 isEditing={activelyEditing && isManager}
               />
               </div>

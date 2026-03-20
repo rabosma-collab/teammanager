@@ -208,9 +208,11 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
       });
   }, [selectedSeasonId, activeSeasonId, matches, currentTeam]);
 
-  // Alleen afgeronde wedstrijden, nieuwste eerst
+  // Afgeronde + geannuleerde wedstrijden, nieuwste eerst
   const finishedMatches = useMemo(
-    () => seasonMatches.filter(m => m.match_status === 'afgerond').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    () => seasonMatches
+      .filter(m => m.match_status === 'afgerond' || m.match_status === 'geannuleerd')
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [seasonMatches]
   );
 
@@ -340,7 +342,12 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
 
                   {/* Wedstrijd info */}
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm truncate">{match.opponent}</div>
+                    <div className="font-bold text-sm truncate">
+                      {match.opponent}
+                      {match.match_status === 'geannuleerd' && (
+                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-400 font-normal">W.O.</span>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-400 flex items-center gap-2">
                       <span>{match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit'}</span>
                       {match.match_type === 'oefenwedstrijd' && (

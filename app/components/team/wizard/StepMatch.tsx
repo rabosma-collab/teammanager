@@ -137,7 +137,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-black mb-1">Wedstrijden inplannen</h2>
-        <p className="text-gray-400 text-sm">Plan je wedstrijden in. Je kan dit ook later doen via Beheer → Wedstrijden.</p>
+        <p className="text-gray-400 text-sm">Plan je eerste wedstrijd(en) in. Je kunt dit ook later toevoegen via Beheer → Wedstrijden.</p>
       </div>
 
       {/* ── Keuzescherm ── */}

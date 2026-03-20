@@ -39,7 +39,7 @@ export interface Player {
     match_type: 'competitie' | 'oefenwedstrijd';
     substitution_scheme_id: number;
     sub_moments?: number | null;
-    match_status: 'concept' | 'afgerond';
+    match_status: 'concept' | 'afgerond' | 'geannuleerd';
     goals_for?: number | null;
     goals_against?: number | null;
     lineup_published?: boolean;

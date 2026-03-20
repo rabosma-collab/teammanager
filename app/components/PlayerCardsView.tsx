@@ -34,7 +34,7 @@ interface PlayerCardsViewProps {
   currentPlayerId?: number | null;
   creditBalance?: number | null;
   onSaveStatDraft?: (targetPlayerId: number, finalStats: Record<string, number>, totalCost: number, actorName?: string, subjectName?: string, prevStats?: Record<string, number>) => Promise<boolean>;
-  spdwWinnerPlayerId?: number | null;
+  spdwWinnerPlayerIds?: number[];
 }
 
 function computeSeasonBadges(players: Player[]): Record<number, SeasonBadge[]> {
@@ -61,7 +61,7 @@ export default function PlayerCardsView({
   currentPlayerId,
   creditBalance,
   onSaveStatDraft,
-  spdwWinnerPlayerId,
+  spdwWinnerPlayerIds = [],
 }: PlayerCardsViewProps) {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [creditEditingId, setCreditEditingId] = useState<number | null>(null);
@@ -244,7 +244,7 @@ export default function PlayerCardsView({
           player={player}
           size="sm"
           isFlippable
-          isSpdwWinner={spdwWinnerPlayerId != null && player.id === spdwWinnerPlayerId}
+          isSpdwWinner={spdwWinnerPlayerIds.includes(player.id)}
           seasonBadges={seasonBadges[player.id] ?? []}
           isJustUpgraded={justUpgradedId === player.id}
         />

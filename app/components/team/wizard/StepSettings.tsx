@@ -6,9 +6,9 @@ import type { TeamSettings } from '../../../lib/types';
 const SETTINGS_ITEMS: Array<{ key: keyof TeamSettings; label: string; description: string }> = [
   { key: 'track_goals',        label: '⚽ Doelpunten',           description: 'Bijhouden hoeveel goals elke speler scoort' },
   { key: 'track_assists',      label: '🎯 Assists',              description: 'Bijhouden hoeveel assists elke speler geeft' },
-  { key: 'track_minutes',         label: '⏱️ Wisselminuten',       description: 'Wisselminuten berekenen bij afsluiten wedstrijd' },
-  { key: 'track_played_minutes',  label: '⏱️ Gespeelde minuten',   description: 'Bijhouden hoeveel minuten iemand heeft gespeeld' },
-  { key: 'track_spdw',         label: '🏆 SPDW',                 description: 'Speler van de week stemmen en bijhouden' },
+  { key: 'track_minutes',         label: '⏱️ Wisselminuten',       description: 'Houdt bij hoeveel minuten iedere speler in totaal in de wissel heeft gestaan dit seizoen' },
+  { key: 'track_played_minutes',  label: '⏱️ Gespeelde minuten',   description: 'Houdt bij hoeveel minuten iedere speler dit seizoen in totaal heeft gespeeld' },
+  { key: 'track_spdw',         label: '🏆 Speler van de week',   description: 'Speler van de week stemmen en bijhouden' },
   { key: 'track_results',      label: '📊 Uitslagen',            description: 'Wedstrijdscores bijhouden en tonen' },
   { key: 'track_cards',        label: '🟨 Kaarten',              description: 'Gele en rode kaarten bijhouden' },
   { key: 'track_clean_sheets', label: '🧤 Clean sheets',         description: 'Bijhouden wanneer de keeper geen goal slikt' },

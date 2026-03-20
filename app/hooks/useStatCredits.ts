@@ -74,7 +74,7 @@ export function useStatCredits() {
         deadline.setDate(deadline.getDate() + VOTING_PERIOD_DAYS);
 
         // Only process if voting period has ended
-        if (today <= deadline) continue;
+        if (today < deadline) continue;
 
         // Fetch votes
         const { data: votes } = await supabase
@@ -173,10 +173,10 @@ export function useStatCredits() {
           })
         );
 
-        // Log de winnaar (hoogste pts = rang 1)
-        const winnerEntry = Object.entries(creditMap).find(([, pts]) => pts === POINTS_BY_RANK[0]);
-        if (winnerEntry) {
-          const winnerId = parseInt(winnerEntry[0]);
+        // Log alle winnaars (hoogste pts = rang 1, kan gelijkspel zijn)
+        const winnerEntries = Object.entries(creditMap).filter(([, pts]) => pts === POINTS_BY_RANK[0]);
+        for (const [pid] of winnerEntries) {
+          const winnerId = parseInt(pid);
           logActivity({
             teamId: currentTeam.id,
             type: 'spdw_winner',

@@ -28,10 +28,13 @@ const RESULT_COLOR = {
 } as const;
 
 export default function SeasonChart({ matches, onNavigateToUitslagen }: SeasonChartProps) {
-  // Afgeronde wedstrijden chronologisch
+  // Afgeronde + geannuleerde wedstrijden met uitslag, chronologisch
   const finished = useMemo(
     () => matches
-      .filter(m => m.match_status === 'afgerond')
+      .filter(m =>
+        m.match_status === 'afgerond' ||
+        (m.match_status === 'geannuleerd' && m.goals_for != null && m.goals_against != null)
+      )
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [matches]
   );
@@ -53,7 +56,7 @@ export default function SeasonChart({ matches, onNavigateToUitslagen }: SeasonCh
   const losses = matchData.filter(d => d.result === 'V').length;
   const goalsFor     = finished.reduce((s, m) => s + (m.goals_for ?? 0), 0);
   const goalsAgainst = finished.reduce((s, m) => s + (m.goals_against ?? 0), 0);
-  const cleanSheets  = finished.filter(m => m.goals_against === 0).length;
+  const cleanSheets  = finished.filter(m => m.match_status === 'afgerond' && m.goals_against === 0).length;
 
   if (finished.length === 0) return null;
 

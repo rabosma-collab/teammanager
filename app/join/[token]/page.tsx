@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
 import { useTeamContext } from '../../contexts/TeamContext';
 import { positionEmojis } from '../../lib/constants';
+import { logActivity } from '../../lib/logActivity';
 
 interface InviteData {
   token: string;
@@ -165,6 +166,18 @@ export default function JoinPage() {
         });
 
       if (memberError) throw memberError;
+
+      const playerName = invite.invite_type === 'player'
+        ? invite.player?.name
+        : (invite.display_name || null);
+      if (playerName) {
+        logActivity({
+          teamId: invite.team_id,
+          type: 'player_joined',
+          subjectId: invite.player_id ?? null,
+          payload: { player_name: playerName, role },
+        });
+      }
 
       // Mark token as used — atomisch via RPC (voorkomt race condition bij gelijktijdige acceptaties)
       const { data: acceptResult } = await supabase.rpc('accept_invite', { p_token: token });

@@ -1,8 +1,127 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export default function FeedbackView() {
+interface ChangelogEntry {
+  date: string;
+  title: string;
+  items: string[];
+}
+
+function ReleaseNotesSection() {
+  const [entries, setEntries] = useState<ChangelogEntry[]>([]);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    fetch('/changelog.json')
+      .then(r => r.json())
+      .then((data: ChangelogEntry[]) => {
+        if (!data?.length) return;
+        setEntries(data);
+
+        const lastSeen = localStorage.getItem('releaseNotes_lastSeen');
+        const newest = data[0].date;
+
+        if (!lastSeen) {
+          // Eerste keer: markeer alles als gezien, geen badge
+          localStorage.setItem('releaseNotes_lastSeen', newest);
+        } else if (lastSeen < newest) {
+          setHasUnread(true);
+          setExpanded(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const markRead = () => {
+    if (!entries.length) return;
+    localStorage.setItem('releaseNotes_lastSeen', entries[0].date);
+    setHasUnread(false);
+    setExpanded(false);
+    // Trigger storage event zodat Navbar de badge kan verbergen
+    window.dispatchEvent(new Event('releaseNotesRead'));
+  };
+
+  if (!entries.length) return null;
+
+  const lastSeen = typeof window !== 'undefined' ? localStorage.getItem('releaseNotes_lastSeen') : null;
+  const unreadEntries = lastSeen ? entries.filter(e => e.date > lastSeen) : [];
+  const displayEntries = expanded ? entries : unreadEntries;
+
+  return (
+    <div className="mb-8">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between gap-2 mb-3 group"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-base font-bold text-white">Wat is er nieuw?</span>
+          {hasUnread && (
+            <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {unreadEntries.length} nieuw
+            </span>
+          )}
+        </div>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="space-y-4">
+          {entries.map((entry, i) => {
+            const isNew = lastSeen ? entry.date > lastSeen : false;
+            return (
+              <div
+                key={entry.date}
+                className={`rounded-lg px-4 py-3 border ${
+                  isNew
+                    ? 'bg-yellow-500/10 border-yellow-500/30'
+                    : 'bg-gray-800/50 border-gray-700/50'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-sm font-semibold ${isNew ? 'text-yellow-400' : 'text-gray-300'}`}>
+                    {entry.title}
+                  </span>
+                  {isNew && (
+                    <span className="text-[10px] bg-yellow-500 text-black font-bold rounded px-1.5 py-0.5 leading-none">
+                      NIEUW
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-500 ml-auto">{entry.date}</span>
+                </div>
+                <ul className="space-y-1">
+                  {entry.items.map((item, j) => (
+                    <li key={j} className="text-sm text-gray-400 flex items-start gap-2">
+                      <span className="text-gray-600 mt-0.5 flex-shrink-0">•</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+
+          {hasUnread && (
+            <button
+              onClick={markRead}
+              className="w-full text-sm text-gray-400 hover:text-gray-200 py-2 transition-colors"
+            >
+              Alles gezien ✓
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function FeedbackView({ isManager = false }: { isManager?: boolean }) {
   const [type, setType] = useState<'bug' | 'wens'>('bug');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -32,6 +151,8 @@ export default function FeedbackView() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8">
+      {isManager && <ReleaseNotesSection />}
+
       <h2 className="text-xl font-bold text-white mb-1">Feedback</h2>
       <p className="text-sm text-gray-400 mb-6">Meld een bug of dien een wens in. Dit wordt direct opgepakt.</p>
 
