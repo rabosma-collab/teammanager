@@ -576,7 +576,7 @@ export default function FootballApp() {
 
     // Periode 2+: alleen veld-naar-veld positiewisseling, opgeslagen als override
     if (selectedPeriod > 1) {
-      if (!isManager || isFinalized || isFreeSubstitution) return;
+      if (!activelyEditing || !isManager || isFinalized || isFreeSubstitution) return;
       if (overId.startsWith('pos-') && activeData.type === 'field') {
         const targetPos = parseInt(overId.replace('pos-', ''));
         const sourcePos = activeData.positionIndex!;
@@ -1550,7 +1550,7 @@ export default function FootballApp() {
                 getInstructionForPosition={getInstructionForPosition}
                 onPositionClick={handlePositionClick}
                 onSwapPlayer={
-                  selectedPeriod > 1 && isManager && !isFinalized && !isFreeSubstitution
+                  activelyEditing && selectedPeriod > 1 && isManager && !isFinalized && !isFreeSubstitution
                     ? (posIdx) => {
                         const p = displayedOccupants[posIdx];
                         if (!p) { setPeriodPositionPick(null); return; }
@@ -1576,7 +1576,7 @@ export default function FootballApp() {
                       }
                     : undefined
                 }
-                isPeriodPositionEdit={selectedPeriod > 1 && isManager && !isFinalized && !isFreeSubstitution}
+                isPeriodPositionEdit={activelyEditing && selectedPeriod > 1 && isManager && !isFinalized && !isFreeSubstitution}
                 onShowTooltip={(positionIndex: number) => {
                   if (isManager && selectedMatch && !isFinalized) {
                     const matchInstr = matchInstructions.find((m: PositionInstruction) => m.position_index === positionIndex);
