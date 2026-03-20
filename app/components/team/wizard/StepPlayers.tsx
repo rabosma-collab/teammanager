@@ -364,6 +364,9 @@ export default function StepPlayers({ teamId, currentUserId, onNext, onBack, onS
               <div className="text-sm text-gray-400 font-medium">
                 {manualList.length} speler{manualList.length !== 1 ? 's' : ''} in de lijst
               </div>
+              {!manualImported && (
+                <p className="text-xs text-gray-500">Staat jouw naam in de lijst? Klik op ☆ ik om je account te koppelen aan je spelersrecord.</p>
+              )}
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {manualList.map((p, i) => (
                   <div key={`${p.name}-${i}`} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${selfIndex === i ? 'bg-yellow-900/30 border border-yellow-700/50' : 'bg-gray-700/50'}`}>

@@ -60,7 +60,7 @@ export default function PersonalCard({
         <InfoButton>
           <p className="font-semibold text-white mb-1">Jouw statistieken</p>
           <p><span className="text-white font-semibold">SVDW</span> = aantal keer gewonnen als Speler van de Week.</p>
-          <p className="mt-1"><span className="text-yellow-300 font-semibold">💰 Statcredits</span> verdien je door te winnen bij de SPDW-stemming. Gebruik ze op de <span className="text-white font-semibold">Spelerskaarten</span>-pagina om FIFA-stats aan te passen.</p>
+          <p className="mt-1"><span className="text-yellow-300 font-semibold">💰 Statcredits</span> verdien je door mee te spelen (<span className="text-yellow-300 font-semibold">1 credit</span> per wedstrijd) of door hoog te eindigen bij de SPDW-stemming. Gebruik ze op de <span className="text-white font-semibold">Spelerskaarten</span>-pagina om FIFA-stats aan te passen.</p>
         </InfoButton>
       </div>
       <div className="flex justify-center mb-4">

@@ -4,6 +4,7 @@ import { positionOrder } from '../lib/constants';
 import type { Player } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
+import { logActivity } from '../lib/logActivity';
 
 export function usePlayers() {
   const { currentTeam } = useTeamContext();
@@ -243,6 +244,13 @@ export function usePlayers() {
         .insert({ ...playerData, name: trimmedName, team_id: currentTeam.id });
 
       if (error) throw error;
+
+      logActivity({
+        teamId: currentTeam.id,
+        type: 'player_added',
+        payload: { player_name: trimmedName, position: playerData.position },
+      });
+
       return true;
     } catch (error) {
       console.error('Error adding player:', error);

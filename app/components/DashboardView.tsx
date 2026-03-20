@@ -12,6 +12,7 @@ import SquadAvailabilityPanel from './dashboard/SquadAvailabilityPanel';
 import VotingSection from './VotingSection';
 import SpdwResultCard from './dashboard/SpdwResultCard';
 import AnnouncementBanner from './dashboard/AnnouncementBanner';
+import InstallBanner from './dashboard/InstallBanner';
 import SeasonChart from './dashboard/SeasonChart';
 import RecentResults from './dashboard/RecentResults';
 import MyAvailabilityPanel from './dashboard/MyAvailabilityPanel';
@@ -326,6 +327,7 @@ export default function DashboardView({
     <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
       <div className="max-w-4xl mx-auto">
 
+        <InstallBanner />
         <AnnouncementBanner />
 
         {/* Aan de slag — alleen voor managers met een leeg team */}

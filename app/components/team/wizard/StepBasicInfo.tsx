@@ -50,7 +50,10 @@ export default function StepBasicInfo({ name, color, onChangeName, onChangeColor
 
       {/* Kleur */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Teamkleur</label>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Teamkleur
+          <span className="ml-2 text-xs text-gray-500 font-normal">Herkenbaar als je meerdere teams hebt</span>
+        </label>
         <div className="flex flex-wrap gap-2 mb-3">
           {PRESET_COLORS.map((c) => (
             <button

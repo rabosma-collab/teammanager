@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { Player } from '../lib/types';
+import type { Match, Player } from '../lib/types';
+
+function formatTime(timeStr: string): string {
+  return timeStr.slice(0, 5);
+}
 
 interface TaakRijProps {
   emoji: string;
@@ -87,6 +91,11 @@ interface TakenBlokProps {
   consumptiesAllPlayers: Player[];
   consumptiesOverrideId: number | null;
   onConsumptiesChange: (playerId: number | null) => void;
+  // Match info
+  match?: Match | null;
+  trackAssemblyTime?: boolean;
+  trackMatchTime?: boolean;
+  trackLocationDetails?: boolean;
   // State
   isEditing: boolean;
 }
@@ -108,11 +117,20 @@ export default function TakenBlok({
   consumptiesAllPlayers,
   consumptiesOverrideId,
   onConsumptiesChange,
+  match,
+  trackAssemblyTime = false,
+  trackMatchTime = false,
+  trackLocationDetails = false,
   isEditing,
 }: TakenBlokProps) {
   const [showInfo, setShowInfo] = useState(false);
 
-  if (!trackWasbeurt && !trackConsumpties) return null;
+  const hasMatchInfo = !!(match && (
+    (trackAssemblyTime && match.assembly_time) ||
+    (trackMatchTime && match.match_time) ||
+    (trackLocationDetails && match.location_details)
+  ));
+  if (!trackWasbeurt && !trackConsumpties && !hasMatchInfo) return null;
 
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 px-4 py-3 my-3 space-y-3">
@@ -131,6 +149,28 @@ export default function TakenBlok({
       {showInfo && (
         <div className="text-xs text-gray-400 bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 leading-relaxed">
           De speler met het minste aantal beurten is automatisch aan de beurt. Bij een gelijk aantal gaat het <span className="text-white font-medium">alfabetisch</span>. <span className="text-white font-medium">Wasbeurt</span>: deze speler regelt het wassen van de shirts na de wedstrijd. <span className="text-white font-medium">Consumpties</span>: deze speler zorgt voor de drank na afloop. De manager kan handmatig een andere speler aanwijzen.
+        </div>
+      )}
+      {match && (trackAssemblyTime || trackMatchTime || trackLocationDetails) && (
+        <div className="space-y-1">
+          {trackAssemblyTime && match.assembly_time && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span>🕐</span>
+              <span className="text-gray-300">Verzamelen: <span className="font-bold text-white">{formatTime(match.assembly_time)}</span></span>
+            </div>
+          )}
+          {trackMatchTime && match.match_time && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span>⚽</span>
+              <span className="text-gray-300">Aanvang: <span className="font-bold text-white">{formatTime(match.match_time)}</span></span>
+            </div>
+          )}
+          {trackLocationDetails && match.location_details && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span>📍</span>
+              <span className="text-gray-300">Kleedkamer: <span className="font-bold text-white">{match.location_details}</span></span>
+            </div>
+          )}
         </div>
       )}
       {trackWasbeurt && (

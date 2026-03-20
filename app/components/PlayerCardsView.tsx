@@ -34,7 +34,7 @@ interface PlayerCardsViewProps {
   currentPlayerId?: number | null;
   creditBalance?: number | null;
   onSaveStatDraft?: (targetPlayerId: number, finalStats: Record<string, number>, totalCost: number, actorName?: string, subjectName?: string, prevStats?: Record<string, number>) => Promise<boolean>;
-  spdwWinnerPlayerId?: number | null;
+  spdwWinnerPlayerIds?: number[];
 }
 
 function computeSeasonBadges(players: Player[]): Record<number, SeasonBadge[]> {
@@ -61,7 +61,7 @@ export default function PlayerCardsView({
   currentPlayerId,
   creditBalance,
   onSaveStatDraft,
-  spdwWinnerPlayerId,
+  spdwWinnerPlayerIds = [],
 }: PlayerCardsViewProps) {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [creditEditingId, setCreditEditingId] = useState<number | null>(null);
@@ -244,7 +244,7 @@ export default function PlayerCardsView({
           player={player}
           size="sm"
           isFlippable
-          isSpdwWinner={spdwWinnerPlayerId != null && player.id === spdwWinnerPlayerId}
+          isSpdwWinner={spdwWinnerPlayerIds.includes(player.id)}
           seasonBadges={seasonBadges[player.id] ?? []}
           isJustUpgraded={justUpgradedId === player.id}
         />
@@ -419,7 +419,7 @@ export default function PlayerCardsView({
             <div className="space-y-2 text-xs text-gray-400">
               <div className="flex items-start gap-2">
                 <span className="text-yellow-400 mt-0.5">→</span>
-                <span>Je verdient credits door de <span className="text-yellow-300 font-semibold">Speler van de Week</span> te winnen op het Dashboard. De winnaar ontvangt credits op basis van het aantal stemmen.</span>
+                <span>Je verdient credits op twee manieren: <span className="text-yellow-300 font-semibold">1 credit</span> voor elke wedstrijd die je hebt meegespeeld, en extra credits door de <span className="text-yellow-300 font-semibold">Speler van de Week</span> te worden via de stemming op het Dashboard.</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="text-yellow-400 mt-0.5">→</span>

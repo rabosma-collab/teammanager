@@ -4,13 +4,18 @@ export type ActivityType =
   | 'stat_changed'
   | 'lineup_published'
   | 'lineup_unpublished'
+  | 'lineup_changed'
   | 'match_created'
   | 'match_result'
+  | 'match_cancelled'
+  | 'match_rescheduled'
   | 'voting_opened'
   | 'vote_cast'
   | 'spdw_winner'
   | 'absence_changed'
-  | 'announcement_posted';
+  | 'announcement_posted'
+  | 'player_added'
+  | 'player_joined';
 
 interface LogActivityOptions {
   teamId: string;

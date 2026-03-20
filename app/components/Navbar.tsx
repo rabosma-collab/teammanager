@@ -36,6 +36,7 @@ export default function Navbar({
   const [profileInitials, setProfileInitials] = useState('?');
   const [showBeheer, setShowBeheer] = useState(false);
   const [showTeamSwitcher, setShowTeamSwitcher] = useState(false);
+  const [hasUnreadReleaseNotes, setHasUnreadReleaseNotes] = useState(false);
   const beheerRef = useRef<HTMLDivElement>(null);
   const teamSwitcherRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +89,34 @@ export default function Navbar({
     await loadProfileInfo();
     onPlayerUpdated?.();
   };
+
+  // Check of er ongelezen release notes zijn (alleen voor managers)
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const check = () => {
+      fetch('/changelog.json')
+        .then(r => r.json())
+        .then((data: { date: string }[]) => {
+          if (!data?.length) return;
+          const lastSeen = localStorage.getItem('releaseNotes_lastSeen');
+          if (!lastSeen) {
+            // Eerste keer: markeer alles als gezien zodat er geen directe badge is
+            localStorage.setItem('releaseNotes_lastSeen', data[0].date);
+            setHasUnreadReleaseNotes(false);
+          } else {
+            setHasUnreadReleaseNotes(data[0].date > lastSeen);
+          }
+        })
+        .catch(() => {});
+    };
+
+    check();
+
+    const handleRead = () => setHasUnreadReleaseNotes(false);
+    window.addEventListener('releaseNotesRead', handleRead);
+    return () => window.removeEventListener('releaseNotesRead', handleRead);
+  }, [isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check onboarding flag — auto-open ProfileModal for new players after invite accept
   useEffect(() => {
@@ -305,12 +334,17 @@ export default function Navbar({
                   )}
                 </div>
                 <div className="border-t border-gray-800 my-1" />
-                <BeheerItem
-                  icon="💬"
-                  label="Feedback"
-                  active={view === 'feedback'}
-                  onClick={() => navigateTo('feedback')}
-                />
+                <div className="relative">
+                  <BeheerItem
+                    icon="💬"
+                    label="Feedback"
+                    active={view === 'feedback'}
+                    onClick={() => navigateTo('feedback')}
+                  />
+                  {hasUnreadReleaseNotes && (
+                    <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full pointer-events-none" />
+                  )}
+                </div>
               </div>
             )}
           </div>

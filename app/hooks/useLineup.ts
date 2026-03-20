@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { logActivity } from '../lib/logActivity';
 
 export function useLineup() {
   const { currentTeam } = useTeamContext();
@@ -127,6 +128,15 @@ export function useLineup() {
 
       const updatedMatch = { ...match, formation, sub_moments: subMoments };
       onMatchUpdate(updatedMatch);
+
+      if (match.lineup_published) {
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'lineup_changed',
+          matchId: match.id,
+          payload: { opponent: match.opponent, home_away: match.home_away },
+        });
+      }
 
       return true;
     } catch (error) {

@@ -7,13 +7,18 @@ const TYPE_ICON: Record<string, string> = {
   stat_changed:         '🃏',
   lineup_published:     '📋',
   lineup_unpublished:   '📋',
+  lineup_changed:       '📋',
   match_created:        '📅',
   match_result:         '⚽',
+  match_cancelled:      '❌',
+  match_rescheduled:    '📅',
   voting_opened:        '🗳️',
   vote_cast:            '🗳️',
   spdw_winner:          '🏆',
   absence_changed:      '👤',
   announcement_posted:  '📣',
+  player_added:         '👤',
+  player_joined:        '🎉',
 };
 
 function relativeTime(iso: string): string {
@@ -92,6 +97,31 @@ function buildText(type: string, payload: Record<string, unknown>): string {
       return available
         ? `${actor} is beschikbaar voor ${opp}`
         : `${actor} heeft zich afgemeld voor ${opp}`;
+    }
+    case 'lineup_changed': {
+      const opp = p.opponent as string ?? 'onbekend';
+      const ha = (p.home_away as string) === 'thuis' ? 'thuis' : 'uit';
+      return `Opstelling voor ${opp} (${ha}) is gewijzigd`;
+    }
+    case 'match_cancelled': {
+      const opp = p.opponent as string ?? 'onbekend';
+      const ha = (p.home_away as string) === 'thuis' ? 'thuis' : 'uit';
+      const date = p.date ? new Date(p.date as string).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) : '';
+      return `Wedstrijd ${opp} (${ha})${date ? ` op ${date}` : ''} is afgelast`;
+    }
+    case 'match_rescheduled': {
+      const opp = p.opponent as string ?? 'onbekend';
+      const ha = (p.home_away as string) === 'thuis' ? 'thuis' : 'uit';
+      const newDate = p.new_date ? new Date(p.new_date as string).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) : '';
+      return `Wedstrijd ${opp} (${ha}) verzet naar ${newDate || 'nieuwe datum'}`;
+    }
+    case 'player_added': {
+      const name = p.player_name as string ?? 'Nieuwe speler';
+      return `${name} is toegevoegd aan de selectie`;
+    }
+    case 'player_joined': {
+      const name = p.player_name as string ?? 'Een speler';
+      return `${name} heeft de uitnodiging geaccepteerd`;
     }
     default:
       return type;

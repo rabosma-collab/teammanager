@@ -1,0 +1,52 @@
+[
+  {
+    "date": "2026-03-20",
+    "title": "Activiteitenlog",
+    "items": [
+      "Activiteiten van spelers en managers worden nu bijgehouden per team",
+      "Klik op het bel-icoon in de navigatie om recente activiteit te bekijken"
+    ]
+  },
+  {
+    "date": "2026-03-15",
+    "title": "Wedstrijdstatistieken",
+    "items": [
+      "Doelpunten, assists, kaarten en minuten per wedstrijd bijhouden",
+      "Nieuw tabblad 'Uitslagen' met overzicht van alle gespeelde wedstrijden",
+      "Seizoensgrafiek op het dashboard met cumulatieve punten"
+    ]
+  },
+  {
+    "date": "2026-03-10",
+    "title": "Wisselschema verbeterd",
+    "items": [
+      "Wisselmomenten zijn nu flexibeler in te stellen (vrij of vaste momenten)",
+      "Kies het aantal wisselmomenten direct bij de wedstrijd"
+    ]
+  },
+  {
+    "date": "2026-02-20",
+    "title": "Statscredits & SPDW",
+    "items": [
+      "Spelers verdienen credits door te stemmen op de Speler van de Week",
+      "Credits kunnen worden gebruikt om FIFA-stats aan te passen op de spelerskaart"
+    ]
+  },
+  {
+    "date": "2026-02-15",
+    "title": "Dashboard & Profielpagina",
+    "items": [
+      "Nieuw dashboard als startpagina met persoonlijke kaart, eerstvolgende wedstrijd en aanwezigheid",
+      "Profielpagina: upload een profielfoto, wijzig je naam of wachtwoord"
+    ]
+  },
+  {
+    "date": "2026-02-10",
+    "title": "Meerdere teams",
+    "items": [
+      "Beheer meerdere teams vanuit één account",
+      "Wissel eenvoudig van team via de teamswitcher in de navigatie",
+      "Maak een nieuw team aan via de wizard"
+    ]
+  }
+]

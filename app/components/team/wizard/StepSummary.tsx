@@ -62,7 +62,7 @@ export default function StepSummary({ data, onFinish, onBack, isLoading }: Props
       </div>
 
       <div className="p-4 bg-blue-900/30 border border-blue-700/50 rounded-xl text-sm text-blue-200 leading-relaxed">
-        Je teamaanvraag is ingediend bij de beheerder van de app. Op dit moment beperken we nog het aantal teams omdat de app nog in ontwikkeling is. Zodra je verzoek is goedgekeurd, kun je aan de slag.
+        Je teamaanvraag is ingediend bij de beheerder van de app. Op dit moment beperken we nog het aantal teams omdat de app nog in ontwikkeling is. Zodra je verzoek is goedgekeurd, kun je direct aan de slag. Je hoort het zodra dit het geval is.
       </div>
 
       <div className="flex gap-3">

@@ -142,7 +142,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateMatchReport, deleteMatch
+    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateMatchReport, cancelMatch, deleteMatch
   } = useMatches();
 
   const { seasons, activeSeason, fetchSeasons } = useSeasons();
@@ -171,7 +171,7 @@ export default function FootballApp() {
 
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
-  const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
+  const { balance: creditBalance, fetchBalance, awardSpdwCredits, awardAttendanceCredits, spendCreditsForStats } = useStatCredits();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
   const { overrides: periodOverrides, periodFormations, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, savePeriodFormation, clearOverrides: clearPeriodOverrides } = usePeriodOverrides();
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
@@ -724,12 +724,30 @@ export default function FootballApp() {
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error ?? 'Onbekende fout');
 
-      // 2. Sla spelerstatistieken op (goals, assists, kaarten)
+      // 2. Ken 1 aanwezigheidscredit toe aan elke speler in de opstelling
+      if (currentTeam) {
+        const { data: lineupRows } = await supabase
+          .from('lineups')
+          .select('player_id')
+          .eq('match_id', selectedMatch.id);
+
+        if (lineupRows && lineupRows.length > 0) {
+          const lineupPlayerIds = lineupRows.map((r: { player_id: number }) => r.player_id);
+          const regularPlayers = players.filter(
+            p => lineupPlayerIds.includes(p.id) && !p.is_guest
+          );
+          if (regularPlayers.length > 0) {
+            await awardAttendanceCredits(regularPlayers.map(p => p.id), selectedMatch.id);
+          }
+        }
+      }
+
+      // 3. Sla spelerstatistieken op (goals, assists, kaarten)
       if (params.stats.length > 0 && currentTeam) {
         await saveMatchStats(selectedMatch.id, params.stats);
       }
 
-      // 3. Sla wedstrijdverslag op (indien ingevuld)
+      // 4. Sla wedstrijdverslag op (indien ingevuld)
       if (params.matchReport) {
         await updateMatchReport(selectedMatch.id, params.matchReport);
       }
@@ -1186,6 +1204,7 @@ export default function FootballApp() {
           onAddMatch={(data) => addMatch({ ...data, season_id: activeSeason?.id ?? null })}
           onUpdateMatch={updateMatch}
           onUpdateScore={updateMatchScore}
+          onCancelMatch={cancelMatch}
           onDeleteMatch={deleteMatch}
           onRefresh={fetchMatches}
         />
@@ -1194,7 +1213,7 @@ export default function FootballApp() {
       ) : view === 'mededelingen' && isManager ? (
         <MededelingenView />
       ) : view === 'feedback' && isManager ? (
-        <FeedbackView />
+        <FeedbackView isManager={isManager} />
       ) : view === 'team-settings' && isManager ? (
         <TeamSettingsView onSettingsSaved={refreshTeamSettings} />
       ) : view === 'season-settings' && isManager ? (
@@ -1207,7 +1226,7 @@ export default function FootballApp() {
           currentPlayerId={teamPlayerId}
           creditBalance={creditBalance}
           onSaveStatDraft={handleSaveStatDraft}
-          spdwWinnerPlayerId={lastSpdwResult?.podium[0]?.player_id ?? null}
+          spdwWinnerPlayerIds={lastSpdwResult?.podium.filter(e => e.rank === 1).map(e => e.player_id) ?? []}
         />
       ) : view === 'uitslagen' ? (
         <UitslagenView
@@ -1668,6 +1687,10 @@ export default function FootballApp() {
                 consumptiesAllPlayers={consumptiesAllPlayers}
                 consumptiesOverrideId={consumptiesOverrideId}
                 onConsumptiesChange={(id) => updateConsumptiesPlayer(selectedMatch.id, id)}
+                match={selectedMatch}
+                trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
+                trackMatchTime={teamSettings?.track_match_time ?? false}
+                trackLocationDetails={teamSettings?.track_location_details ?? false}
                 isEditing={activelyEditing && isManager}
               />
               </div>

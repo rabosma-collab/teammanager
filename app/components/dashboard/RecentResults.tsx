@@ -23,7 +23,10 @@ export default function RecentResults({ matches, statsMap, onNavigateToUitslagen
 
   const recent = useMemo(
     () => matches
-      .filter(m => m.match_status === 'afgerond')
+      .filter(m =>
+        m.match_status === 'afgerond' ||
+        (m.match_status === 'geannuleerd' && m.goals_for != null && m.goals_against != null)
+      )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5),
     [matches]
@@ -75,7 +78,12 @@ export default function RecentResults({ matches, statsMap, onNavigateToUitslagen
 
                 {/* Tegenstander */}
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{match.opponent}</div>
+                  <div className="text-sm font-medium truncate">
+                    {match.opponent}
+                    {match.match_status === 'geannuleerd' && (
+                      <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-400 font-normal">W.O.</span>
+                    )}
+                  </div>
                   {scorers.length > 0 && (
                     <div className="text-[10px] text-gray-500 truncate">
                       ⚽ {scorers.map(s => s.player_name ?? `Speler ${s.player_id}`).join(', ')}

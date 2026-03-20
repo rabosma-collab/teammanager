@@ -22,7 +22,7 @@ export default function StepSpelvorm({ gameFormat, matchDuration, periods, onCha
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-black mb-1">Spelvorm</h2>
-        <p className="text-gray-400 text-sm">Hoeveel spelers spelen er per ploeg?</p>
+        <p className="text-gray-400 text-sm">Hoeveel spelers spelen er per ploeg? Dit bepaalt welke formaties beschikbaar zijn.</p>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -63,6 +63,7 @@ export default function StepSpelvorm({ gameFormat, matchDuration, periods, onCha
           ))}
         </div>
         <p className="text-xs text-gray-500 mt-1.5">{periods} periodes van {periodDuration} minuten</p>
+        <p className="text-xs text-gray-500 mt-1">Per periode kun je de opstelling en formatie aanpassen. De app stelt wisselstops voor op basis van dit aantal. Je kunt dit per wedstrijd aanpassen.</p>
       </div>
 
       <div>

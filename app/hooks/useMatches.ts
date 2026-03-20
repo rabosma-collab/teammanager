@@ -174,6 +174,8 @@ export function useMatches() {
     if (!currentTeam) return false;
 
     try {
+      const existingMatch = matches.find(m => m.id === id);
+
       const { error } = await supabase
         .from('matches')
         .update(matchData)
@@ -181,6 +183,20 @@ export function useMatches() {
         .eq('team_id', currentTeam.id);
 
       if (error) throw error;
+
+      if (existingMatch && existingMatch.date !== matchData.date) {
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'match_rescheduled',
+          matchId: id,
+          payload: {
+            opponent: matchData.opponent,
+            home_away: matchData.home_away,
+            old_date: existingMatch.date,
+            new_date: matchData.date,
+          },
+        });
+      }
 
       setMatches(prev =>
         prev.map(m => m.id === id ? { ...m, ...matchData } : m)
@@ -193,7 +209,7 @@ export function useMatches() {
       console.error('Error updating match:', error);
       return false;
     }
-  }, [selectedMatch?.id, currentTeam]);
+  }, [matches, selectedMatch?.id, currentTeam]);
 
   const updateMatchScore = useCallback(async (
     id: number,
@@ -348,10 +364,65 @@ export function useMatches() {
     }
   }, [selectedMatch?.id, currentTeam]);
 
+  const cancelMatch = useCallback(async (
+    matchId: number,
+    goalsFor: number | null,
+    goalsAgainst: number | null
+  ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
+    try {
+      const matchToCancel = matches.find(m => m.id === matchId);
+
+      const { error } = await supabase
+        .from('matches')
+        .update({
+          match_status: 'geannuleerd',
+          goals_for: goalsFor,
+          goals_against: goalsAgainst,
+        })
+        .eq('id', matchId)
+        .eq('team_id', currentTeam.id);
+
+      if (error) throw error;
+
+      if (matchToCancel) {
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'match_cancelled',
+          matchId,
+          payload: {
+            opponent: matchToCancel.opponent,
+            home_away: matchToCancel.home_away,
+            date: matchToCancel.date,
+            goals_for: goalsFor,
+            goals_against: goalsAgainst,
+          },
+        });
+      }
+
+      setMatches(prev =>
+        prev.map(m => m.id === matchId
+          ? { ...m, match_status: 'geannuleerd', goals_for: goalsFor, goals_against: goalsAgainst }
+          : m
+        )
+      );
+      if (selectedMatch?.id === matchId) {
+        setSelectedMatch(prev => prev ? { ...prev, match_status: 'geannuleerd', goals_for: goalsFor, goals_against: goalsAgainst } : prev);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error cancelling match:', error);
+      return false;
+    }
+  }, [matches, selectedMatch?.id, currentTeam]);
+
   const deleteMatch = useCallback(async (matchId: number): Promise<boolean> => {
     if (!currentTeam) return false;
 
     try {
+      const matchToDelete = matches.find(m => m.id === matchId);
+
       // Clean up related records first
       await supabase.from('lineups').delete().eq('match_id', matchId);
       await supabase.from('substitutions').delete().eq('match_id', matchId);
@@ -366,6 +437,18 @@ export function useMatches() {
 
       if (error) throw error;
 
+      if (matchToDelete) {
+        logActivity({
+          teamId: currentTeam.id,
+          type: 'match_cancelled',
+          payload: {
+            opponent: matchToDelete.opponent,
+            home_away: matchToDelete.home_away,
+            date: matchToDelete.date,
+          },
+        });
+      }
+
       setMatches(prev => prev.filter(m => m.id !== matchId));
       if (selectedMatch?.id === matchId) {
         setSelectedMatch(null);
@@ -375,7 +458,7 @@ export function useMatches() {
       console.error('Error deleting match:', error);
       return false;
     }
-  }, [selectedMatch?.id, currentTeam]);
+  }, [matches, selectedMatch?.id, currentTeam]);
 
   return {
     matches,
@@ -395,6 +478,7 @@ export function useMatches() {
     updateWasbeurtPlayer,
     updateConsumptiesPlayer,
     updateMatchReport,
+    cancelMatch,
     deleteMatch
   };
 }
