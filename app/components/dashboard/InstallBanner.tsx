@@ -61,7 +61,7 @@ export default function InstallBanner() {
         <p className="text-sm font-semibold text-emerald-100 mb-1">Installeer de app op je telefoon</p>
         {platform === 'ios' && (
           <p className="text-xs text-emerald-300 leading-relaxed">
-            Tik op <span className="inline-block mx-0.5">⎋</span> Delen onderin Safari, scroll naar beneden en kies <strong>"Zet op beginscherm"</strong>.
+            Tik op <span className="inline-block mx-0.5">⎋</span> Delen onderin Safari, scroll naar beneden en kies <strong>&ldquo;Zet op beginscherm&rdquo;</strong>.
           </p>
         )}
         {platform === 'android' && (
