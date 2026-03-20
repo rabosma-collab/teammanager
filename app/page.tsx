@@ -581,9 +581,7 @@ export default function FootballApp() {
         const targetPos = parseInt(overId.replace('pos-', ''));
         const sourcePos = activeData.positionIndex!;
         if (sourcePos === targetPos) return;
-        const baseLineup = periodOverrides[selectedPeriod]
-          ?? computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
-        const newLineup = [...baseLineup];
+        const newLineup = [...displayedOccupants];
         [newLineup[sourcePos], newLineup[targetPos]] = [newLineup[targetPos], newLineup[sourcePos]];
         if (selectedMatch && currentTeam) {
           applyPeriodOverride(selectedMatch.id, currentTeam.id, selectedPeriod, newLineup);
@@ -621,7 +619,7 @@ export default function FootballApp() {
         return newField;
       });
     }
-  }, [selectedPeriod, isManager, isFinalized, isFreeSubstitution, periodOverrides, fieldOccupants, substitutions, players, selectedMatch, currentTeam, applyPeriodOverride, activelyEditing, setFieldOccupants, placePlayerAtPosition]);
+  }, [selectedPeriod, isManager, isFinalized, isFreeSubstitution, displayedOccupants, selectedMatch, currentTeam, applyPeriodOverride, activelyEditing, setFieldOccupants, placePlayerAtPosition]);
 
   // Feature 5: laad opstelling van de vorige wedstrijd
   const handleLoadPreviousLineup = useCallback(async () => {
@@ -1563,9 +1561,7 @@ export default function FootballApp() {
                             setPeriodPositionPick(null);
                           } else {
                             // Andere veldspeler getikt → posities omwisselen
-                            const baseLineup = periodOverrides[selectedPeriod]
-                              ?? computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
-                            const newLineup = [...baseLineup];
+                            const newLineup = [...displayedOccupants];
                             [newLineup[periodPositionPick.positionIndex], newLineup[posIdx]] =
                               [newLineup[posIdx], newLineup[periodPositionPick.positionIndex]];
                             if (selectedMatch && currentTeam) {
