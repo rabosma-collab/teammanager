@@ -298,5 +298,57 @@ export function useStatCredits() {
     }
   }, [currentTeam, balance]);
 
-  return { balance, fetchBalance, awardSpdwCredits, spendCredit, spendCreditsForStats };
+  // Award 1 credit to each player who played in a match (aanwezigheidsbonus)
+  const awardAttendanceCredits = useCallback(async (playerIds: number[], matchId: number) => {
+    if (!currentTeam || playerIds.length === 0) return;
+
+    try {
+      // Haal huidige balansen op
+      const { data: balances } = await supabase
+        .from('stat_credits')
+        .select('player_id, balance')
+        .in('player_id', playerIds)
+        .eq('team_id', currentTeam.id);
+
+      const balanceMap = new Map<number, number>(
+        (balances ?? []).map((r: { player_id: number; balance: number }) => [r.player_id, r.balance])
+      );
+
+      // Initialiseer spelers zonder credit-rij
+      const missingIds = playerIds.filter(id => !balanceMap.has(id));
+      if (missingIds.length > 0) {
+        await supabase.from('stat_credits').insert(
+          missingIds.map(id => ({ player_id: id, team_id: currentTeam.id, balance: INITIAL_BALANCE }))
+        );
+        await supabase.from('stat_credit_transactions').insert(
+          missingIds.map(id => ({
+            team_id: currentTeam.id,
+            player_id: id,
+            balance_change: INITIAL_BALANCE,
+            reason: 'initial',
+          }))
+        );
+        for (const id of missingIds) balanceMap.set(id, INITIAL_BALANCE);
+      }
+
+      // Ken 1 credit toe per speler
+      await Promise.all(
+        playerIds.map(playerId => {
+          const currentBal = balanceMap.get(playerId) ?? INITIAL_BALANCE;
+          return supabase.rpc('award_player_credits', {
+            p_player_id:   playerId,
+            p_team_id:     currentTeam.id,
+            p_new_balance: currentBal + 1,
+            p_change:      1,
+            p_reason:      'attendance',
+            p_match_id:    matchId,
+          });
+        })
+      );
+    } catch (e) {
+      console.error('Error awarding attendance credits:', e);
+    }
+  }, [currentTeam]);
+
+  return { balance, fetchBalance, awardSpdwCredits, awardAttendanceCredits, spendCredit, spendCreditsForStats };
 }

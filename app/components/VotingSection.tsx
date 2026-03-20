@@ -46,13 +46,14 @@ export default function VotingSection({
           <h2 className="text-lg sm:text-2xl font-bold">🏆 Speler van de Week</h2>
           <InfoButton>
             <p className="font-semibold text-white mb-1">Hoe werkt de stemming?</p>
-            <p>Na elke afgeronde wedstrijd open je een stemming van <span className="text-yellow-300 font-semibold">7 dagen</span>.</p>
-            <p className="mt-1">Je kunt niet op jezelf stemmen. De top 3 ontvangt statcredits:</p>
+            <p>Na elke afgeronde wedstrijd open je een stemming van <span className="text-yellow-300 font-semibold">4 dagen</span>.</p>
+            <p className="mt-1">Je kunt niet op jezelf stemmen. De top 3 ontvangt extra statcredits:</p>
             <div className="mt-1.5 space-y-0.5">
               <div className="flex gap-1.5">🥇 <span><span className="text-yellow-300 font-bold">5 credits</span> voor de winnaar</span></div>
               <div className="flex gap-1.5">🥈 <span><span className="text-yellow-300 font-bold">3 credits</span> voor de tweede</span></div>
               <div className="flex gap-1.5">🥉 <span><span className="text-yellow-300 font-bold">2 credits</span> voor de derde</span></div>
             </div>
+            <p className="mt-1.5">Bovendien ontvang je <span className="text-yellow-300 font-bold">1 credit</span> voor elke wedstrijd die je meespeelt.</p>
             <p className="mt-1.5 text-gray-500">Credits gebruik je op de Spelerskaarten-pagina om FIFA-stats aan te passen.</p>
           </InfoButton>
         </div>

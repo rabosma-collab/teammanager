@@ -22,6 +22,21 @@ export const metadata: Metadata = {
   title: 'Team Manager',
   description: 'Beheer je voetbalteam: opstelling, wissels, statistieken en meer.',
   manifest: '/manifest.webmanifest',
+  openGraph: {
+    title: 'Team Manager',
+    description: 'Beheer je voetbalteam: opstelling, wissels, statistieken en meer.',
+    url: 'https://teammanager-psi.vercel.app',
+    siteName: 'Team Manager',
+    images: [
+      {
+        url: 'https://teammanager-psi.vercel.app/icon-1024.png',
+        width: 1024,
+        height: 1024,
+        alt: 'Team Manager logo',
+      },
+    ],
+    type: 'website',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

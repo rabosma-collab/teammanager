@@ -171,7 +171,7 @@ export default function FootballApp() {
 
   const { schemes, fetchSchemes, getSchemeById } = useSubstitutionSchemes();
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
-  const { balance: creditBalance, fetchBalance, awardSpdwCredits, spendCreditsForStats } = useStatCredits();
+  const { balance: creditBalance, fetchBalance, awardSpdwCredits, awardAttendanceCredits, spendCreditsForStats } = useStatCredits();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
   const { overrides: periodOverrides, periodFormations, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, savePeriodFormation, clearOverrides: clearPeriodOverrides } = usePeriodOverrides();
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
@@ -724,12 +724,30 @@ export default function FootballApp() {
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error ?? 'Onbekende fout');
 
-      // 2. Sla spelerstatistieken op (goals, assists, kaarten)
+      // 2. Ken 1 aanwezigheidscredit toe aan elke speler in de opstelling
+      if (currentTeam) {
+        const { data: lineupRows } = await supabase
+          .from('lineups')
+          .select('player_id')
+          .eq('match_id', selectedMatch.id);
+
+        if (lineupRows && lineupRows.length > 0) {
+          const lineupPlayerIds = lineupRows.map((r: { player_id: number }) => r.player_id);
+          const regularPlayers = players.filter(
+            p => lineupPlayerIds.includes(p.id) && !p.is_guest
+          );
+          if (regularPlayers.length > 0) {
+            await awardAttendanceCredits(regularPlayers.map(p => p.id), selectedMatch.id);
+          }
+        }
+      }
+
+      // 3. Sla spelerstatistieken op (goals, assists, kaarten)
       if (params.stats.length > 0 && currentTeam) {
         await saveMatchStats(selectedMatch.id, params.stats);
       }
 
-      // 3. Sla wedstrijdverslag op (indien ingevuld)
+      // 4. Sla wedstrijdverslag op (indien ingevuld)
       if (params.matchReport) {
         await updateMatchReport(selectedMatch.id, params.matchReport);
       }

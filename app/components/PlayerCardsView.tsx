@@ -419,7 +419,7 @@ export default function PlayerCardsView({
             <div className="space-y-2 text-xs text-gray-400">
               <div className="flex items-start gap-2">
                 <span className="text-yellow-400 mt-0.5">→</span>
-                <span>Je verdient credits door de <span className="text-yellow-300 font-semibold">Speler van de Week</span> te winnen op het Dashboard. De winnaar ontvangt credits op basis van het aantal stemmen.</span>
+                <span>Je verdient credits op twee manieren: <span className="text-yellow-300 font-semibold">1 credit</span> voor elke wedstrijd die je hebt meegespeeld, en extra credits door de <span className="text-yellow-300 font-semibold">Speler van de Week</span> te worden via de stemming op het Dashboard.</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="text-yellow-400 mt-0.5">→</span>
