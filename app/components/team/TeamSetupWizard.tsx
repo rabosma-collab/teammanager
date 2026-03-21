@@ -45,13 +45,15 @@ const DEFAULT_SETTINGS: SettingsState = {
 };
 
 type WedstrijdState = Pick<TeamSettings,
-  'track_wasbeurt' | 'track_consumpties' |
+  'track_wasbeurt' | 'track_consumpties' | 'track_vervoer' | 'vervoer_count' |
   'track_assembly_time' | 'track_match_time' | 'track_location_details'
 >;
 
 const DEFAULT_WEDSTRIJD: WedstrijdState = {
   track_wasbeurt: true,
   track_consumpties: true,
+  track_vervoer: true,
+  vervoer_count: 3,
   track_assembly_time: false,
   track_match_time: false,
   track_location_details: false,
@@ -409,6 +411,7 @@ export default function TeamSetupWizard() {
             <StepWedstrijdbeheer
               settings={wedstrijd}
               onToggle={(key) => setWedstrijd((prev: WedstrijdState) => ({ ...prev, [key]: !prev[key] }))}
+              onVervoerCountChange={(count) => setWedstrijd((prev: WedstrijdState) => ({ ...prev, vervoer_count: count }))}
               onNext={handleSaveWedstrijd}
               onBack={() => setStep(4)}
               onSkip={() => setStep(6)}

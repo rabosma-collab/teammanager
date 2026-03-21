@@ -15,7 +15,7 @@ interface TaakRijProps {
   isUnavailable: boolean;
   eligibleFirst: Player | null;
   allPlayers: Player[];
-  countField: 'wash_count' | 'consumption_count';
+  countField: 'wash_count' | 'consumption_count' | 'transport_count';
   countSuffix: string;
   isEditing: boolean;
   overrideId: number | null;
@@ -72,6 +72,69 @@ function TaakRij({
   );
 }
 
+interface VervoerRijProps {
+  slotIndex: number;
+  player: Player | null;
+  eligiblePlayers: Player[];
+  allPlayers: Player[];
+  overrideIds: number[];
+  isEditing: boolean;
+  onOverrideChange: (slotIndex: number, playerId: number | null) => void;
+}
+
+function VervoerRij({
+  slotIndex,
+  player,
+  eligiblePlayers,
+  allPlayers,
+  overrideIds,
+  isEditing,
+  onOverrideChange,
+}: VervoerRijProps) {
+  const overrideId = overrideIds[slotIndex] ?? null;
+  const overridePlayer = overrideId ? allPlayers.find(p => p.id === overrideId) ?? null : null;
+  const isUnavailable = overridePlayer
+    ? (overridePlayer.injured || !eligiblePlayers.some(p => p.id === overridePlayer.id))
+    : false;
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-gray-400 text-sm flex-shrink-0">
+        {slotIndex === 0 ? '🚗' : '🚙'} Chauffeur {slotIndex + 1}:
+      </span>
+      {isUnavailable && overridePlayer ? (
+        <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-2 py-0.5 text-xs">
+          ⚠️ {overridePlayer.name} is {overridePlayer.injured ? 'geblesseerd' : 'afwezig'}, automatisch gekozen
+        </span>
+      ) : player ? (
+        <span className="font-bold text-white text-sm">{player.name}</span>
+      ) : (
+        <span className="text-gray-500 text-sm">Geen speler beschikbaar</span>
+      )}
+      {player && !isUnavailable && (
+        <span className="text-gray-500 text-xs">({player.transport_count}x)</span>
+      )}
+      {isEditing && (
+        <select
+          value={overrideId ?? ''}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+            const val = e.target.value;
+            onOverrideChange(slotIndex, val ? Number(val) : null);
+          }}
+          className="text-xs bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 ml-auto"
+        >
+          <option value="">— automatisch ({eligiblePlayers[slotIndex]?.name ?? '?'})</option>
+          {allPlayers.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.name} ({p.transport_count}x)
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
 interface TakenBlokProps {
   // Wasbeurt
   trackWasbeurt: boolean;
@@ -91,6 +154,14 @@ interface TakenBlokProps {
   consumptiesAllPlayers: Player[];
   consumptiesOverrideId: number | null;
   onConsumptiesChange: (playerId: number | null) => void;
+  // Vervoer
+  trackVervoer: boolean;
+  vervoerCount: number;
+  vervoerEligible: Player[];
+  vervoerAllPlayers: Player[];
+  vervoerOverrideIds: number[];
+  vervoerDisplayPlayers: (Player | null)[];
+  onVervoerChange: (playerIds: number[]) => void;
   // Match info
   match?: Match | null;
   trackAssemblyTime?: boolean;
@@ -117,6 +188,13 @@ export default function TakenBlok({
   consumptiesAllPlayers,
   consumptiesOverrideId,
   onConsumptiesChange,
+  trackVervoer,
+  vervoerCount,
+  vervoerEligible,
+  vervoerAllPlayers,
+  vervoerOverrideIds,
+  vervoerDisplayPlayers,
+  onVervoerChange,
   match,
   trackAssemblyTime = false,
   trackMatchTime = false,
@@ -130,7 +208,19 @@ export default function TakenBlok({
     (trackMatchTime && match.match_time) ||
     (trackLocationDetails && match.location_details)
   ));
-  if (!trackWasbeurt && !trackConsumpties && !hasMatchInfo) return null;
+  if (!trackWasbeurt && !trackConsumpties && !trackVervoer && !hasMatchInfo) return null;
+
+  const handleVervoerSlotChange = (slotIndex: number, playerId: number | null) => {
+    const newIds = [...vervoerOverrideIds];
+    if (playerId === null) {
+      newIds.splice(slotIndex, 1);
+    } else {
+      newIds[slotIndex] = playerId;
+    }
+    // Verwijder duplicaten (zelfde speler 2x)
+    const deduped = newIds.filter((id, idx) => newIds.indexOf(id) === idx);
+    onVervoerChange(deduped);
+  };
 
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 px-4 py-3 my-3 space-y-3">
@@ -148,7 +238,7 @@ export default function TakenBlok({
       </div>
       {showInfo && (
         <div className="text-xs text-gray-400 bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 leading-relaxed">
-          De speler met het minste aantal beurten is automatisch aan de beurt. Bij een gelijk aantal gaat het <span className="text-white font-medium">alfabetisch</span>. <span className="text-white font-medium">Wasbeurt</span>: deze speler regelt het wassen van de shirts na de wedstrijd. <span className="text-white font-medium">Consumpties</span>: deze speler zorgt voor de drank na afloop. De manager kan handmatig een andere speler aanwijzen.
+          De speler met het minste aantal beurten is automatisch aan de beurt. Bij een gelijk aantal gaat het <span className="text-white font-medium">alfabetisch</span>. <span className="text-white font-medium">Wasbeurt</span>: deze speler regelt het wassen van de shirts na de wedstrijd. <span className="text-white font-medium">Consumpties</span>: deze speler zorgt voor de drank na afloop. <span className="text-white font-medium">Vervoer</span>: deze spelers regelen het vervoer naar de wedstrijd. De manager kan handmatig andere spelers aanwijzen.
         </div>
       )}
       {match && (trackAssemblyTime || trackMatchTime || trackLocationDetails) && (
@@ -205,6 +295,18 @@ export default function TakenBlok({
           onOverrideChange={onConsumptiesChange}
         />
       )}
+      {trackVervoer && Array.from({ length: vervoerCount }).map((_, i) => (
+        <VervoerRij
+          key={i}
+          slotIndex={i}
+          player={vervoerDisplayPlayers[i] ?? null}
+          eligiblePlayers={vervoerEligible}
+          allPlayers={vervoerAllPlayers}
+          overrideIds={vervoerOverrideIds}
+          isEditing={isEditing}
+          onOverrideChange={handleVervoerSlotChange}
+        />
+      ))}
     </div>
   );
 }

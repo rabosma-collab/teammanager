@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS player_season_stats (
   min                 int NOT NULL DEFAULT 0,
   wash_count          int NOT NULL DEFAULT 0,
   consumption_count   int NOT NULL DEFAULT 0,
+  transport_count     int NOT NULL DEFAULT 0,
   created_at          timestamptz NOT NULL DEFAULT now(),
   UNIQUE (player_id, season_id)
 );
@@ -127,12 +128,12 @@ BEGIN
     INSERT INTO player_season_stats (
       player_id, season_id, team_id,
       goals, assists, yellow_cards, red_cards, own_goals,
-      min, wash_count, consumption_count
+      min, wash_count, consumption_count, transport_count
     )
     SELECT
       id, v_old_season_id, p_team_id,
       goals, assists, yellow_cards, red_cards, COALESCE(own_goals, 0),
-      min, wash_count, consumption_count
+      min, wash_count, consumption_count, COALESCE(transport_count, 0)
     FROM players
     WHERE team_id = p_team_id AND is_guest IS NOT TRUE
     ON CONFLICT (player_id, season_id) DO UPDATE SET
@@ -143,7 +144,8 @@ BEGIN
       own_goals         = EXCLUDED.own_goals,
       min               = EXCLUDED.min,
       wash_count        = EXCLUDED.wash_count,
-      consumption_count = EXCLUDED.consumption_count;
+      consumption_count = EXCLUDED.consumption_count,
+      transport_count   = EXCLUDED.transport_count;
 
     -- Sluit het oude seizoen af
     UPDATE seasons
@@ -161,7 +163,8 @@ BEGIN
     own_goals         = 0,
     min               = 0,
     wash_count        = 0,
-    consumption_count = 0
+    consumption_count = 0,
+    transport_count   = 0
   WHERE team_id = p_team_id AND is_guest IS NOT TRUE;
 
   -- Maak nieuw seizoen aan

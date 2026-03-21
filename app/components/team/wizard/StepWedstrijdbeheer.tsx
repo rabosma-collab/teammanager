@@ -4,13 +4,14 @@ import React from 'react';
 import type { TeamSettings } from '../../../lib/types';
 
 type WedstrijdState = Pick<TeamSettings,
-  'track_wasbeurt' | 'track_consumpties' |
+  'track_wasbeurt' | 'track_consumpties' | 'track_vervoer' | 'vervoer_count' |
   'track_assembly_time' | 'track_match_time' | 'track_location_details'
 >;
 
 interface Props {
   settings: WedstrijdState;
   onToggle: (key: keyof WedstrijdState) => void;
+  onVervoerCountChange: (count: number) => void;
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
@@ -25,6 +26,7 @@ const WEDSTRIJDINFO = [
 const WEDSTRIJDTAKEN = [
   { key: 'track_wasbeurt'    as keyof WedstrijdState, label: '🧺 Wasbeurt',    description: 'Wijs per wedstrijd een speler aan voor de was' },
   { key: 'track_consumpties' as keyof WedstrijdState, label: '🥤 Consumpties', description: 'Wijs per wedstrijd een speler aan voor de consumpties' },
+  { key: 'track_vervoer'     as keyof WedstrijdState, label: '🚗 Vervoer',     description: 'Wijs per wedstrijd spelers aan die het vervoer regelen' },
 ];
 
 function ToggleRow({ label, description, checked, onToggle }: {
@@ -48,7 +50,7 @@ function ToggleRow({ label, description, checked, onToggle }: {
   );
 }
 
-export default function StepWedstrijdbeheer({ settings, onToggle, onNext, onBack, onSkip }: Props) {
+export default function StepWedstrijdbeheer({ settings, onToggle, onVervoerCountChange, onNext, onBack, onSkip }: Props) {
   return (
     <div className="space-y-6">
       <div>
@@ -65,7 +67,7 @@ export default function StepWedstrijdbeheer({ settings, onToggle, onNext, onBack
               key={key}
               label={label}
               description={description}
-              checked={settings[key]}
+              checked={settings[key] as boolean}
               onToggle={() => onToggle(key)}
             />
           ))}
@@ -81,10 +83,26 @@ export default function StepWedstrijdbeheer({ settings, onToggle, onNext, onBack
               key={key}
               label={label}
               description={description}
-              checked={settings[key]}
+              checked={settings[key] as boolean}
               onToggle={() => onToggle(key)}
             />
           ))}
+          {settings.track_vervoer && (
+            <div className="flex items-center gap-3 px-3 py-2 bg-gray-700/30 rounded-xl ml-2">
+              <span className="text-sm text-gray-400 flex-1">Aantal chauffeurs</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onVervoerCountChange(Math.max(1, (settings.vervoer_count ?? 3) - 1))}
+                  className="w-7 h-7 rounded bg-gray-600 hover:bg-gray-500 text-white font-bold text-sm flex items-center justify-center transition"
+                >−</button>
+                <span className="text-white font-bold text-sm w-4 text-center">{settings.vervoer_count ?? 3}</span>
+                <button
+                  onClick={() => onVervoerCountChange(Math.min(6, (settings.vervoer_count ?? 3) + 1))}
+                  className="w-7 h-7 rounded bg-gray-600 hover:bg-gray-500 text-white font-bold text-sm flex items-center justify-center transition"
+                >+</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

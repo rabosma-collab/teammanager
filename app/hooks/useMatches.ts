@@ -334,6 +334,34 @@ export function useMatches() {
     }
   }, [selectedMatch?.id, currentTeam]);
 
+  const updateTransportPlayers = useCallback(async (
+    matchId: number,
+    playerIds: number[]
+  ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
+    try {
+      const { error } = await supabase
+        .from('matches')
+        .update({ transport_player_ids: playerIds })
+        .eq('id', matchId)
+        .eq('team_id', currentTeam.id);
+
+      if (error) throw error;
+
+      setMatches(prev =>
+        prev.map(m => m.id === matchId ? { ...m, transport_player_ids: playerIds } : m)
+      );
+      if (selectedMatch?.id === matchId) {
+        setSelectedMatch(prev => prev ? { ...prev, transport_player_ids: playerIds } : prev);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error updating transport players:', error);
+      return false;
+    }
+  }, [selectedMatch?.id, currentTeam]);
+
   const updateMatchReport = useCallback(async (
     matchId: number,
     report: string | null
@@ -357,12 +385,37 @@ export function useMatches() {
       if (selectedMatch?.id === matchId) {
         setSelectedMatch(prev => prev ? { ...prev, match_report: trimmed } : prev);
       }
+
+      // Automatisch mededeling plaatsen als verslag niet leeg is
+      if (trimmed) {
+        const match = matches.find(m => m.id === matchId)
+          ?? (selectedMatch?.id === matchId ? selectedMatch : null);
+        const opponent = match?.opponent ?? 'tegenstander';
+        const prefix = `📋 Wedstrijdverslag vs ${opponent}:\n`;
+        const maxBody = 300 - prefix.length;
+        const body = trimmed.length > maxBody ? trimmed.slice(0, maxBody - 1) + '…' : trimmed;
+        const message = prefix + body;
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        await supabase.from('announcements').delete().eq('team_id', currentTeam.id);
+        await supabase.from('announcements').insert({
+          team_id: currentTeam.id,
+          message,
+          expires_at: expiresAt.toISOString(),
+          created_by: user?.id,
+        });
+      }
+
       return true;
     } catch (error) {
       console.error('Error updating match report:', error);
       return false;
     }
-  }, [selectedMatch?.id, currentTeam]);
+  }, [selectedMatch?.id, currentTeam, matches]);
 
   const cancelMatch = useCallback(async (
     matchId: number,
@@ -477,6 +530,7 @@ export function useMatches() {
     publishLineup,
     updateWasbeurtPlayer,
     updateConsumptiesPlayer,
+    updateTransportPlayers,
     updateMatchReport,
     cancelMatch,
     deleteMatch

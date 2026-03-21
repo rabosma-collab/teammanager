@@ -18,6 +18,8 @@ interface NextMatchCardProps {
   teamName?: string;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
+  trackVervoer?: boolean;
+  vervoerCount?: number;
   trackAssemblyTime?: boolean;
   trackMatchTime?: boolean;
   trackLocationDetails?: boolean;
@@ -64,6 +66,8 @@ export default function NextMatchCard({
   teamName,
   trackWasbeurt = true,
   trackConsumpties = true,
+  trackVervoer = true,
+  vervoerCount = 3,
   trackAssemblyTime = false,
   trackMatchTime = false,
   trackLocationDetails = false,
@@ -87,6 +91,8 @@ export default function NextMatchCard({
       gameFormat,
       trackWasbeurt,
       trackConsumpties,
+      trackVervoer,
+      vervoerCount,
       trackAssemblyTime,
       trackMatchTime,
       trackLocationDetails,
@@ -160,6 +166,26 @@ export default function NextMatchCard({
   const nextConsumpties = (!consumptiesOverridePlayer || consumptiesOverrideUnavailable)
     ? consumptiesEligible[0] ?? null
     : consumptiesOverridePlayer;
+
+  // Vervoer: N chauffeurs op basis van transport_count, met override
+  const vervoerEligible = players.filter(p =>
+    !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+  ).sort((a, b) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name));
+  const vervoerOverrideIds: number[] = match.transport_player_ids ?? [];
+  const vervoerDisplayPlayers: (Player | null)[] = Array.from({ length: vervoerCount }).map((_, i) => {
+    const overrideId = vervoerOverrideIds[i] ?? null;
+    if (overrideId) {
+      const op = players.find(p => p.id === overrideId && !p.is_guest) ?? null;
+      if (op && !op.injured && !matchAbsences.includes(op.id)) return op;
+    }
+    const usedIds = new Set(
+      vervoerOverrideIds.slice(0, i).filter(id => {
+        const p = players.find(pl => pl.id === id);
+        return p && !p.injured && !matchAbsences.includes(p.id);
+      })
+    );
+    return vervoerEligible.filter(p => !usedIds.has(p.id))[0] ?? null;
+  });
 
   // Toon knoppen alleen voor spelers (niet-manager of manager met spelerrecord) bij niet-afgeronde wedstrijden
   const showPlayerButtons = !!(currentPlayerId && !isFinalized && currentPlayer);
@@ -244,7 +270,7 @@ export default function NextMatchCard({
             )}
           </div>
         ) : null}
-        {!isFinalized && (trackWasbeurt || trackConsumpties) && (
+        {!isFinalized && (trackWasbeurt || trackConsumpties || trackVervoer) && (
           <div className="mt-2 space-y-1">
             {trackWasbeurt && nextWasbeurt && (
               <div className="flex items-center gap-1.5 text-xs flex-wrap">
@@ -268,6 +294,12 @@ export default function NextMatchCard({
                     ⚠️ {consumptiesOverridePlayer.name} is {consumptiesOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}, automatisch gekozen
                   </span>
                 )}
+              </div>
+            )}
+            {trackVervoer && vervoerDisplayPlayers.some(p => p !== null) && (
+              <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                <span>🚗</span>
+                <span className="text-orange-300">Vervoer: <span className="font-bold text-white">{vervoerDisplayPlayers.filter((p): p is Player => p !== null).map(p => p.name).join(', ')}</span></span>
               </div>
             )}
           </div>

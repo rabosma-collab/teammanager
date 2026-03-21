@@ -69,6 +69,8 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
         track_results:     settings.track_results      ?? true,
         track_wasbeurt:         settings.track_wasbeurt         ?? true,
         track_consumpties:      settings.track_consumpties      ?? true,
+        track_vervoer:          settings.track_vervoer          ?? true,
+        vervoer_count:          settings.vervoer_count          ?? 3,
         track_assembly_time:    settings.track_assembly_time    ?? false,
         track_match_time:       settings.track_match_time       ?? false,
         track_location_details: settings.track_location_details ?? false,
@@ -397,6 +399,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
             {[
               { key: 'track_wasbeurt',    label: '🧺 Wasbeurt' },
               { key: 'track_consumpties', label: '🥤 Consumpties' },
+              { key: 'track_vervoer',     label: '🚗 Vervoer' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
                 <span className="text-sm font-medium">{label}</span>
@@ -416,6 +419,22 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
                 </button>
               </label>
             ))}
+            {draft.track_vervoer && (
+              <div className="flex items-center gap-3 px-3 py-2 bg-gray-700/30 rounded-lg">
+                <span className="text-sm text-gray-400 flex-1">Aantal chauffeurs</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setDraft(prev => prev ? { ...prev, vervoer_count: Math.max(1, (prev.vervoer_count ?? 3) - 1) } : null)}
+                    className="w-7 h-7 rounded bg-gray-600 hover:bg-gray-500 text-white font-bold text-sm flex items-center justify-center transition"
+                  >−</button>
+                  <span className="text-white font-bold text-sm w-4 text-center">{draft.vervoer_count ?? 3}</span>
+                  <button
+                    onClick={() => setDraft(prev => prev ? { ...prev, vervoer_count: Math.min(6, (prev.vervoer_count ?? 3) + 1) } : null)}
+                    className="w-7 h-7 rounded bg-gray-600 hover:bg-gray-500 text-white font-bold text-sm flex items-center justify-center transition"
+                  >+</button>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

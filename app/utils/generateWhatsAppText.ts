@@ -18,6 +18,8 @@ export interface WhatsAppTextData {
   gameFormat?: string;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
+  trackVervoer?: boolean;
+  vervoerCount?: number;
   trackAssemblyTime?: boolean;
   trackMatchTime?: boolean;
   trackLocationDetails?: boolean;
@@ -45,6 +47,8 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
     gameFormat,
     trackWasbeurt = true,
     trackConsumpties = true,
+    trackVervoer = true,
+    vervoerCount = 3,
     trackAssemblyTime = false,
     trackMatchTime = false,
     trackLocationDetails = false,
@@ -129,6 +133,27 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
       : null;
     const consumptiesSpeler = override ?? eligible[0] ?? null;
     if (consumptiesSpeler) taskLines.push(`🥤 Consumpties: *${consumptiesSpeler.name}*`);
+  }
+
+  if (trackVervoer) {
+    const eligible = players
+      .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .sort((a, b) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name));
+    const overrideIds: number[] = match.transport_player_ids ?? [];
+    const chauffeurs: string[] = [];
+    for (let i = 0; i < vervoerCount; i++) {
+      const overrideId = overrideIds[i] ?? null;
+      let player = null;
+      if (overrideId) {
+        player = players.find(p => p.id === overrideId && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null;
+      }
+      if (!player) {
+        const usedIds = new Set(chauffeurs.map(n => players.find(p => p.name === n)?.id).filter(Boolean));
+        player = eligible.find(p => !usedIds.has(p.id)) ?? null;
+      }
+      if (player) chauffeurs.push(player.name);
+    }
+    if (chauffeurs.length > 0) taskLines.push(`🚗 Vervoer: *${chauffeurs.join(', ')}*`);
   }
 
   if (taskLines.length > 0) {
