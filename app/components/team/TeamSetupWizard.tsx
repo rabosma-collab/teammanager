@@ -13,14 +13,16 @@ import StepSettings from './wizard/StepSettings';
 import StepPlayers from './wizard/StepPlayers';
 import StepMatch from './wizard/StepMatch';
 import StepSummary from './wizard/StepSummary';
+import StepWedstrijdbeheer from './wizard/StepWedstrijdbeheer';
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 const STEP_LABELS = [
   'Team',
   'Spelvorm',
   'Formatie',
   'Stats',
+  'Beheer',
   'Spelers',
   'Wedstrijd',
   'Klaar',
@@ -40,6 +42,19 @@ const DEFAULT_SETTINGS: SettingsState = {
   track_results: true,
   track_cards: false,
   track_clean_sheets: false,
+};
+
+type WedstrijdState = Pick<TeamSettings,
+  'track_wasbeurt' | 'track_consumpties' |
+  'track_assembly_time' | 'track_match_time' | 'track_location_details'
+>;
+
+const DEFAULT_WEDSTRIJD: WedstrijdState = {
+  track_wasbeurt: true,
+  track_consumpties: true,
+  track_assembly_time: false,
+  track_match_time: false,
+  track_location_details: false,
 };
 
 function generateSlug(name: string): string {
@@ -80,9 +95,12 @@ export default function TeamSetupWizard() {
   const [settingsSaved, setSettingsSaved] = useState(false);
 
   // Stap 5
-  const [playersImported, setPlayersImported] = useState(0);
+  const [wedstrijd, setWedstrijd] = useState<WedstrijdState>(DEFAULT_WEDSTRIJD);
 
   // Stap 6
+  const [playersImported, setPlayersImported] = useState(0);
+
+  // Stap 7
   const [matchCreated, setMatchCreated] = useState(false);
 
   // Stap 7
@@ -236,7 +254,17 @@ export default function TeamSetupWizard() {
     setStep(5);
   };
 
-  // ── Stap 7: Afronden ──────────────────────────────────────
+  // ── Stap 5: Wedstrijdbeheer opslaan ───────────────────────
+  const handleSaveWedstrijd = async () => {
+    if (teamId) {
+      await supabase
+        .from('team_settings')
+        .upsert({ team_id: teamId, ...wedstrijd }, { onConflict: 'team_id' });
+    }
+    setStep(6);
+  };
+
+  // ── Stap 8: Afronden ──────────────────────────────────────
   const handleFinish = async () => {
     if (!teamId) return;
     setFinishLoading(true);
@@ -272,6 +300,7 @@ export default function TeamSetupWizard() {
     setFormationSaved(false);
     setSettings(DEFAULT_SETTINGS);
     setSettingsSaved(false);
+    setWedstrijd(DEFAULT_WEDSTRIJD);
     setPlayersImported(0);
     setMatchCreated(false);
     setRestoredFromStorage(false);
@@ -376,27 +405,36 @@ export default function TeamSetupWizard() {
               onSkip={() => setStep(5)}
             />
           )}
-          {step === 5 && teamId && (
+          {step === 5 && (
+            <StepWedstrijdbeheer
+              settings={wedstrijd}
+              onToggle={(key) => setWedstrijd((prev: WedstrijdState) => ({ ...prev, [key]: !prev[key] }))}
+              onNext={handleSaveWedstrijd}
+              onBack={() => setStep(4)}
+              onSkip={() => setStep(6)}
+            />
+          )}
+          {step === 6 && teamId && (
             <StepPlayers
               teamId={teamId}
               currentUserId={currentUserId}
-              onNext={() => setStep(6)}
-              onBack={() => setStep(4)}
+              onNext={() => setStep(7)}
+              onBack={() => setStep(5)}
               onSkip={handleSkip}
               onPlayersImported={(count) => setPlayersImported(count)}
             />
           )}
-          {step === 6 && teamId && (
+          {step === 7 && teamId && (
             <StepMatch
               teamId={teamId}
               defaultFormation={formation}
-              onNext={() => setStep(7)}
-              onBack={() => setStep(5)}
+              onNext={() => setStep(8)}
+              onBack={() => setStep(6)}
               onSkip={handleSkip}
               onMatchCreated={() => setMatchCreated(true)}
             />
           )}
-          {step === 7 && (
+          {step === 8 && (
             <StepSummary
               data={{
                 name,
@@ -408,7 +446,7 @@ export default function TeamSetupWizard() {
                 settingsDone: settingsSaved,
               }}
               onFinish={handleFinish}
-              onBack={() => setStep(6)}
+              onBack={() => setStep(7)}
               isLoading={finishLoading}
             />
           )}

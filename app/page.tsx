@@ -185,7 +185,7 @@ export default function FootballApp() {
 
   // ---- BEREKENDE WAARDEN ----
   const editable = isMatchEditable(isManager);
-  const isFinalized = selectedMatch?.match_status === 'afgerond';
+  const isFinalized = selectedMatch?.match_status === 'afgerond' || selectedMatch?.match_status === 'geannuleerd';
   const isLineupPublished = selectedMatch?.lineup_published === true;
   const activelyEditing = editable && isEditingLineup;
   // Spelers mogen de opstelling alleen zien als: manager, opstelling gepubliceerd, of wedstrijd afgerond
@@ -242,6 +242,7 @@ export default function FootballApp() {
   const getMatchStatusBadge = useCallback((): string => {
     if (!selectedMatch) return '';
     if (selectedMatch.match_status === 'afgerond') return '✅ Afgerond';
+    if (selectedMatch.match_status === 'geannuleerd') return '🚫 Geannuleerd';
     const matchDate = new Date(selectedMatch.date);
     matchDate.setHours(0, 0, 0, 0);
     const today = new Date();
@@ -1353,10 +1354,11 @@ export default function FootballApp() {
                 {matches.map(match => {
                   const isPast = new Date(match.date) < new Date();
                   const done = match.match_status === 'afgerond';
+                  const cancelled = match.match_status === 'geannuleerd';
                   return (
                     <option key={match.id} value={match.id}>
                       {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - {match.opponent}
-                      {done ? ' ✅' : isPast ? ' ✓' : ''}
+                      {done ? ' ✅' : cancelled ? ' 🚫' : isPast ? ' ✓' : ''}
                     </option>
                   );
                 })}
