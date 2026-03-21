@@ -322,7 +322,7 @@ export default function PlayerCardsView({
           { tier: 'silver', label: 'Silver',  color: 'bg-gray-500',    text: '65–74' },
           { tier: 'gold',   label: 'Goud',    color: 'bg-yellow-600',  text: '75–84' },
           { tier: 'elite',  label: 'Elite',   color: 'bg-violet-700',  text: '85–89' },
-          { tier: 'toty',   label: 'TOTY',    color: 'bg-cyan-700',    text: '90+' },
+          { tier: 'legend', label: 'Legend',  color: 'bg-cyan-700',    text: '90+' },
         ].map(({ label, color, text }) => (
           <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
             <span className={`inline-block w-2.5 h-2.5 rounded-full ${color}`} />
@@ -347,7 +347,8 @@ export default function PlayerCardsView({
       </div>
 
       {showInfo && (
-        <div className="mb-6 p-4 bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-300 space-y-5">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowInfo(false)}>
+        <div className="bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-300 space-y-5 max-w-lg w-full max-h-[80vh] overflow-y-auto p-4" onClick={e => e.stopPropagation()}>
           <div>
             <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
               <span>⚡</span> Hoe wordt de rating berekend?
@@ -435,6 +436,10 @@ export default function PlayerCardsView({
               </div>
             </div>
           </div>
+          <div className="border-t border-gray-700 pt-3">
+            <button onClick={() => setShowInfo(false)} className="text-blue-400 hover:text-blue-200 text-xs font-medium">Sluiten</button>
+          </div>
+        </div>
         </div>
       )}
 

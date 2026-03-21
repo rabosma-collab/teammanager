@@ -31,8 +31,12 @@ function InfoHeader({ showInfo, onToggle }: { showInfo: boolean; onToggle: () =>
         </button>
       </div>
       {showInfo && (
-        <div className="mt-1.5 mb-2 text-xs text-gray-400 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 leading-relaxed">
-          Hier stel je de wissels in voor deze wedstrijd. Kies het aantal wisselmomenten via de toolbar bovenaan (1 / 2 / 3 / 4). De minuten worden automatisch gelijkmatig verdeeld over de wedstrijd. Wissels buiten de vaste momenten voeg je toe via <span className="text-white font-medium">Extra wissels</span>.
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => onToggle()}>
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 max-w-sm w-full text-sm text-gray-300 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-white mb-2">Wissels</h3>
+            <p className="mb-3 leading-relaxed">Hier stel je de wissels in voor deze wedstrijd. Kies het aantal wisselmomenten via de toolbar bovenaan (1 / 2 / 3 / 4). De minuten worden automatisch gelijkmatig verdeeld over de wedstrijd. Wissels buiten de vaste momenten voeg je toe via <span className="text-white font-medium">Extra wissels</span>.</p>
+            <button onClick={() => onToggle()} className="text-blue-400 hover:text-blue-200 text-xs font-medium">Sluiten</button>
+          </div>
         </div>
       )}
     </div>

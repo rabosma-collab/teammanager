@@ -123,6 +123,7 @@ export default function FootballApp() {
   const [finalizeGoalsAgainst, setFinalizeGoalsAgainst] = useState<string>('');
   const [recentStatsMap, setRecentStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
   const [showExtraSubModal, setShowExtraSubModal] = useState(false);
+  const [showPrevLineupInfo, setShowPrevLineupInfo] = useState(false);
   const [extraSubMinute, setExtraSubMinute] = useState(45);
   const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
   const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
@@ -659,11 +660,11 @@ export default function FootballApp() {
     if (!selectedMatch || !currentTeam) return;
 
     const previousMatches = [...matches]
-      .filter(m => m.id !== selectedMatch.id)
+      .filter(m => m.id !== selectedMatch.id && m.match_status === 'afgerond')
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     if (previousMatches.length === 0) {
-      toast.warning('Geen eerdere wedstrijd gevonden');
+      toast.warning('Geen afgesloten wedstrijd gevonden');
       return;
     }
 
@@ -1318,6 +1319,7 @@ export default function FootballApp() {
           lastSpdwResult={lastSpdwResult}
           recentStatsMap={recentStatsMap}
           trackResults={teamSettings?.track_results ?? true}
+          matchDuration={matchDuration}
           trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
           trackConsumpties={teamSettings?.track_consumpties ?? true}
           trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
@@ -1561,13 +1563,33 @@ export default function FootballApp() {
               )}
 
               {activelyEditing && (
-                <button
-                  onClick={handleLoadPreviousLineup}
-                  title="Laad de opstelling van de vorige wedstrijd"
-                  className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm flex items-center gap-1.5"
-                >
-                  📋 Vorige opstelling
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleLoadPreviousLineup}
+                    className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm"
+                  >
+                    Kopieer opstelling vorige wedstrijd
+                  </button>
+                  <button
+                    onClick={() => setShowPrevLineupInfo(true)}
+                    className="text-gray-500 hover:text-gray-300 transition-colors touch-manipulation"
+                    aria-label="Uitleg kopieer opstelling"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {showPrevLineupInfo && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowPrevLineupInfo(false)}>
+                  <div className="bg-gray-800 border border-gray-600 rounded-xl p-4 max-w-sm w-full text-sm text-gray-300 shadow-xl" onClick={e => e.stopPropagation()}>
+                    <h3 className="font-bold text-white mb-2">Kopieer opstelling vorige wedstrijd</h3>
+                    <p className="mb-2">Vult de opstelling in met de meest recente <strong className="text-white">afgesloten wedstrijd</strong> waarvoor een opstelling is opgeslagen.</p>
+                    <p className="mb-3 text-gray-400">Alleen vaste spelers worden meegenomen. Gastspelers worden niet gekopieerd.</p>
+                    <button onClick={() => setShowPrevLineupInfo(false)} className="text-blue-400 hover:text-blue-200 text-xs font-medium">Sluiten</button>
+                  </div>
+                </div>
               )}
 
             </div>

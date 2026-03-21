@@ -34,14 +34,21 @@ export function useMatches() {
       setMatches(data || []);
 
       if (data && data.length > 0) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        setSelectedMatch(prev => {
+          // Behoud de huidige selectie als die wedstrijd nog bestaat (bijv. na Realtime update)
+          if (prev) {
+            const stillExists = data.find((m: { id: number }) => m.id === prev.id);
+            if (stillExists) return stillExists;
+          }
 
-        const upcoming = data
-          .filter((m: { date: string }) => new Date(m.date) >= today)
-          .sort((a: { date: string }, b: { date: string }) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        setSelectedMatch(upcoming.length > 0 ? upcoming[0] : data[0]);
+          // Anders: selecteer de eerstvolgende wedstrijd
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const upcoming = data
+            .filter((m: { date: string }) => new Date(m.date) >= today)
+            .sort((a: { date: string }, b: { date: string }) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          return upcoming.length > 0 ? upcoming[0] : data[0];
+        });
       }
     } catch (error) {
       console.error('Error fetching matches:', error);

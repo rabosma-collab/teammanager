@@ -316,7 +316,7 @@ export default function PlayerCard({
             {/* Shimmer overlay */}
             <div className={`absolute inset-0 bg-gradient-to-br ${ts.shimmer} pointer-events-none`} />
 
-            {/* Elite / TOTY label */}
+            {/* Elite / Legend label */}
             {ts.label && (
               <div
                 className="absolute top-1.5 left-1/2 -translate-x-1/2 text-[8px] font-black tracking-[0.2em] opacity-50 z-10 pointer-events-none"
