@@ -237,8 +237,12 @@ export default function TakenBlok({
         </button>
       </div>
       {showInfo && (
-        <div className="text-xs text-gray-400 bg-gray-700/50 border border-gray-600 rounded-lg px-3 py-2 leading-relaxed">
-          De speler met het minste aantal beurten is automatisch aan de beurt. Bij een gelijk aantal gaat het <span className="text-white font-medium">alfabetisch</span>. <span className="text-white font-medium">Wasbeurt</span>: deze speler regelt het wassen van de shirts na de wedstrijd. <span className="text-white font-medium">Consumpties</span>: deze speler zorgt voor de drank na afloop. <span className="text-white font-medium">Vervoer</span>: deze spelers regelen het vervoer naar de wedstrijd. De manager kan handmatig andere spelers aanwijzen.
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowInfo(false)}>
+          <div className="bg-gray-800 border border-gray-600 rounded-xl p-4 max-w-sm w-full text-sm text-gray-300 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-white mb-2">Taken</h3>
+            <p className="mb-3 leading-relaxed">De speler met het minste aantal beurten is automatisch aan de beurt. Bij een gelijk aantal gaat het <span className="text-white font-medium">alfabetisch</span>. <span className="text-white font-medium">Wasbeurt</span>: deze speler regelt het wassen van de shirts na de wedstrijd. <span className="text-white font-medium">Consumpties</span>: deze speler zorgt voor de drank na afloop. <span className="text-white font-medium">Vervoer</span>: deze spelers regelen het vervoer naar de wedstrijd. De manager kan handmatig andere spelers aanwijzen.</p>
+            <button onClick={() => setShowInfo(false)} className="text-blue-400 hover:text-blue-200 text-xs font-medium">Sluiten</button>
+          </div>
         </div>
       )}
       {match && (trackAssemblyTime || trackMatchTime || trackLocationDetails) && (

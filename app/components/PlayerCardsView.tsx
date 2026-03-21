@@ -347,7 +347,8 @@ export default function PlayerCardsView({
       </div>
 
       {showInfo && (
-        <div className="mb-6 p-4 bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-300 space-y-5">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowInfo(false)}>
+        <div className="bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-300 space-y-5 max-w-lg w-full max-h-[80vh] overflow-y-auto p-4" onClick={e => e.stopPropagation()}>
           <div>
             <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
               <span>⚡</span> Hoe wordt de rating berekend?
@@ -435,6 +436,10 @@ export default function PlayerCardsView({
               </div>
             </div>
           </div>
+          <div className="border-t border-gray-700 pt-3">
+            <button onClick={() => setShowInfo(false)} className="text-blue-400 hover:text-blue-200 text-xs font-medium">Sluiten</button>
+          </div>
+        </div>
         </div>
       )}
 

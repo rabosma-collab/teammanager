@@ -145,27 +145,31 @@ export default function BenchPanel({
           isBenchOver ? 'border-yellow-400 bg-amber-800/50' : ''
         } ${periodLocked ? 'opacity-60' : ''}`}
       >
-        <div className="relative flex items-center justify-center mb-3">
+        <div className="flex items-center justify-center mb-3">
           <h3 className="font-bold text-lg sm:text-xl text-amber-200 select-none">
             🪑 Wissels ({benchPlayers.length})
           </h3>
           <button
-            onClick={() => setShowInfo(v => !v)}
-            className="ml-2 text-amber-400 hover:text-amber-200 text-sm leading-none touch-manipulation"
+            onClick={() => setShowInfo(true)}
+            className="ml-2 text-amber-400 hover:text-amber-200 transition-colors touch-manipulation"
             aria-label="Info wisselbank"
           >
-            ⓘ
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
           </button>
-          {showInfo && (
-            <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 w-72 bg-gray-900 border border-amber-700 rounded-xl p-3 text-xs text-gray-200 shadow-xl text-left">
-              <p className="font-bold text-amber-300 mb-1">Wisselbank</p>
+        </div>
+        {showInfo && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowInfo(false)}>
+            <div className="bg-gray-900 border border-amber-700 rounded-xl p-4 max-w-sm w-full text-sm text-gray-200 shadow-xl" onClick={e => e.stopPropagation()}>
+              <p className="font-bold text-amber-300 mb-2">Wisselbank</p>
               <p className="mb-2">Hier staan de spelers die niet in de basisopstelling staan, gegroepeerd op positie.</p>
               <p className="mb-2">Spelers zijn gesorteerd op <span className="font-semibold text-amber-300">wisselminuten</span> — het totaal aantal minuten dat iemand dit seizoen op de bank heeft gezeten. Wie het meest op de bank heeft gestaan, staat bovenaan.</p>
-              <p>Spelers die <span className="font-semibold text-red-400">niet beschikbaar</span> zijn (geblesseerd of afwezig) worden apart weergegeven.</p>
-              <button onClick={() => setShowInfo(false)} className="mt-2 text-amber-400 hover:text-amber-200 text-xs">Sluiten</button>
+              <p className="mb-3">Spelers die <span className="font-semibold text-red-400">niet beschikbaar</span> zijn (geblesseerd of afwezig) worden apart weergegeven.</p>
+              <button onClick={() => setShowInfo(false)} className="text-amber-400 hover:text-amber-200 text-xs font-medium">Sluiten</button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {periodLocked && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-amber-950/70 border border-amber-700 text-center">

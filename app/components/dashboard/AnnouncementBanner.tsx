@@ -10,9 +10,12 @@ interface Announcement {
   expires_at: string;
 }
 
+const PREVIEW_LENGTH = 120;
+
 export default function AnnouncementBanner() {
   const { currentTeam, isManager } = useTeamContext();
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   const fetchAnnouncement = useCallback(async () => {
     if (!currentTeam) return;
@@ -42,7 +45,21 @@ export default function AnnouncementBanner() {
   return (
     <div className="mb-4 flex items-start gap-3 bg-blue-900/40 border border-blue-700/60 rounded-xl p-3 sm:p-4">
       <span className="text-lg flex-shrink-0 mt-0.5">📣</span>
-      <p className="flex-1 text-sm sm:text-base text-blue-100 leading-relaxed">{announcement.message}</p>
+      <div className="flex-1">
+        <p className="text-sm sm:text-base text-blue-100 leading-relaxed">
+          {expanded || announcement.message.length <= PREVIEW_LENGTH
+            ? announcement.message
+            : announcement.message.slice(0, PREVIEW_LENGTH).trimEnd() + '…'}
+        </p>
+        {announcement.message.length > PREVIEW_LENGTH && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="mt-1 text-xs text-blue-400 hover:text-blue-200 transition-colors"
+          >
+            {expanded ? 'Minder tonen' : 'Lees verder'}
+          </button>
+        )}
+      </div>
       {isManager && (
         <button
           onClick={handleDelete}
