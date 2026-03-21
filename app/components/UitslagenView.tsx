@@ -394,16 +394,6 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                   ) : (
                     <span className="text-xs text-gray-600">geen uitslag</span>
                   )}
-                  {/* Manager: uitslag bewerken trigger (inline, klik stopt propagatie) */}
-                  {isManager && trackResults && editingScoreId !== match.id && (
-                    <button
-                      onClick={e => { e.stopPropagation(); startEditScore(match); }}
-                      className="text-gray-600 hover:text-yellow-400 transition text-xs flex-shrink-0"
-                      title="Uitslag bewerken"
-                    >
-                      ✏️
-                    </button>
-                  )}
 
                   {/* Pijl */}
                   <span className="text-gray-500 text-xs ml-1">{isExpanded ? '▲' : '▼'}</span>
@@ -412,6 +402,16 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                 {/* Uitklapbare details */}
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-gray-700/60">
+
+                    {/* Score editor trigger voor managers */}
+                    {isManager && trackResults && editingScoreId !== match.id && (
+                      <button
+                        onClick={() => startEditScore(match)}
+                        className="mt-3 text-xs text-gray-400 hover:text-yellow-400 transition"
+                      >
+                        ✏️ {match.goals_for != null ? 'Uitslag aanpassen' : 'Uitslag invullen'}
+                      </button>
+                    )}
 
                     {/* Score editor */}
                     {isManager && trackResults && editingScoreId === match.id && (
