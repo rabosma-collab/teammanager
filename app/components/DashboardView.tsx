@@ -421,7 +421,7 @@ export default function DashboardView({
             isLoading={isLoadingVotes}
             players={players}
             currentPlayerId={votingCurrentPlayerId}
-            isStaff={isStaff}
+            isStaff={isStaff || isManager}
             onSelectCurrentPlayer={onSelectVotingPlayer}
             onVote={onVote}
           />

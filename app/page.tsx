@@ -68,8 +68,6 @@ import SeasonSettingsView from './components/SeasonSettingsView';
 import FeedbackView from './components/FeedbackView';
 import LineupLockedView from './components/LineupLockedView';
 
-// PDF
-import { generateMatchPdf } from './utils/generateMatchPdf';
 
 // Modals
 import MatchSelectionModal from './components/modals/MatchSelectionModal';
@@ -142,7 +140,7 @@ export default function FootballApp() {
     matches, setMatches, selectedMatch, setSelectedMatch,
     matchAbsences, loading, fetchMatches, fetchAbsences,
     toggleAbsence, isMatchEditable,
-    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateMatchReport, cancelMatch, deleteMatch
+    addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateTransportPlayers, updateMatchReport, cancelMatch, deleteMatch
   } = useMatches();
 
   const { seasons, activeSeason, fetchSeasons } = useSeasons();
@@ -228,6 +226,39 @@ export default function FootballApp() {
     players.filter((p: Player) => !p.is_guest).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
     [players]
   );
+
+  // Vervoer berekening voor PitchView toolbar
+  const vervoerCount = teamSettings?.vervoer_count ?? 3;
+  const vervoerEligible = useMemo(() =>
+    players.filter((p: Player) => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .sort((a: Player, b: Player) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name)),
+    [players, matchAbsences]
+  );
+  const vervoerOverrideIds: number[] = selectedMatch?.transport_player_ids ?? [];
+  const vervoerAllPlayers = useMemo(() =>
+    players.filter((p: Player) => !p.is_guest).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
+    [players]
+  );
+  // Bereken welke speler per slot daadwerkelijk getoond wordt (override → eligible)
+  const vervoerDisplayPlayers: (Player | null)[] = useMemo(() => {
+    return Array.from({ length: vervoerCount }).map((_, i) => {
+      const overrideId = vervoerOverrideIds[i] ?? null;
+      if (overrideId) {
+        const overridePlayer = players.find((p: Player) => p.id === overrideId) ?? null;
+        if (overridePlayer && !overridePlayer.injured && !matchAbsences.includes(overridePlayer.id)) {
+          return overridePlayer;
+        }
+      }
+      // Fallback: eligible speler op positie i, sla al gekozen spelers over
+      const usedIds = new Set(
+        vervoerOverrideIds.slice(0, i).filter(id => {
+          const p = players.find((pl: Player) => pl.id === id);
+          return p && !p.injured && !matchAbsences.includes(p.id);
+        })
+      );
+      return vervoerEligible.filter(p => !usedIds.has(p.id))[0] ?? null;
+    });
+  }, [vervoerCount, vervoerOverrideIds, vervoerEligible, players, matchAbsences]);
 
   const canFinalizeMatch = useCallback((): boolean => {
     if (!selectedMatch || !isManager) return false;
@@ -758,6 +789,7 @@ export default function FootballApp() {
         match_status: 'afgerond' as const,
         ...(params.goalsFor != null ? { goals_for: params.goalsFor } : {}),
         ...(params.goalsAgainst != null ? { goals_against: params.goalsAgainst } : {}),
+        ...(params.matchReport != null ? { match_report: params.matchReport } : {}),
       };
       setIsEditingLineup(false);
       setFinalizeGoalsFor('');
@@ -1537,32 +1569,6 @@ export default function FootballApp() {
                 </button>
               )}
 
-              {isManager && activelyEditing && (
-                <button
-                  onClick={() => {
-                    if (!selectedMatch) return;
-                    generateMatchPdf({
-                      match: selectedMatch,
-                      players,
-                      fieldOccupants,
-                      substitutions,
-                      matchAbsences,
-                      positionInstructions: matchInstructions.length > 0 ? matchInstructions : positionInstructions,
-                      subMoments,
-                      subMomentMinutes,
-                      teamName: currentTeam?.name,
-                      teamColor: currentTeam?.color,
-                      gameFormat,
-                      trackWasbeurt: teamSettings?.track_wasbeurt ?? true,
-                      trackConsumpties: teamSettings?.track_consumpties ?? true,
-                    });
-                  }}
-                  title="Wedstrijdrapport als PDF"
-                  className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm flex items-center gap-1.5"
-                >
-                  📄 Exporteer PDF
-                </button>
-              )}
             </div>
 
             {/* Veld + Bank + Wissels */}
@@ -1708,6 +1714,13 @@ export default function FootballApp() {
                 consumptiesAllPlayers={consumptiesAllPlayers}
                 consumptiesOverrideId={consumptiesOverrideId}
                 onConsumptiesChange={(id) => updateConsumptiesPlayer(selectedMatch.id, id)}
+                trackVervoer={teamSettings?.track_vervoer ?? true}
+                vervoerCount={vervoerCount}
+                vervoerEligible={vervoerEligible}
+                vervoerAllPlayers={vervoerAllPlayers}
+                vervoerOverrideIds={vervoerOverrideIds}
+                vervoerDisplayPlayers={vervoerDisplayPlayers}
+                onVervoerChange={(ids) => updateTransportPlayers(selectedMatch.id, ids)}
                 match={selectedMatch}
                 trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
                 trackMatchTime={teamSettings?.track_match_time ?? false}

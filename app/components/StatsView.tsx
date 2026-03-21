@@ -9,7 +9,7 @@ interface StatsViewProps {
   teamSettings?: TeamSettings | null;
 }
 
-type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'consumption_count' | 'yellow_cards' | 'red_cards' | 'min' | 'played_min';
+type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'consumption_count' | 'transport_count' | 'yellow_cards' | 'red_cards' | 'min' | 'played_min';
 type SortDir = 'asc' | 'desc';
 type PositionFilter = 'all' | 'Keeper' | 'Verdediger' | 'Middenvelder' | 'Aanvaller';
 
@@ -33,6 +33,7 @@ const STAT_LABELS: Record<string, string> = {
   assists: '🅰️ Assists',
   wash_count: '🧼 Wasbeurten',
   consumption_count: '🥤 Consumpties',
+  transport_count: '🚗 Vervoer',
   yellow_cards: '🟨 Gele kaarten',
   red_cards: '🟥 Rode kaarten',
   min: '🔄 Wissels',
@@ -116,9 +117,10 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
   const trackCards          = teamSettings?.track_cards          ?? false;
   const trackWasbeurt       = teamSettings?.track_wasbeurt       ?? true;
   const trackConsumpties    = teamSettings?.track_consumpties    ?? true;
+  const trackVervoer        = teamSettings?.track_vervoer        ?? true;
 
   const statFields = useMemo(
-    () => (['goals', 'assists', 'wash_count', 'consumption_count', 'yellow_cards', 'red_cards', 'min', 'played_min'] as const).filter(f => {
+    () => (['goals', 'assists', 'wash_count', 'consumption_count', 'transport_count', 'yellow_cards', 'red_cards', 'min', 'played_min'] as const).filter(f => {
       if (f === 'goals')             return trackGoals;
       if (f === 'assists')           return trackAssists;
       if (f === 'yellow_cards' || f === 'red_cards') return trackCards;
@@ -126,9 +128,10 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
       if (f === 'played_min')        return trackPlayedMinutes;
       if (f === 'wash_count')        return trackWasbeurt;
       if (f === 'consumption_count') return trackConsumpties;
+      if (f === 'transport_count')   return trackVervoer;
       return true;
     }),
-    [trackGoals, trackAssists, trackCards, trackMinutes, trackPlayedMinutes, trackWasbeurt, trackConsumpties]
+    [trackGoals, trackAssists, trackCards, trackMinutes, trackPlayedMinutes, trackWasbeurt, trackConsumpties, trackVervoer]
   );
 
   const columns: { key: SortKey; label: string }[] = [
@@ -139,6 +142,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
     ...(trackAssists        ? [{ key: 'assists'           as SortKey, label: 'Assists'     }] : []),
     ...(trackWasbeurt       ? [{ key: 'wash_count'        as SortKey, label: '🧼 Was'     }] : []),
     ...(trackConsumpties    ? [{ key: 'consumption_count' as SortKey, label: '🥤 Cons.'   }] : []),
+    ...(trackVervoer        ? [{ key: 'transport_count'   as SortKey, label: '🚗 Verv.'   }] : []),
     ...(trackCards          ? [{ key: 'yellow_cards'      as SortKey, label: '🟨 Geel'    }] : []),
     ...(trackCards          ? [{ key: 'red_cards'         as SortKey, label: '🟥 Rood'    }] : []),
     ...(trackMinutes        ? [{ key: 'min'               as SortKey, label: 'Wissel'     }] : []),

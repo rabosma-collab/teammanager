@@ -6,6 +6,7 @@ export interface Player {
     assists: number;
     wash_count: number;
     consumption_count: number;
+    transport_count: number;
     yellow_cards: number;
     red_cards: number;
     own_goals?: number;
@@ -45,6 +46,7 @@ export interface Player {
     lineup_published?: boolean;
     wasbeurt_player_id?: number | null;
     consumpties_player_id?: number | null;
+    transport_player_ids?: number[];
     assembly_time?: string | null;
     match_time?: string | null;
     location_details?: string | null;
@@ -151,6 +153,8 @@ export interface Player {
     track_results: boolean;
     track_wasbeurt: boolean;
     track_consumpties: boolean;
+    track_vervoer: boolean;
+    vervoer_count: number;
     track_assembly_time: boolean;
     track_match_time: boolean;
     track_location_details: boolean;
@@ -210,6 +214,7 @@ export interface Player {
     min: number;
     wash_count: number;
     consumption_count: number;
+    transport_count: number;
   }
 
   export interface TeamContext {

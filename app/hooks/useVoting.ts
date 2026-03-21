@@ -341,7 +341,9 @@ export function useVoting() {
         subjectId: votedForPlayerId,
         matchId,
         payload: {
-          actor_name: currentPlayerId ? (nameMap.get(currentPlayerId) ?? 'Iemand') : 'Iemand',
+          actor_name: currentPlayerId
+            ? (nameMap.get(currentPlayerId) ?? 'Iemand')
+            : (user?.user_metadata?.full_name ?? user?.email ?? 'Iemand'),
           voted_for_name: nameMap.get(votedForPlayerId) ?? `Speler ${votedForPlayerId}`,
           opponent: matchForLog?.opponent ?? 'onbekend',
           home_away: matchForLog?.home_away ?? 'thuis',

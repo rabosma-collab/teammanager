@@ -11,6 +11,7 @@ export interface PlayerFormData {
   assists: number;
   min: number;
   wash_count: number;
+  transport_count: number;
   pac: number;
   sho: number;
   pas: number;
@@ -40,6 +41,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
   const [assists, setAssists] = useState(player?.assists || 0);
   const [min, setMin] = useState(player?.min || 0);
   const [washCount, setWashCount] = useState(player?.wash_count || 0);
+  const [transportCount, setTransportCount] = useState(player?.transport_count || 0);
   const [pac, setPac] = useState(player?.pac ?? 50);
   const [sho, setSho] = useState(player?.sho ?? 50);
   const [pas, setPas] = useState(player?.pas ?? 50);
@@ -65,7 +67,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
       return;
     }
     setNameError('');
-    onSave({ name: trimmed, position, injured, goals, assists, min, wash_count: washCount, pac, sho, pas, dri, def, phy, div, han, kic, ref, spe, pos });
+    onSave({ name: trimmed, position, injured, goals, assists, min, wash_count: washCount, transport_count: transportCount, pac, sho, pas, dri, def, phy, div, han, kic, ref, spe, pos });
   };
 
   return (
@@ -124,6 +126,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
                 { label: 'Goals', value: goals, set: setGoals },
                 { label: 'Assists', value: assists, set: setAssists },
                 { label: '🧺 Wasbeurt', value: washCount, set: setWashCount },
+                { label: '🚗 Vervoer', value: transportCount, set: setTransportCount },
                 { label: 'Minuten', value: min, set: setMin, step: 10 },
               ] as { label: string; value: number; set: (v: number) => void; step?: number }[]).map(({ label, value, set, step = 1 }) => (
                 <div key={label}>

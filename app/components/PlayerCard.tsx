@@ -38,10 +38,10 @@ const positionColors: Record<string, { from: string; to: string; accent: string;
   'Aanvaller':    { from: 'from-red-700',    to: 'to-red-900',    accent: 'text-red-300',    border: 'border-red-500' },
 };
 
-type CardTier = 'bronze' | 'silver' | 'gold' | 'elite' | 'toty';
+type CardTier = 'bronze' | 'silver' | 'gold' | 'elite' | 'legend';
 
 function getCardTier(rating: number): CardTier {
-  if (rating >= 90) return 'toty';
+  if (rating >= 90) return 'legend';
   if (rating >= 85) return 'elite';
   if (rating >= 75) return 'gold';
   if (rating >= 65) return 'silver';
@@ -93,13 +93,13 @@ const tierStyles: Record<CardTier, {
     label: 'ELITE',
     labelColor: '#a78bfa',
   },
-  toty: {
+  legend: {
     gradient: 'from-gray-900 via-slate-900 to-gray-950',
     border: 'border-cyan-400',
     shimmer: 'from-cyan-400/15 via-transparent to-yellow-400/10',
     ratingColor: 'text-cyan-300',
     glow: '0 0 28px rgba(34,211,238,0.5)',
-    label: 'TOTY',
+    label: 'LEGEND',
     labelColor: '#22d3ee',
   },
 };
@@ -167,7 +167,7 @@ function HexRadar({ stats, tier, size }: {
     return `${p.x},${p.y}`;
   }).join(' ');
 
-  const isSpecial = tier === 'elite' || tier === 'toty';
+  const isSpecial = tier === 'elite' || tier === 'legend';
   const fillColor = isSpecial ? 'rgba(167,139,250,0.28)' : 'rgba(250,204,21,0.28)';
   const strokeColor = isSpecial ? 'rgb(167,139,250)' : 'rgb(250,204,21)';
   const labelR = r * 1.28;

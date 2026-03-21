@@ -16,6 +16,8 @@ const DEFAULT_SETTINGS: Omit<TeamSettings, 'team_id'> = {
   track_results: true,
   track_wasbeurt: true,
   track_consumpties: true,
+  track_vervoer: true,
+  vervoer_count: 3,
   track_assembly_time: false,
   track_match_time: false,
   track_location_details: false,
