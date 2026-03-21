@@ -15,6 +15,7 @@ interface UitslagenViewProps {
   activeSeasonId: number | null;
   onRefreshPlayers: () => void;
   onUpdateMatchReport: (matchId: number, report: string | null) => Promise<boolean>;
+  onUpdateMatchScore: (matchId: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
 }
 
 // ─── Hulpfuncties ─────────────────────────────────────────────
@@ -169,7 +170,7 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
 }
 
 // ─── Hoofd component ──────────────────────────────────────────
-export default function UitslagenView({ matches, players, teamSettings, seasons, activeSeasonId, onRefreshPlayers, onUpdateMatchReport }: UitslagenViewProps) {
+export default function UitslagenView({ matches, players, teamSettings, seasons, activeSeasonId, onRefreshPlayers, onUpdateMatchReport, onUpdateMatchScore }: UitslagenViewProps) {
   const { isManager, currentTeam } = useTeamContext();
   const toast = useToast();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
@@ -223,6 +224,10 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
   const [reportDraft, setReportDraft] = useState('');
   const [savingReport, setSavingReport] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingScoreId, setEditingScoreId] = useState<number | null>(null);
+  const [scoreDraftFor, setScoreDraftFor] = useState<number>(0);
+  const [scoreDraftAgainst, setScoreDraftAgainst] = useState<number>(0);
+  const [savingScore, setSavingScore] = useState(false);
 
   // Lokale match_report overrides (na opslaan zonder page refresh)
   const [reportOverrides, setReportOverrides] = useState<Record<number, string | null>>({});
@@ -255,6 +260,24 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
       setLoading(false);
     });
   }, [finishedMatches.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startEditScore = (match: Match) => {
+    setEditingScoreId(match.id);
+    setScoreDraftFor(match.goals_for ?? 0);
+    setScoreDraftAgainst(match.goals_against ?? 0);
+  };
+
+  const handleSaveScore = async (matchId: number) => {
+    setSavingScore(true);
+    const ok = await onUpdateMatchScore(matchId, scoreDraftFor, scoreDraftAgainst);
+    if (ok) {
+      toast.success('✅ Uitslag opgeslagen!');
+      setEditingScoreId(null);
+    } else {
+      toast.error('❌ Kon uitslag niet opslaan');
+    }
+    setSavingScore(false);
+  };
 
   const handleSaveStats = useCallback(async (
     matchId: number,
@@ -371,6 +394,16 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                   ) : (
                     <span className="text-xs text-gray-600">geen uitslag</span>
                   )}
+                  {/* Manager: uitslag bewerken trigger (inline, klik stopt propagatie) */}
+                  {isManager && trackResults && editingScoreId !== match.id && (
+                    <button
+                      onClick={e => { e.stopPropagation(); startEditScore(match); }}
+                      className="text-gray-600 hover:text-yellow-400 transition text-xs flex-shrink-0"
+                      title="Uitslag bewerken"
+                    >
+                      ✏️
+                    </button>
+                  )}
 
                   {/* Pijl */}
                   <span className="text-gray-500 text-xs ml-1">{isExpanded ? '▲' : '▼'}</span>
@@ -379,6 +412,42 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                 {/* Uitklapbare details */}
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-gray-700/60">
+
+                    {/* Score editor */}
+                    {isManager && trackResults && editingScoreId === match.id && (
+                      <div className="mt-3 p-3 bg-gray-700/50 rounded-lg">
+                        <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-2">Uitslag aanpassen</div>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setScoreDraftFor(v => Math.max(0, v - 1))} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 text-white font-bold flex items-center justify-center">−</button>
+                            <span className="text-xl font-black w-6 text-center tabular-nums">{scoreDraftFor}</span>
+                            <button onClick={() => setScoreDraftFor(v => v + 1)} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 text-white font-bold flex items-center justify-center">+</button>
+                          </div>
+                          <span className="text-gray-500 font-bold">–</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setScoreDraftAgainst(v => Math.max(0, v - 1))} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 text-white font-bold flex items-center justify-center">−</button>
+                            <span className="text-xl font-black w-6 text-center tabular-nums">{scoreDraftAgainst}</span>
+                            <button onClick={() => setScoreDraftAgainst(v => v + 1)} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 text-white font-bold flex items-center justify-center">+</button>
+                          </div>
+                          <div className="flex gap-2 ml-auto">
+                            <button
+                              onClick={() => handleSaveScore(match.id)}
+                              disabled={savingScore}
+                              className="py-1.5 px-3 bg-green-700 hover:bg-green-600 rounded text-xs font-bold transition disabled:opacity-50"
+                            >
+                              {savingScore ? '…' : '✅'}
+                            </button>
+                            <button
+                              onClick={() => setEditingScoreId(null)}
+                              className="py-1.5 px-3 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Stats overzicht */}
                     {trackGoals && (
                       <>

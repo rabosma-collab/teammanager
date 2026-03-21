@@ -1186,64 +1186,83 @@ export default function FootballApp() {
           }}
         />
       ) : view === 'players-manage' && isManager ? (
-        <PlayersManageView
-          players={players}
-          onAddPlayer={addPlayer}
-          onUpdatePlayer={updatePlayer}
-          onDeletePlayer={deletePlayer}
-          onRefresh={() => selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers()}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <PlayersManageView
+            players={players}
+            onAddPlayer={addPlayer}
+            onUpdatePlayer={updatePlayer}
+            onDeletePlayer={deletePlayer}
+            onRefresh={() => selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers()}
+          />
+        </div>
       ) : view === 'matches-manage' && isManager ? (
-        <MatchesManageView
-          matches={matches}
-          gameFormat={gameFormat}
-          defaultFormation={teamSettings?.default_formation}
-          trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
-          trackMatchTime={teamSettings?.track_match_time ?? false}
-          trackLocationDetails={teamSettings?.track_location_details ?? false}
-          onAddMatch={(data) => addMatch({ ...data, season_id: activeSeason?.id ?? null })}
-          onUpdateMatch={updateMatch}
-          onUpdateScore={updateMatchScore}
-          onCancelMatch={cancelMatch}
-          onDeleteMatch={deleteMatch}
-          onRefresh={fetchMatches}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <MatchesManageView
+            matches={matches}
+            gameFormat={gameFormat}
+            defaultFormation={teamSettings?.default_formation}
+            trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
+            trackMatchTime={teamSettings?.track_match_time ?? false}
+            trackLocationDetails={teamSettings?.track_location_details ?? false}
+            onAddMatch={(data) => addMatch({ ...data, season_id: activeSeason?.id ?? null })}
+            onUpdateMatch={updateMatch}
+            onUpdateScore={updateMatchScore}
+            onCancelMatch={cancelMatch}
+            onDeleteMatch={deleteMatch}
+            onRefresh={fetchMatches}
+          />
+        </div>
       ) : view === 'invites' && isManager ? (
-        <InvitesManageView />
+        <div className="flex-1 overflow-y-auto">
+          <InvitesManageView />
+        </div>
       ) : view === 'mededelingen' && isManager ? (
-        <MededelingenView />
+        <div className="flex-1 overflow-y-auto">
+          <MededelingenView />
+        </div>
       ) : view === 'feedback' && isManager ? (
-        <FeedbackView isManager={isManager} />
+        <div className="flex-1 overflow-y-auto">
+          <FeedbackView isManager={isManager} />
+        </div>
       ) : view === 'team-settings' && isManager ? (
-        <TeamSettingsView onSettingsSaved={refreshTeamSettings} />
+        <div className="flex-1 overflow-y-auto">
+          <TeamSettingsView onSettingsSaved={refreshTeamSettings} />
+        </div>
       ) : view === 'season-settings' && isManager ? (
-        <SeasonSettingsView />
+        <div className="flex-1 overflow-y-auto">
+          <SeasonSettingsView />
+        </div>
       ) : view === 'cards' ? (
-        <PlayerCardsView
-          players={players}
-          isAdmin={isManager}
-          onUpdateStat={updateStat}
-          currentPlayerId={teamPlayerId}
-          creditBalance={creditBalance}
-          onSaveStatDraft={handleSaveStatDraft}
-          spdwWinnerPlayerIds={lastSpdwResult?.podium.filter(e => e.rank === 1).map(e => e.player_id) ?? []}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <PlayerCardsView
+            players={players}
+            isAdmin={isManager}
+            onUpdateStat={updateStat}
+            currentPlayerId={teamPlayerId}
+            creditBalance={creditBalance}
+            onSaveStatDraft={handleSaveStatDraft}
+            spdwWinnerPlayerIds={lastSpdwResult?.podium.filter(e => e.rank === 1).map(e => e.player_id) ?? []}
+          />
+        </div>
       ) : view === 'uitslagen' ? (
-        <UitslagenView
-          matches={activeSeasonMatches}
-          players={players}
-          teamSettings={teamSettings}
-          seasons={seasons}
-          activeSeasonId={activeSeason?.id ?? null}
-          onRefreshPlayers={() => {
-            selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers();
-            const finishedIds = matches.filter(m => m.match_status === 'afgerond').map(m => m.id);
-            if (finishedIds.length > 0) {
-              fetchStatsForMatches(finishedIds).then(data => setRecentStatsMap(data));
-            }
-          }}
-          onUpdateMatchReport={updateMatchReport}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <UitslagenView
+            matches={activeSeasonMatches}
+            players={players}
+            teamSettings={teamSettings}
+            seasons={seasons}
+            activeSeasonId={activeSeason?.id ?? null}
+            onRefreshPlayers={() => {
+              selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers();
+              const finishedIds = matches.filter(m => m.match_status === 'afgerond').map(m => m.id);
+              if (finishedIds.length > 0) {
+                fetchStatsForMatches(finishedIds).then(data => setRecentStatsMap(data));
+              }
+            }}
+            onUpdateMatchReport={updateMatchReport}
+            onUpdateMatchScore={updateMatchScore}
+          />
+        </div>
       ) : view === 'dashboard' ? (
         <DashboardView
           players={players}
