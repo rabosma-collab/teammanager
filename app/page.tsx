@@ -240,24 +240,25 @@ export default function FootballApp() {
     [players]
   );
   // Bereken welke speler per slot daadwerkelijk getoond wordt (override → eligible)
+  // Iteratief zodat auto-gekozen spelers uit eerdere slots worden overgeslagen
   const vervoerDisplayPlayers: (Player | null)[] = useMemo(() => {
-    return Array.from({ length: vervoerCount }).map((_, i) => {
+    const result: (Player | null)[] = [];
+    const usedIds = new Set<number>();
+    for (let i = 0; i < vervoerCount; i++) {
       const overrideId = vervoerOverrideIds[i] ?? null;
       if (overrideId) {
-        const overridePlayer = players.find((p: Player) => p.id === overrideId) ?? null;
-        if (overridePlayer && !overridePlayer.injured && !matchAbsences.includes(overridePlayer.id)) {
-          return overridePlayer;
+        const op = players.find((p: Player) => p.id === overrideId) ?? null;
+        if (op && !op.injured && !matchAbsences.includes(op.id)) {
+          result.push(op);
+          usedIds.add(op.id);
+          continue;
         }
       }
-      // Fallback: eligible speler op positie i, sla al gekozen spelers over
-      const usedIds = new Set(
-        vervoerOverrideIds.slice(0, i).filter(id => {
-          const p = players.find((pl: Player) => pl.id === id);
-          return p && !p.injured && !matchAbsences.includes(p.id);
-        })
-      );
-      return vervoerEligible.filter(p => !usedIds.has(p.id))[0] ?? null;
-    });
+      const auto = vervoerEligible.find(p => !usedIds.has(p.id)) ?? null;
+      result.push(auto);
+      if (auto) usedIds.add(auto.id);
+    }
+    return result;
   }, [vervoerCount, vervoerOverrideIds, vervoerEligible, players, matchAbsences]);
 
   const canFinalizeMatch = useCallback((): boolean => {

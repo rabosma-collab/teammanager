@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { Match, Player } from '../../lib/types';
+import type { Match, Player, Substitution } from '../../lib/types';
 import { formationLabels } from '../../lib/constants';
 import LineupStatusBadge from './LineupStatusBadge';
 import { generateWhatsAppText } from '../../utils/generateWhatsAppText';
@@ -20,6 +20,8 @@ interface NextMatchCardProps {
   trackConsumpties?: boolean;
   trackVervoer?: boolean;
   vervoerCount?: number;
+  substitutions?: Substitution[];
+  subMomentMinutes?: number[];
   trackAssemblyTime?: boolean;
   trackMatchTime?: boolean;
   trackLocationDetails?: boolean;
@@ -66,6 +68,8 @@ export default function NextMatchCard({
   teamName,
   trackWasbeurt = true,
   trackConsumpties = true,
+  substitutions = [],
+  subMomentMinutes = [],
   trackVervoer = true,
   vervoerCount = 3,
   trackAssemblyTime = false,
@@ -89,6 +93,8 @@ export default function NextMatchCard({
       matchAbsences,
       teamName,
       gameFormat,
+      substitutions,
+      subMomentMinutes,
       trackWasbeurt,
       trackConsumpties,
       trackVervoer,
@@ -172,20 +178,25 @@ export default function NextMatchCard({
     !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
   ).sort((a, b) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name));
   const vervoerOverrideIds: number[] = match.transport_player_ids ?? [];
-  const vervoerDisplayPlayers: (Player | null)[] = Array.from({ length: vervoerCount }).map((_, i) => {
-    const overrideId = vervoerOverrideIds[i] ?? null;
-    if (overrideId) {
-      const op = players.find(p => p.id === overrideId && !p.is_guest) ?? null;
-      if (op && !op.injured && !matchAbsences.includes(op.id)) return op;
+  const vervoerDisplayPlayers: (Player | null)[] = (() => {
+    const result: (Player | null)[] = [];
+    const usedIds = new Set<number>();
+    for (let i = 0; i < vervoerCount; i++) {
+      const overrideId = vervoerOverrideIds[i] ?? null;
+      if (overrideId) {
+        const op = players.find(p => p.id === overrideId && !p.is_guest) ?? null;
+        if (op && !op.injured && !matchAbsences.includes(op.id)) {
+          result.push(op);
+          usedIds.add(op.id);
+          continue;
+        }
+      }
+      const auto = vervoerEligible.find(p => !usedIds.has(p.id)) ?? null;
+      result.push(auto);
+      if (auto) usedIds.add(auto.id);
     }
-    const usedIds = new Set(
-      vervoerOverrideIds.slice(0, i).filter(id => {
-        const p = players.find(pl => pl.id === id);
-        return p && !p.injured && !matchAbsences.includes(p.id);
-      })
-    );
-    return vervoerEligible.filter(p => !usedIds.has(p.id))[0] ?? null;
-  });
+    return result;
+  })();
 
   // Toon knoppen alleen voor spelers (niet-manager of manager met spelerrecord) bij niet-afgeronde wedstrijden
   const showPlayerButtons = !!(currentPlayerId && !isFinalized && currentPlayer);

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult, MatchPlayerStats } from '../lib/types';
-import { getPositionCategory, GAME_FORMATS } from '../lib/constants';
+import type { Match, Player, PositionInstruction, VotingMatch, SpdwResult, MatchPlayerStats, Substitution } from '../lib/types';
+import { getPositionCategory, GAME_FORMATS, computeSubMomentMinutes } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import { logActivity } from '../lib/logActivity';
@@ -40,6 +40,7 @@ interface DashboardViewProps {
   lastSpdwResult?: SpdwResult | null;
   recentStatsMap?: Record<number, MatchPlayerStats[]>;
   trackResults?: boolean;
+  matchDuration?: number;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
   trackAssemblyTime?: boolean;
@@ -70,6 +71,7 @@ export default function DashboardView({
   creditBalance,
   lastSpdwResult,
   recentStatsMap = {},
+  matchDuration = 90,
   trackResults = true,
   trackWasbeurt = true,
   trackConsumpties = true,
@@ -131,6 +133,7 @@ export default function DashboardView({
 
   // Eigen opstelling-state voor het dashboard (onafhankelijk van pitch-tab selectedMatch)
   const [dashboardOccupants, setDashboardOccupants] = useState<(Player | null)[]>(Array(11).fill(null));
+  const [dashboardSubstitutions, setDashboardSubstitutions] = useState<Substitution[]>([]);
 
   // Loading gates: wacht tot alle lokale fetches klaar zijn zodat alles tegelijk verschijnt
   const [absencesReady, setAbsencesReady] = useState(false);
@@ -223,6 +226,23 @@ export default function DashboardView({
       setOccupantsReady(true);
     })();
   }, [dashboardMatch?.id, players, gameFormat]);
+
+  // Laad wissels voor dashboardMatch
+  useEffect(() => {
+    if (!dashboardMatch) { setDashboardSubstitutions([]); return; }
+    supabase
+      .from('substitutions')
+      .select('*')
+      .eq('match_id', dashboardMatch.id)
+      .then(({ data }: { data: Substitution[] | null }) => {
+        setDashboardSubstitutions(data || []);
+      });
+  }, [dashboardMatch?.id]);
+
+  const dashboardSubMomentMinutes = useMemo(() => {
+    const n = dashboardMatch?.sub_moments ?? 0;
+    return computeSubMomentMinutes(n, matchDuration);
+  }, [dashboardMatch?.sub_moments, matchDuration]);
 
   const refreshAbsences = useCallback(async (): Promise<number[]> => {
     if (!dashboardMatch) return [];
@@ -400,6 +420,8 @@ export default function DashboardView({
             gameFormat={gameFormat}
             positionName={playerMatchInstruction?.position_name || lineupPositionName}
             teamName={currentTeam?.name}
+            substitutions={dashboardSubstitutions}
+            subMomentMinutes={dashboardSubMomentMinutes}
             trackWasbeurt={trackWasbeurt}
             trackConsumpties={trackConsumpties}
             trackAssemblyTime={trackAssemblyTime}
