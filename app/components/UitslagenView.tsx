@@ -476,7 +476,7 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                     )}
 
                     {/* Wedstrijdverslag */}
-                    {(reportText || (isManager && !isEditingReport)) && (
+                    {(reportText != null || isEditingReport || isManager) && (
                       <div className="mt-3">
                         <div className="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1.5">Verslag</div>
                         {isEditingReport ? (
