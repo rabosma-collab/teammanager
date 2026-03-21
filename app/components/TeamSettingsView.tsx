@@ -356,16 +356,47 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
         </section>
 
         {/* ── Wedstrijdbeheer ── */}
-        <section className="bg-gray-800 rounded-xl p-5 space-y-3">
+        <section className="bg-gray-800 rounded-xl p-5 space-y-4">
           <h2 className="font-bold text-base text-gray-200">Wedstrijdbeheer</h2>
-          <p className="text-sm text-gray-400">Kies welke informatie bijgehouden en getoond wordt bij wedstrijden.</p>
+
+          {/* Wedstrijdinfo */}
           <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wedstrijdinfo</p>
+            <p className="text-xs text-gray-500">Informatie die je vastlegt bij het aanmaken van een wedstrijd.</p>
             {[
-              { key: 'track_wasbeurt',          label: '🧺 Wasbeurt' },
-              { key: 'track_consumpties',        label: '🥤 Consumpties' },
               { key: 'track_assembly_time',      label: '🕐 Verzameltijd' },
               { key: 'track_match_time',         label: '⚽ Speeltijd (aanvang)' },
               { key: 'track_location_details',   label: '📍 Kleedkamer / locatie' },
+            ].map(({ key, label }) => (
+              <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                <span className="text-sm font-medium">{label}</span>
+                <button
+                  role="switch"
+                  aria-checked={draft[key as keyof SettingsDraft] as boolean}
+                  onClick={() => handleToggle(key as keyof SettingsDraft, !(draft[key as keyof SettingsDraft] as boolean))}
+                  className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                    draft[key as keyof SettingsDraft] ? 'bg-yellow-500' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      draft[key as keyof SettingsDraft] ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </label>
+            ))}
+          </div>
+
+          <div className="border-t border-gray-700" />
+
+          {/* Wedstrijdtaken */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wedstrijdtaken</p>
+            <p className="text-xs text-gray-500">Taken die je toewijst bij het maken van de opstelling.</p>
+            {[
+              { key: 'track_wasbeurt',    label: '🧺 Wasbeurt' },
+              { key: 'track_consumpties', label: '🥤 Consumpties' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
                 <span className="text-sm font-medium">{label}</span>
