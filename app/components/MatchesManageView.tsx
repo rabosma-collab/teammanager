@@ -187,7 +187,13 @@ export default function MatchesManageView({
                 <input
                   type="checkbox"
                   checked={cancelHasScore}
-                  onChange={e => setCancelHasScore(e.target.checked)}
+                  onChange={e => {
+                    setCancelHasScore(e.target.checked);
+                    if (e.target.checked) {
+                      setCancelGoalsFor(v => v ?? 0);
+                      setCancelGoalsAgainst(v => v ?? 0);
+                    }
+                  }}
                   className="w-4 h-4 rounded"
                 />
                 <span className="text-sm font-medium">Reglementaire uitslag invoeren</span>

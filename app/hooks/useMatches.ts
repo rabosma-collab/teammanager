@@ -132,8 +132,8 @@ export function useMatches() {
 
   const isMatchEditable = useCallback((isAdmin: boolean): boolean => {
     if (!selectedMatch || !isAdmin) return false;
-    // Afgesloten wedstrijden = nooit editable
-    if (selectedMatch.match_status === 'afgerond') return false;
+    // Afgesloten of geannuleerde wedstrijden = nooit editable
+    if (selectedMatch.match_status === 'afgerond' || selectedMatch.match_status === 'geannuleerd') return false;
     // Concept wedstrijden = altijd editable (ook oude)
     return true;
   }, [selectedMatch]);
