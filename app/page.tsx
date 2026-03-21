@@ -1318,6 +1318,7 @@ export default function FootballApp() {
           lastSpdwResult={lastSpdwResult}
           recentStatsMap={recentStatsMap}
           trackResults={teamSettings?.track_results ?? true}
+          matchDuration={matchDuration}
           trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
           trackConsumpties={teamSettings?.track_consumpties ?? true}
           trackAssemblyTime={teamSettings?.track_assembly_time ?? false}

@@ -322,7 +322,7 @@ export default function PlayerCardsView({
           { tier: 'silver', label: 'Silver',  color: 'bg-gray-500',    text: '65–74' },
           { tier: 'gold',   label: 'Goud',    color: 'bg-yellow-600',  text: '75–84' },
           { tier: 'elite',  label: 'Elite',   color: 'bg-violet-700',  text: '85–89' },
-          { tier: 'toty',   label: 'TOTY',    color: 'bg-cyan-700',    text: '90+' },
+          { tier: 'legend', label: 'Legend',  color: 'bg-cyan-700',    text: '90+' },
         ].map(({ label, color, text }) => (
           <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
             <span className={`inline-block w-2.5 h-2.5 rounded-full ${color}`} />
