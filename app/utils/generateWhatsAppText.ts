@@ -1,4 +1,4 @@
-import type { Match, Player } from '../lib/types';
+import type { Match, Player, Substitution } from '../lib/types';
 import { formationLabels, DEFAULT_GAME_FORMAT } from '../lib/constants';
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
@@ -16,6 +16,8 @@ export interface WhatsAppTextData {
   matchAbsences: number[];
   teamName?: string;
   gameFormat?: string;
+  substitutions?: Substitution[];
+  subMomentMinutes?: number[];
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
   trackVervoer?: boolean;
@@ -45,6 +47,8 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
     matchAbsences,
     teamName,
     gameFormat,
+    substitutions = [],
+    subMomentMinutes = [],
     trackWasbeurt = true,
     trackConsumpties = true,
     trackVervoer = true,
@@ -108,6 +112,21 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
   } else {
     lines.push('');
     lines.push('_Opstelling volgt nog_');
+  }
+
+  // Wissels — alleen tonen als er wissels zijn en opstelling gepubliceerd
+  if (match.lineup_published && substitutions.length > 0) {
+    // Sorteer op wisselmoment (substitution_number), dan custom_minute/minute
+    const sorted = [...substitutions].sort((a, b) => a.substitution_number - b.substitution_number);
+    lines.push('');
+    lines.push('🔄 *WISSELS*');
+    for (const sub of sorted) {
+      const playerOut = players.find(p => p.id === sub.player_out_id);
+      const playerIn = players.find(p => p.id === sub.player_in_id);
+      if (!playerOut || !playerIn) continue;
+      const minute = sub.custom_minute ?? subMomentMinutes[sub.substitution_number - 1] ?? sub.minute;
+      lines.push(`Min. ${minute}: ${playerOut.name} → ${playerIn.name}`);
+    }
   }
 
   // Wasbeurt / consumpties
