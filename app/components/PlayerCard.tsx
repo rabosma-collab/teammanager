@@ -394,7 +394,7 @@ export default function PlayerCard({
 
   return (
     <div
-      className={`relative select-none ${(onClick || isFlippable) ? 'cursor-pointer' : ''} touch-manipulation`}
+      className={`relative select-none ${(onClick || isFlippable) ? 'cursor-pointer' : ''} touch-pan-y`}
       style={{ perspective: '1000px', width: 'fit-content' }}
       onClick={handleClick}
     >

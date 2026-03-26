@@ -495,7 +495,38 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
         {/* ── Spelersmotivatie ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-4">
           <div>
-            <h2 className="font-bold text-base text-gray-200">Spelersmotivatie</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-base text-gray-200">Spelersmotivatie</h2>
+              <InfoButton>
+                <p className="font-semibold text-white mb-1.5">Wat doet elke modus?</p>
+                <div className="space-y-2">
+                  <div>
+                    <div className="text-white font-semibold">🎮 Competitief</div>
+                    <div className="text-gray-300 space-y-0.5 mt-0.5">
+                      <div>✓ 1 credit per gespeelde wedstrijd</div>
+                      <div>✓ Spelersattributen upgraden met credits</div>
+                      <div>✓ Optioneel: Speler van de Week stemming (top 3 krijgt extra credits)</div>
+                      <div>✓ Optioneel: credits uitgeven aan de kaart van een teamgenoot</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">⭐ Teamsterren</div>
+                    <div className="text-gray-300 space-y-0.5 mt-0.5">
+                      <div>✓ Sterren verdienen per wedstrijd (win = 3, gelijk/verlies = 1)</div>
+                      <div>✓ Kaart groeit van Rookie naar Legende</div>
+                      <div>✗ Geen ranglijst of stemming</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">○ Geen kaarten</div>
+                    <div className="text-gray-300 space-y-0.5 mt-0.5">
+                      <div>✓ Puur opstellingen en wedstrijden beheren</div>
+                      <div>✗ Geen spelerskaarten of beloningen</div>
+                    </div>
+                  </div>
+                </div>
+              </InfoButton>
+            </div>
             <p className="text-sm text-gray-400 mt-1">Hoe wil je spelers betrekken en belonen?</p>
           </div>
 
