@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Substitution, TempSubstitution } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -12,9 +12,12 @@ export function useSubstitutions() {
   const [showSubModal, setShowSubModal] = useState<number | null>(null);
   const [showSubModalMinute, setShowSubModalMinute] = useState<number | null>(null);
   const [customMinuteInput, setCustomMinuteInput] = useState<number>(45);
+  const fetchIdRef = useRef(0);
 
   const fetchSubstitutions = useCallback(async (matchId: number) => {
     if (!currentTeam) return;
+
+    const fetchId = ++fetchIdRef.current;
 
     try {
       const { data, error } = await supabase
@@ -22,10 +25,11 @@ export function useSubstitutions() {
         .select('*')
         .eq('match_id', matchId);
 
+      if (fetchId !== fetchIdRef.current) return;
       if (error) throw error;
       setSubstitutions(data || []);
-    } catch (error) {
-      console.error('Error fetching substitutions:', error);
+    } catch {
+      // state ongewijzigd laten bij fetch-fout
     }
   }, [currentTeam]);
 
@@ -125,8 +129,7 @@ export function useSubstitutions() {
       setShowSubModalMinute(null);
       setTempSubs([]);
       return true;
-    } catch (error) {
-      console.error('Error saving substitutions:', error);
+    } catch {
       return false;
     }
   }, [showSubModal, showSubModalMinute, tempSubs, fetchSubstitutions, currentTeam]);
@@ -174,8 +177,7 @@ export function useSubstitutions() {
       if (error) throw error;
       await fetchSubstitutions(matchId);
       return true;
-    } catch (error) {
-      console.error('Error saving quick swap:', error);
+    } catch {
       return false;
     }
   }, [currentTeam, fetchSubstitutions]);

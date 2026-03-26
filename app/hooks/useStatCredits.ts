@@ -45,8 +45,7 @@ export function useStatCredits() {
     try {
       const bal = await ensureBalance(playerId);
       setBalance(bal);
-    } catch (e) {
-      console.error('Error fetching credit balance:', e);
+    } catch {
     }
   }, [ensureBalance]);
 
@@ -190,8 +189,8 @@ export function useStatCredits() {
           });
         }
       }
-    } catch (e) {
-      console.error('Error awarding SPDW credits:', e);
+    } catch {
+      // credits ongewijzigd laten bij fout
     }
   }, [currentTeam]);
 
@@ -247,8 +246,7 @@ export function useStatCredits() {
 
       setBalance(newBalance);
       return true;
-    } catch (e) {
-      console.error('Error spending credits for stats:', e);
+    } catch {
       return false;
     }
   }, [currentTeam, balance]);
@@ -292,8 +290,7 @@ export function useStatCredits() {
 
       setBalance(newBalance);
       return true;
-    } catch (e) {
-      console.error('Error spending credit:', e);
+    } catch {
       return false;
     }
   }, [currentTeam, balance]);
@@ -345,8 +342,8 @@ export function useStatCredits() {
           });
         })
       );
-    } catch (e) {
-      console.error('Error awarding attendance credits:', e);
+    } catch {
+      // credits ongewijzigd laten bij fout
     }
   }, [currentTeam]);
 

@@ -136,6 +136,135 @@ function calcRating(player: Player): number {
 
 export { calcRating, positionAbbr, positionColors };
 
+// ─── Teamsterren helpers ────────────────────────────────────────────────────
+
+export type TeamsterrenLevel = 'Rookie' | 'Belofte' | 'Ster' | 'Legende';
+
+export function getTeamsterrenLevel(stars: number): TeamsterrenLevel {
+  if (stars >= 50) return 'Legende';
+  if (stars >= 25) return 'Ster';
+  if (stars >= 10) return 'Belofte';
+  return 'Rookie';
+}
+
+export function getTeamsterrenNextThreshold(stars: number): number {
+  if (stars >= 50) return 50;
+  if (stars >= 25) return 50;
+  if (stars >= 10) return 25;
+  return 10;
+}
+
+const levelStyles: Record<TeamsterrenLevel, { badge: string; gradient: string; border: string; badgeColor: string }> = {
+  Rookie:  { badge: '⚪ ROOKIE',  gradient: 'from-gray-700 via-gray-800 to-gray-900',         border: 'border-gray-500',  badgeColor: 'text-gray-300' },
+  Belofte: { badge: '🔵 BELOFTE', gradient: 'from-blue-800 via-blue-900 to-slate-900',         border: 'border-blue-400',  badgeColor: 'text-blue-300' },
+  Ster:    { badge: '🟣 STER',    gradient: 'from-purple-800 via-indigo-900 to-slate-950',     border: 'border-purple-400', badgeColor: 'text-purple-300' },
+  Legende: { badge: '👑 LEGENDE', gradient: 'from-yellow-700 via-amber-800 to-yellow-950',    border: 'border-yellow-400', badgeColor: 'text-yellow-300' },
+};
+
+interface TeamsterrenCardProps {
+  player: Player;
+  gamesPlayed: number;
+  wins: number;
+  size?: 'sm' | 'md';
+}
+
+export function TeamsterrenCard({ player, gamesPlayed, wins, size = 'md' }: TeamsterrenCardProps) {
+  const stars = wins * 2 + gamesPlayed; // wins×3 + nonWins×1 = wins×2 + gamesPlayed
+  const level = getTeamsterrenLevel(stars);
+  const nextThreshold = getTeamsterrenNextThreshold(stars);
+  const prevThreshold = level === 'Rookie' ? 0 : level === 'Belofte' ? 10 : level === 'Ster' ? 25 : 50;
+  const progress = level === 'Legende'
+    ? 100
+    : Math.round(((stars - prevThreshold) / (nextThreshold - prevThreshold)) * 100);
+
+  const ls = levelStyles[level];
+  const isSm = size === 'sm';
+  const cardW = isSm ? 'w-[155px]' : 'w-[180px] sm:w-[210px]';
+  const roundClass = isSm ? 'rounded-xl' : 'rounded-2xl';
+
+  const initials = player.name
+    .split(' ')
+    .map(w => w[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <div className={`bg-gradient-to-b ${ls.gradient} ${cardW} border-2 ${ls.border} shadow-lg relative overflow-hidden ${roundClass} ${isSm ? 'p-3' : 'p-3 sm:p-4'} select-none`}>
+      {/* Level badge */}
+      <div className={`text-center text-[10px] font-black tracking-widest ${ls.badgeColor} mb-2`}>
+        {ls.badge}
+      </div>
+
+      {/* Avatar */}
+      <div className="flex justify-center mb-2">
+        {player.avatar_url ? (
+          <div className={`${isSm ? 'w-14 h-14' : 'w-16 h-16'} rounded-full overflow-hidden border-2 border-white/30`}>
+            <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className={`${isSm ? 'w-14 h-14' : 'w-16 h-16'} rounded-full border-2 border-white/30 bg-black/30 flex items-center justify-center`}>
+            <span className="text-lg font-black text-white/80">{initials}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Name + position */}
+      <div className={`${isSm ? 'text-sm' : 'text-base'} font-black text-center text-white truncate leading-tight`}>
+        {player.name}
+      </div>
+      <div className="text-[10px] text-center text-white/50 mb-2">
+        {player.position}
+      </div>
+
+      <div className="border-t border-white/20 mb-2" />
+
+      {/* Stats row */}
+      <div className="flex justify-around mb-2">
+        <div className="text-center">
+          <div className="text-lg">⚽</div>
+          <div className="text-sm font-black text-white">{gamesPlayed}</div>
+          <div className="text-[9px] text-white/40">gespeeld</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg">🏆</div>
+          <div className="text-sm font-black text-white">{wins}</div>
+          <div className="text-[9px] text-white/40">gewonnen</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg">⭐</div>
+          <div className={`text-sm font-black ${ls.badgeColor}`}>{stars}</div>
+          <div className="text-[9px] text-white/40">sterren</div>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      {level !== 'Legende' ? (
+        <div>
+          <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
+            <span>{stars} sterren</span>
+            <span>→ {nextThreshold}</span>
+          </div>
+          <div className="w-full bg-black/30 rounded-full h-1.5">
+            <div
+              className={`h-1.5 rounded-full transition-all ${
+                level === 'Rookie' ? 'bg-gray-400' :
+                level === 'Belofte' ? 'bg-blue-400' :
+                'bg-purple-400'
+              }`}
+              style={{ width: `${Math.min(100, progress)}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="text-center text-[10px] text-yellow-400 font-bold">
+          ✨ Maximaal niveau bereikt!
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Hexagon radar chart (SVG)
 function HexRadar({ stats, tier, size }: {
   stats: { label: string; value: number }[];

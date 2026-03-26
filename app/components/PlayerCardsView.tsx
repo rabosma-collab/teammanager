@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
 import type { SeasonBadge } from './PlayerCard';
-import PlayerCard, { calcRating } from './PlayerCard';
+import PlayerCard, { calcRating, TeamsterrenCard } from './PlayerCard';
 import PlayerStatsEditModal from './modals/PlayerStatsEditModal';
+import { useTeamContext } from '../contexts/TeamContext';
+import { supabase } from '../lib/supabase';
 
 const OUTFIELD_STAT_LABELS: { key: keyof Player; label: string }[] = [
   { key: 'pac', label: 'PAC' },
@@ -63,6 +65,10 @@ export default function PlayerCardsView({
   onSaveStatDraft,
   spdwWinnerPlayerIds = [],
 }: PlayerCardsViewProps) {
+  const { currentTeam, teamSettings } = useTeamContext();
+  const playerCardMode = teamSettings?.player_card_mode ?? 'competitive';
+  const allowEditOthers = teamSettings?.allow_edit_others ?? true;
+
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [creditEditingId, setCreditEditingId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'position' | 'rating'>('position');
@@ -74,6 +80,43 @@ export default function PlayerCardsView({
   const [originalStats, setOriginalStats] = useState<Record<string, number> | null>(null);
   const [draftStats, setDraftStats] = useState<Record<string, number> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Teamsterren: gamesPlayed + wins per player (afgeronde wedstrijden)
+  const [starData, setStarData] = useState<Record<number, { gamesPlayed: number; wins: number }>>({});
+
+  useEffect(() => {
+    if (playerCardMode !== 'teamsterren' || !currentTeam) return;
+    async function fetchStarData() {
+      const { data: lineupRows } = await supabase
+        .from('lineups')
+        .select('player_id, match_id')
+        .eq('team_id', currentTeam!.id)
+        .not('player_id', 'is', null);
+
+      const { data: matchRows } = await supabase
+        .from('matches')
+        .select('id, goals_for, goals_against')
+        .eq('team_id', currentTeam!.id)
+        .eq('match_status', 'afgerond');
+
+      if (!lineupRows || !matchRows) return;
+
+      const matchMap = new Map(matchRows.map((m: { id: number; goals_for: number | null; goals_against: number | null }) => [m.id, m]));
+      const result: Record<number, { gamesPlayed: number; wins: number }> = {};
+
+      for (const row of lineupRows as { player_id: number; match_id: number }[]) {
+        const match = matchMap.get(row.match_id);
+        if (!match) continue;
+        if (!result[row.player_id]) result[row.player_id] = { gamesPlayed: 0, wins: 0 };
+        result[row.player_id].gamesPlayed++;
+        if ((match.goals_for ?? 0) > (match.goals_against ?? 0)) {
+          result[row.player_id].wins++;
+        }
+      }
+      setStarData(result);
+    }
+    fetchStarData();
+  }, [playerCardMode, currentTeam]);
 
   useEffect(() => {
     return () => {
@@ -237,47 +280,79 @@ export default function PlayerCardsView({
     );
   };
 
-  const renderCard = (player: Player) => (
-    <div key={player.id} className="flex flex-col items-center">
-      <div className="relative">
-        <PlayerCard
-          player={player}
-          size="sm"
-          isFlippable
-          isSpdwWinner={spdwWinnerPlayerIds.includes(player.id)}
-          seasonBadges={seasonBadges[player.id] ?? []}
-          isJustUpgraded={justUpgradedId === player.id}
-        />
-        {isAdmin && (
+  const canEditCard = (player: Player) =>
+    hasCredits && !player.is_guest &&
+    (allowEditOthers || player.id === currentPlayerId);
+
+  const renderCard = (player: Player) => {
+    if (playerCardMode === 'teamsterren') {
+      const sd = starData[player.id] ?? { gamesPlayed: 0, wins: 0 };
+      return (
+        <div key={player.id} className="flex flex-col items-center">
+          <div className="relative">
+            <TeamsterrenCard
+              player={player}
+              gamesPlayed={sd.gamesPlayed}
+              wins={sd.wins}
+              size="sm"
+            />
+            {isAdmin && (
+              <button
+                onClick={e => { e.stopPropagation(); setEditingPlayer(player); }}
+                className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
+              >
+                ✏️
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div key={player.id} className="flex flex-col items-center">
+        <div className="relative">
+          <PlayerCard
+            player={player}
+            size="sm"
+            isFlippable
+            isSpdwWinner={spdwWinnerPlayerIds.includes(player.id)}
+            seasonBadges={seasonBadges[player.id] ?? []}
+            isJustUpgraded={justUpgradedId === player.id}
+          />
+          {isAdmin && (
+            <button
+              onClick={e => { e.stopPropagation(); setEditingPlayer(player); }}
+              className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
+            >
+              ✏️
+            </button>
+          )}
+        </div>
+        {canEditCard(player) && (
           <button
-            onClick={e => { e.stopPropagation(); setEditingPlayer(player); }}
-            className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
+            onClick={() => openCreditPanel(player)}
+            className={`mt-1.5 px-3 py-1 rounded-full text-xs font-bold transition touch-manipulation ${
+              creditEditingId === player.id
+                ? 'bg-yellow-600 text-black'
+                : 'bg-gray-700 hover:bg-yellow-700/50 text-yellow-400'
+            }`}
           >
-            ✏️
+            💰
           </button>
         )}
+        {creditEditingId === player.id && renderCreditPanel(player)}
       </div>
-      {hasCredits && !player.is_guest && (
-        <button
-          onClick={() => openCreditPanel(player)}
-          className={`mt-1.5 px-3 py-1 rounded-full text-xs font-bold transition touch-manipulation ${
-            creditEditingId === player.id
-              ? 'bg-yellow-600 text-black'
-              : 'bg-gray-700 hover:bg-yellow-700/50 text-yellow-400'
-          }`}
-        >
-          💰
-        </button>
-      )}
-      {creditEditingId === player.id && renderCreditPanel(player)}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="p-4 sm:p-8 overflow-y-auto flex-1">
       <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-2xl sm:text-3xl font-bold">🃏 Spelerskaarten</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">
+            {playerCardMode === 'teamsterren' ? '⭐ Teamsterren' : '🃏 Spelerskaarten'}
+          </h2>
           <button
             onClick={() => setShowInfo(v => !v)}
             title="Hoe werkt het?"
@@ -291,7 +366,7 @@ export default function PlayerCardsView({
           </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {hasCredits && (
+          {hasCredits && playerCardMode === 'competitive' && (
             <span className="px-3 py-1.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs font-bold text-yellow-400">
               💰 {creditBalance} {creditBalance === 1 ? 'credit' : 'credits'}
             </span>
@@ -310,41 +385,60 @@ export default function PlayerCardsView({
               sortBy === 'rating' ? 'bg-yellow-500 text-black' : 'bg-gray-700 hover:bg-gray-600'
             }`}
           >
-            Op rating
+            {playerCardMode === 'teamsterren' ? 'Op sterren' : 'Op rating'}
           </button>
         </div>
       </div>
 
-      {/* Tier legenda */}
-      <div className="mb-4 flex flex-wrap gap-2 items-center">
-        {[
-          { tier: 'bronze', label: 'Bronze',  color: 'bg-amber-700',   text: '< 65' },
-          { tier: 'silver', label: 'Silver',  color: 'bg-gray-500',    text: '65–74' },
-          { tier: 'gold',   label: 'Goud',    color: 'bg-yellow-600',  text: '75–84' },
-          { tier: 'elite',  label: 'Elite',   color: 'bg-violet-700',  text: '85–89' },
-          { tier: 'legend', label: 'Legend',  color: 'bg-cyan-700',    text: '90+' },
-        ].map(({ label, color, text }) => (
-          <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${color}`} />
-            <span className="font-bold text-white">{label}</span>
-            <span>{text}</span>
+      {/* Legenda — alleen bij competitive */}
+      {playerCardMode === 'competitive' && (
+        <div className="mb-4 flex flex-wrap gap-2 items-center">
+          {[
+            { tier: 'bronze', label: 'Bronze',  color: 'bg-amber-700',   text: '< 65' },
+            { tier: 'silver', label: 'Silver',  color: 'bg-gray-500',    text: '65–74' },
+            { tier: 'gold',   label: 'Goud',    color: 'bg-yellow-600',  text: '75–84' },
+            { tier: 'elite',  label: 'Elite',   color: 'bg-violet-700',  text: '85–89' },
+            { tier: 'legend', label: 'Legend',  color: 'bg-cyan-700',    text: '90+' },
+          ].map(({ label, color, text }) => (
+            <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
+              <span className={`inline-block w-2.5 h-2.5 rounded-full ${color}`} />
+              <span className="font-bold text-white">{label}</span>
+              <span>{text}</span>
+            </span>
+          ))}
+          <span className="flex items-center gap-1 text-xs text-gray-400 ml-1">
+            <span>👑</span><span>SPDW-winnaar</span>
           </span>
-        ))}
-        <span className="flex items-center gap-1 text-xs text-gray-400 ml-1">
-          <span>👑</span><span>SPDW-winnaar</span>
-        </span>
-        <span className="flex items-center gap-1 text-xs text-gray-400">
-          <span className="w-4 h-4 rounded-full bg-yellow-600 flex items-center justify-center" style={{ fontSize: '9px' }}>⚽</span>
-          <span>Topschutter</span>
-        </span>
-        <span className="flex items-center gap-1 text-xs text-gray-400">
-          <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center" style={{ fontSize: '9px' }}>🎯</span>
-          <span>Meeste assists</span>
-        </span>
-        <span className="flex items-center gap-1 text-xs text-gray-400">
-          <span>↻</span><span>tik = flip voor details</span>
-        </span>
-      </div>
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span className="w-4 h-4 rounded-full bg-yellow-600 flex items-center justify-center" style={{ fontSize: '9px' }}>⚽</span>
+            <span>Topschutter</span>
+          </span>
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center" style={{ fontSize: '9px' }}>🎯</span>
+            <span>Meeste assists</span>
+          </span>
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span>↻</span><span>tik = flip voor details</span>
+          </span>
+        </div>
+      )}
+
+      {/* Teamsterren legenda */}
+      {playerCardMode === 'teamsterren' && (
+        <div className="mb-4 flex flex-wrap gap-2 items-center">
+          {[
+            { label: '⚪ Rookie',  text: '0–9 ⭐' },
+            { label: '🔵 Belofte', text: '10–24 ⭐' },
+            { label: '🟣 Ster',    text: '25–49 ⭐' },
+            { label: '👑 Legende', text: '50+ ⭐' },
+          ].map(({ label, text }) => (
+            <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
+              <span className="font-bold text-white">{label}</span>
+              <span>{text}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {showInfo && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowInfo(false)}>

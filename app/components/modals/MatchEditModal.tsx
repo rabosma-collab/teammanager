@@ -6,7 +6,7 @@ import DraggableModal from './DraggableModal';
 export interface MatchFormData {
   date: string;
   opponent: string;
-  home_away: string;
+  home_away: 'Thuis' | 'Uit';
   formation: string;
   match_type: 'competitie' | 'oefenwedstrijd';
   assembly_time: string | null;
@@ -28,7 +28,7 @@ interface MatchEditModalProps {
 export default function MatchEditModal({ match, gameFormat, defaultFormation = '4-3-3-aanvallend', trackAssemblyTime = false, trackMatchTime = false, trackLocationDetails = false, onSave, onClose }: MatchEditModalProps) {
   const [date, setDate] = useState(match?.date || '');
   const [opponent, setOpponent] = useState(match?.opponent || '');
-  const [homeAway, setHomeAway] = useState(match?.home_away || 'Thuis');
+  const [homeAway, setHomeAway] = useState<'Thuis' | 'Uit'>(match?.home_away || 'Thuis');
   const [formation, setFormation] = useState(match?.formation || defaultFormation);
   const [matchType, setMatchType] = useState<'competitie' | 'oefenwedstrijd'>(match?.match_type || 'competitie');
   const [assemblyTime, setAssemblyTime] = useState(match?.assembly_time || '');
@@ -89,7 +89,7 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
             <label className="block text-sm font-bold text-gray-400 mb-1">Uit / Thuis</label>
             <select
               value={homeAway}
-              onChange={(e) => setHomeAway(e.target.value)}
+              onChange={(e) => setHomeAway(e.target.value as 'Thuis' | 'Uit')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
             >
               <option value="Thuis">Thuis</option>

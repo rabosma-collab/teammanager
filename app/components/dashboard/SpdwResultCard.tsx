@@ -15,7 +15,7 @@ function formatMatchDate(dateStr: string): string {
 
 export default function SpdwResultCard({ result }: SpdwResultCardProps) {
   const { match, podium } = result;
-  const prefix = match.home_away === 'home' ? 'vs' : '@';
+  const prefix = match.home_away === 'Thuis' ? 'vs' : '@';
   const dateLabel = formatMatchDate(match.date);
 
   return (

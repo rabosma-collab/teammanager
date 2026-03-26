@@ -102,6 +102,15 @@ export default function FootballApp() {
 
   // ---- UI STATE ----
   const [view, setView] = useState('dashboard');
+  const [isDirty, setIsDirty] = useState(false);
+
+  const handleSetView = useCallback((newView: string) => {
+    if (isDirty) {
+      if (!window.confirm('Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je deze pagina wilt verlaten?')) return;
+      setIsDirty(false);
+    }
+    setView(newView);
+  }, [isDirty]);
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [subMoments, setSubMoments] = useState<number>(1);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(1);
@@ -758,8 +767,8 @@ export default function FootballApp() {
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error ?? 'Onbekende fout');
 
-      // 2. Ken 1 aanwezigheidscredit toe aan elke speler in de opstelling
-      if (currentTeam) {
+      // 2. Ken 1 aanwezigheidscredit toe aan elke speler in de opstelling (alleen bij competitive)
+      if (currentTeam && (teamSettings?.player_card_mode ?? 'competitive') === 'competitive') {
         const { data: lineupRows } = await supabase
           .from('lineups')
           .select('player_id')
@@ -952,7 +961,7 @@ export default function FootballApp() {
     <div className="flex flex-col h-screen bg-gray-900 text-white">
       <Navbar
         view={view}
-        setView={setView}
+        setView={handleSetView}
         isAdmin={isManager}
         onLogout={handleLogout}
         onPlayerUpdated={fetchPlayers}
@@ -1253,7 +1262,7 @@ export default function FootballApp() {
         </div>
       ) : view === 'mededelingen' && isManager ? (
         <div className="flex-1 overflow-y-auto">
-          <MededelingenView />
+          <MededelingenView onDirtyChange={setIsDirty} />
         </div>
       ) : view === 'feedback' && isManager ? (
         <div className="flex-1 overflow-y-auto">
@@ -1261,13 +1270,13 @@ export default function FootballApp() {
         </div>
       ) : view === 'team-settings' && isManager ? (
         <div className="flex-1 overflow-y-auto">
-          <TeamSettingsView onSettingsSaved={refreshTeamSettings} />
+          <TeamSettingsView onSettingsSaved={refreshTeamSettings} onDirtyChange={setIsDirty} />
         </div>
       ) : view === 'season-settings' && isManager ? (
         <div className="flex-1 overflow-y-auto">
           <SeasonSettingsView />
         </div>
-      ) : view === 'cards' ? (
+      ) : view === 'cards' && (teamSettings?.player_card_mode ?? 'competitive') !== 'none' ? (
         <div className="flex-1 overflow-y-auto">
           <PlayerCardsView
             players={players}
@@ -1325,7 +1334,11 @@ export default function FootballApp() {
           trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
           trackMatchTime={teamSettings?.track_match_time ?? false}
           trackLocationDetails={teamSettings?.track_location_details ?? false}
-          trackSpdw={teamSettings?.track_spdw ?? true}
+          trackSpdw={
+            (teamSettings?.track_spdw ?? true) &&
+            (teamSettings?.player_card_mode ?? 'competitive') === 'competitive' &&
+            (teamSettings?.spdw_enabled ?? true)
+          }
           activities={activities}
           onActivityRead={markAsRead}
           onOpenActivity={() => { setShowActivity(true); fetchActivities(); }}

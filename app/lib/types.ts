@@ -35,7 +35,7 @@ export interface Player {
     id: number;
     date: string;
     opponent: string;
-    home_away: string;
+    home_away: 'Thuis' | 'Uit';
     formation: string;
     match_type: 'competitie' | 'oefenwedstrijd';
     substitution_scheme_id: number;
@@ -44,6 +44,7 @@ export interface Player {
     goals_for?: number | null;
     goals_against?: number | null;
     lineup_published?: boolean;
+    credits_awarded?: boolean;
     wasbeurt_player_id?: number | null;
     consumpties_player_id?: number | null;
     transport_player_ids?: number[];
@@ -138,6 +139,8 @@ export interface Player {
     updated_at: string;
   }
 
+  export type PlayerCardMode = 'competitive' | 'teamsterren' | 'none';
+
   export interface TeamSettings {
     team_id: string;
     game_format: string;
@@ -159,6 +162,9 @@ export interface Player {
     track_match_time: boolean;
     track_location_details: boolean;
     track_played_minutes: boolean;
+    player_card_mode: PlayerCardMode;
+    spdw_enabled: boolean;
+    allow_edit_others: boolean;
   }
 
   export interface TeamMember {

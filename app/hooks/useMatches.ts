@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -10,12 +10,16 @@ export function useMatches() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [matchAbsences, setMatchAbsences] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+  const fetchMatchesIdRef = useRef(0);
+  const fetchAbsencesIdRef = useRef(0);
 
   const fetchMatches = useCallback(async (seasonId?: number | null) => {
     if (!currentTeam) {
       setLoading(false);
       return;
     }
+
+    const fetchId = ++fetchMatchesIdRef.current;
 
     try {
       let query = supabase
@@ -30,28 +34,31 @@ export function useMatches() {
 
       const { data, error } = await query;
 
+      if (fetchId !== fetchMatchesIdRef.current) return;
       if (error) throw error;
-      setMatches(data || []);
 
-      if (data && data.length > 0) {
+      const matchData = (data || []) as Match[];
+      setMatches(matchData);
+
+      if (matchData.length > 0) {
         setSelectedMatch(prev => {
           // Behoud de huidige selectie als die wedstrijd nog bestaat (bijv. na Realtime update)
           if (prev) {
-            const stillExists = data.find((m: { id: number }) => m.id === prev.id);
+            const stillExists = matchData.find(m => m.id === prev.id);
             if (stillExists) return stillExists;
           }
 
           // Anders: selecteer de eerstvolgende wedstrijd
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          const upcoming = data
-            .filter((m: { date: string }) => new Date(m.date) >= today)
-            .sort((a: { date: string }, b: { date: string }) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          return upcoming.length > 0 ? upcoming[0] : data[0];
+          const upcoming = matchData
+            .filter(m => new Date(m.date) >= today)
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          return upcoming.length > 0 ? upcoming[0] : matchData[0];
         });
       }
-    } catch (error) {
-      console.error('Error fetching matches:', error);
+    } catch {
+      // state ongewijzigd laten bij fetch-fout
     } finally {
       setLoading(false);
     }
@@ -60,16 +67,19 @@ export function useMatches() {
   const fetchAbsences = useCallback(async (matchId: number) => {
     if (!currentTeam) return;
 
+    const fetchId = ++fetchAbsencesIdRef.current;
+
     try {
       const { data, error } = await supabase
         .from('match_absences')
         .select('player_id')
         .eq('match_id', matchId);
 
+      if (fetchId !== fetchAbsencesIdRef.current) return;
       if (error) throw error;
       setMatchAbsences(data?.map((a: { player_id: number }) => a.player_id) || []);
-    } catch (error) {
-      console.error('Error fetching absences:', error);
+    } catch {
+      // state ongewijzigd laten bij fetch-fout
     }
   }, [currentTeam]);
 
@@ -131,8 +141,7 @@ export function useMatches() {
       }
 
       return true;
-    } catch (error) {
-      console.error('Error toggling absence:', error);
+    } catch {
       return false;
     }
   }, [currentTeam]);
@@ -168,15 +177,14 @@ export function useMatches() {
       });
 
       return true;
-    } catch (error) {
-      console.error('Error adding match:', error);
+    } catch {
       return false;
     }
   }, [currentTeam]);
 
   const updateMatch = useCallback(async (
     id: number,
-    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: 'competitie' | 'oefenwedstrijd'; assembly_time?: string | null; match_time?: string | null; location_details?: string | null }
+    matchData: { date: string; opponent: string; home_away: 'Thuis' | 'Uit'; formation: string; match_type?: 'competitie' | 'oefenwedstrijd'; assembly_time?: string | null; match_time?: string | null; location_details?: string | null }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -212,8 +220,7 @@ export function useMatches() {
         setSelectedMatch(prev => prev ? { ...prev, ...matchData } : prev);
       }
       return true;
-    } catch (error) {
-      console.error('Error updating match:', error);
+    } catch {
       return false;
     }
   }, [matches, selectedMatch?.id, currentTeam]);
@@ -241,8 +248,7 @@ export function useMatches() {
         setSelectedMatch(prev => prev ? { ...prev, goals_for: goalsFor, goals_against: goalsAgainst } : prev);
       }
       return true;
-    } catch (error) {
-      console.error('Error updating match score:', error);
+    } catch {
       return false;
     }
   }, [selectedMatch?.id, currentTeam]);
@@ -279,8 +285,7 @@ export function useMatches() {
       }
 
       return true;
-    } catch (error) {
-      console.error('Error publishing lineup:', error);
+    } catch {
       return false;
     }
   }, [selectedMatch?.id, currentTeam]);
@@ -307,8 +312,7 @@ export function useMatches() {
         setSelectedMatch(prev => prev ? { ...prev, wasbeurt_player_id: playerId } : prev);
       }
       return true;
-    } catch (error) {
-      console.error('Error updating wasbeurt player:', error);
+    } catch {
       return false;
     }
   }, [selectedMatch?.id, currentTeam]);
@@ -335,8 +339,7 @@ export function useMatches() {
         setSelectedMatch(prev => prev ? { ...prev, consumpties_player_id: playerId } : prev);
       }
       return true;
-    } catch (error) {
-      console.error('Error updating consumpties player:', error);
+    } catch {
       return false;
     }
   }, [selectedMatch?.id, currentTeam]);
@@ -363,8 +366,7 @@ export function useMatches() {
         setSelectedMatch(prev => prev ? { ...prev, transport_player_ids: playerIds } : prev);
       }
       return true;
-    } catch (error) {
-      console.error('Error updating transport players:', error);
+    } catch {
       return false;
     }
   }, [selectedMatch?.id, currentTeam]);
@@ -418,8 +420,7 @@ export function useMatches() {
       }
 
       return true;
-    } catch (error) {
-      console.error('Error updating match report:', error);
+    } catch {
       return false;
     }
   }, [selectedMatch?.id, currentTeam, matches]);
@@ -471,8 +472,7 @@ export function useMatches() {
         setSelectedMatch(prev => prev ? { ...prev, match_status: 'geannuleerd', goals_for: goalsFor, goals_against: goalsAgainst } : prev);
       }
       return true;
-    } catch (error) {
-      console.error('Error cancelling match:', error);
+    } catch {
       return false;
     }
   }, [matches, selectedMatch?.id, currentTeam]);
@@ -514,8 +514,7 @@ export function useMatches() {
         setSelectedMatch(null);
       }
       return true;
-    } catch (error) {
-      console.error('Error deleting match:', error);
+    } catch {
       return false;
     }
   }, [matches, selectedMatch?.id, currentTeam]);

@@ -28,7 +28,8 @@ export default function Navbar({
   onBellClick,
 }: NavbarProps) {
   const router = useRouter();
-  const { currentTeam, currentPlayerId, teams, switchTeam, userRole } = useTeamContext();
+  const { currentTeam, currentPlayerId, teams, switchTeam, userRole, teamSettings } = useTeamContext();
+  const playerCardMode = teamSettings?.player_card_mode ?? 'competitive';
   const [pendingCount, setPendingCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
   const [isOnboarding, setIsOnboarding] = useState(false);
@@ -202,7 +203,9 @@ export default function Navbar({
         <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
         <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Uitslagen" />
         <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
-        <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon="🃏" label="Kaarten" />
+        {playerCardMode !== 'none' && (
+          <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon={playerCardMode === 'teamsterren' ? '⭐' : '🃏'} label="Kaarten" />
+        )}
       </div>
 
       {/* Right side: team-switcher + Beheer + profile + logout — NOT inside the overflow div */}

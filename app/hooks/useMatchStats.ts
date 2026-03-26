@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { MatchPlayerStats } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -6,36 +6,33 @@ import { useTeamContext } from '../contexts/TeamContext';
 export function useMatchStats() {
   const { currentTeam } = useTeamContext();
   const [statsCache, setStatsCache] = useState<Record<number, MatchPlayerStats[]>>({});
+  const fetchMatchStatsIdRef = useRef(0);
+  const fetchStatsForMatchesIdRef = useRef(0);
 
   const fetchMatchStats = useCallback(async (matchId: number): Promise<MatchPlayerStats[]> => {
     if (!currentTeam) return [];
 
+    const fetchId = ++fetchMatchStatsIdRef.current;
+
     try {
-      // Fetch stats with player names
       const { data, error } = await supabase
         .from('match_player_stats')
-        .select(`
-          *,
-          players!player_id (name)
-        `)
+        .select(`*, players!player_id (name)`)
         .eq('match_id', matchId)
         .eq('team_id', currentTeam.id);
 
+      if (fetchId !== fetchMatchStatsIdRef.current) return [];
       if (error) throw error;
 
-      const stats: MatchPlayerStats[] = (data || []).map((row: {
-        id: number;
-        match_id: number;
-        team_id: string;
-        player_id: number | null;
-        guest_player_id: number | null;
-        goals: number;
-        assists: number;
-        yellow_cards: number;
-        red_cards: number;
-        own_goals: number;
+      type StatsRow = {
+        id: number; match_id: number; team_id: string;
+        player_id: number | null; guest_player_id: number | null;
+        goals: number; assists: number; yellow_cards: number;
+        red_cards: number; own_goals: number;
         players?: { name: string } | null;
-      }) => ({
+      };
+
+      const stats: MatchPlayerStats[] = (data || []).map((row: StatsRow) => ({
         id: row.id,
         match_id: row.match_id,
         team_id: row.team_id,
@@ -51,8 +48,7 @@ export function useMatchStats() {
 
       setStatsCache(prev => ({ ...prev, [matchId]: stats }));
       return stats;
-    } catch (error) {
-      console.error('Error fetching match stats:', error);
+    } catch {
       return [];
     }
   }, [currentTeam]);
@@ -61,16 +57,16 @@ export function useMatchStats() {
   const fetchStatsForMatches = useCallback(async (matchIds: number[]): Promise<Record<number, MatchPlayerStats[]>> => {
     if (!currentTeam || matchIds.length === 0) return {};
 
+    const fetchId = ++fetchStatsForMatchesIdRef.current;
+
     try {
       const { data, error } = await supabase
         .from('match_player_stats')
-        .select(`
-          *,
-          players!player_id (name)
-        `)
+        .select(`*, players!player_id (name)`)
         .in('match_id', matchIds)
         .eq('team_id', currentTeam.id);
 
+      if (fetchId !== fetchStatsForMatchesIdRef.current) return {};
       if (error) throw error;
 
       const byMatch: Record<number, MatchPlayerStats[]> = {};
@@ -94,8 +90,7 @@ export function useMatchStats() {
 
       setStatsCache(prev => ({ ...prev, ...byMatch }));
       return byMatch;
-    } catch (error) {
-      console.error('Error fetching stats for matches:', error);
+    } catch {
       return {};
     }
   }, [currentTeam]);
@@ -128,8 +123,7 @@ export function useMatchStats() {
       });
 
       return true;
-    } catch (error) {
-      console.error('Error saving match stats:', error);
+    } catch {
       return false;
     }
   }, [currentTeam]);

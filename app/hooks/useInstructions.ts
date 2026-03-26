@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { PositionInstruction } from '../lib/types';
 
@@ -6,8 +6,11 @@ export function useInstructions() {
   const [positionInstructions, setPositionInstructions] = useState<PositionInstruction[]>([]);
   const [matchInstructions, setMatchInstructions] = useState<PositionInstruction[]>([]);
   const [editingInstruction, setEditingInstruction] = useState<PositionInstruction | null>(null);
+  const fetchInstructionsIdRef = useRef(0);
+  const fetchMatchInstructionsIdRef = useRef(0);
 
   const fetchInstructions = useCallback(async (gameFormat: string, formation: string) => {
+    const fetchId = ++fetchInstructionsIdRef.current;
     try {
       const { data, error } = await supabase
         .from('position_instructions')
@@ -16,14 +19,16 @@ export function useInstructions() {
         .eq('formation', formation)
         .order('position_index');
 
+      if (fetchId !== fetchInstructionsIdRef.current) return;
       if (error) throw error;
       setPositionInstructions(data || []);
-    } catch (error) {
-      console.error('Error fetching instructions:', error);
+    } catch {
+      // state ongewijzigd laten bij fetch-fout
     }
   }, []);
 
   const fetchMatchInstructions = useCallback(async (matchId: number, formation: string) => {
+    const fetchId = ++fetchMatchInstructionsIdRef.current;
     try {
       const { data, error } = await supabase
         .from('match_position_instructions')
@@ -32,10 +37,11 @@ export function useInstructions() {
         .eq('formation', formation)
         .order('position_index');
 
+      if (fetchId !== fetchMatchInstructionsIdRef.current) return;
       if (error) throw error;
       setMatchInstructions(data || []);
-    } catch (error) {
-      console.error('Error fetching match instructions:', error);
+    } catch {
+      // state ongewijzigd laten bij fetch-fout
     }
   }, []);
 
@@ -76,8 +82,7 @@ export function useInstructions() {
       await fetchInstructions(gameFormat, formation);
       setEditingInstruction(null);
       return true;
-    } catch (error) {
-      console.error('Error saving instruction:', error);
+    } catch {
       return false;
     }
   }, [fetchInstructions]);
@@ -108,8 +113,7 @@ export function useInstructions() {
       await fetchMatchInstructions(matchId, formation);
       setEditingInstruction(null);
       return true;
-    } catch (error) {
-      console.error('Error saving match instruction:', error);
+    } catch {
       return false;
     }
   }, [fetchMatchInstructions]);
@@ -130,8 +134,7 @@ export function useInstructions() {
 
       await fetchMatchInstructions(matchId, formation);
       return true;
-    } catch (error) {
-      console.error('Error deleting match instruction:', error);
+    } catch {
       return false;
     }
   }, [fetchMatchInstructions]);

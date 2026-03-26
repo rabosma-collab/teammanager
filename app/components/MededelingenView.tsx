@@ -16,12 +16,16 @@ interface Announcement {
   expires_at: string;
 }
 
-export default function MededelingenView() {
+export default function MededelingenView({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const { currentTeam } = useTeamContext();
   const toast = useToast();
   const [current, setCurrent] = useState<Announcement | null>(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange?.(message.trim().length > 0);
+  }, [message, onDirtyChange]);
 
   const fetchCurrent = useCallback(async () => {
     if (!currentTeam) return;
@@ -70,7 +74,7 @@ export default function MededelingenView() {
         },
       });
 
-      setMessage('');
+      setMessage(''); // triggers useEffect → onDirtyChange(false)
       await fetchCurrent();
     } catch (err) {
       console.error('Fout bij plaatsen mededeling:', err);
