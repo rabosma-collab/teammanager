@@ -200,8 +200,8 @@ export default function Navbar({
       {/* Scrollable left side */}
       <div className="flex items-stretch gap-0 overflow-x-auto flex-1 min-w-0 pl-1 sm:pl-2">
         <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
-        <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Wedstrijd" />
-        <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Uitslagen" />
+        <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Opstelling" />
+        <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Wedstrijden" />
         <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
         {playerCardMode !== 'none' && (
           <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon={playerCardMode === 'teamsterren' ? '⭐' : '🃏'} label="Kaarten" />
