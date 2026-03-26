@@ -43,6 +43,8 @@ interface DashboardViewProps {
   matchDuration?: number;
   trackWasbeurt?: boolean;
   trackConsumpties?: boolean;
+  trackVervoer?: boolean;
+  vervoerCount?: number;
   trackAssemblyTime?: boolean;
   trackMatchTime?: boolean;
   trackLocationDetails?: boolean;
@@ -75,6 +77,8 @@ export default function DashboardView({
   trackResults = true,
   trackWasbeurt = true,
   trackConsumpties = true,
+  trackVervoer = true,
+  vervoerCount = 3,
   trackAssemblyTime = false,
   trackMatchTime = false,
   trackLocationDetails = false,
@@ -469,6 +473,11 @@ export default function DashboardView({
               futureMatches={futureMatches}
               currentPlayerId={currentPlayerId}
               onToggleAbsence={handleToggleAbsence}
+              players={players}
+              trackWasbeurt={trackWasbeurt}
+              trackConsumpties={trackConsumpties}
+              trackVervoer={trackVervoer}
+              vervoerCount={vervoerCount}
             />
           </div>
         )}

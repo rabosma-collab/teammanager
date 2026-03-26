@@ -1333,6 +1333,8 @@ export default function FootballApp() {
           matchDuration={matchDuration}
           trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
           trackConsumpties={teamSettings?.track_consumpties ?? true}
+          trackVervoer={teamSettings?.track_vervoer ?? true}
+          vervoerCount={teamSettings?.vervoer_count ?? 3}
           trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
           trackMatchTime={teamSettings?.track_match_time ?? false}
           trackLocationDetails={teamSettings?.track_location_details ?? false}

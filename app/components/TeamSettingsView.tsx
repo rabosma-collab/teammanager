@@ -27,22 +27,23 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
   const { settings, isLoading, fetchSettings, upsertSettings, updateTeamInfo } = useTeamSettings();
   const toast = useToast();
 
-  // --- Teamgegevens (eigen opslaan) ---
+  // --- Teamgegevens ---
   const [teamName, setTeamName] = useState('');
   const [teamColor, setTeamColor] = useState('#f59e0b');
-  const [savingTeam, setSavingTeam] = useState(false);
   const [teamInfoDirty, setTeamInfoDirty] = useState(false);
 
   // --- Mijn spelersprofiel ---
   const [players, setPlayers] = useState<{ id: number; name: string }[]>([]);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null | 'unset'>(null);
-  const [savingPlayerLink, setSavingPlayerLink] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null | 'unset'>('unset');
+  const [playerLinkDirty, setPlayerLinkDirty] = useState(false);
 
-  // --- Settings draft (één opslaan voor spelvorm + formatie + statistieken) ---
+  // --- Settings draft ---
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [localDuration, setLocalDuration] = useState<string>('90');
-  const [savingSettings, setSavingSettings] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+
+  // --- Gezamenlijk opslaan ---
+  const [saving, setSaving] = useState(false);
 
   // --- Team verwijderen ---
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -57,6 +58,7 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
       // Reset dirty on team switch
       setTeamInfoDirty(false);
       setSettingsDirty(false);
+      setPlayerLinkDirty(false);
     }
   }, [currentTeam, fetchSettings]);
 
@@ -70,30 +72,13 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
       .order('name')
       .then(({ data }: { data: { id: number; name: string }[] | null }) => setPlayers(data ?? []));
     setSelectedPlayerId(currentPlayerId ?? 'unset');
+    setPlayerLinkDirty(false);
   }, [currentTeam, currentPlayerId]);
-
-  const handleSavePlayerLink = async () => {
-    if (!currentTeam || !currentUserId) return;
-    setSavingPlayerLink(true);
-    const newPlayerId = selectedPlayerId === 'unset' ? null : selectedPlayerId;
-    const { error } = await supabase
-      .from('team_members')
-      .update({ player_id: newPlayerId })
-      .eq('team_id', currentTeam.id)
-      .eq('user_id', currentUserId);
-    setSavingPlayerLink(false);
-    if (error) {
-      toast.error('Kon koppeling niet opslaan');
-    } else {
-      await refreshTeam();
-      toast.success('✅ Spelersprofiel opgeslagen!');
-    }
-  };
 
   // Meld dirty state aan parent
   useEffect(() => {
-    onDirtyChange?.(teamInfoDirty || settingsDirty);
-  }, [teamInfoDirty, settingsDirty, onDirtyChange]);
+    onDirtyChange?.(teamInfoDirty || settingsDirty || playerLinkDirty);
+  }, [teamInfoDirty, settingsDirty, playerLinkDirty, onDirtyChange]);
 
   // Initialiseer draft zodra settings geladen zijn
   useEffect(() => {
@@ -127,42 +112,42 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
     }
   }, [settings]);
 
-  const handleSaveTeamInfo = async () => {
-    if (!currentTeam) return;
-    if (!teamName.trim() || teamName.trim().length < 2) {
+  const handleSaveAll = async () => {
+    if (!currentTeam || !draft) return;
+    if (teamInfoDirty && (!teamName.trim() || teamName.trim().length < 2)) {
       toast.error('Teamnaam moet minimaal 2 tekens zijn');
       return;
     }
-    setSavingTeam(true);
-    const ok = await updateTeamInfo(currentTeam.id, {
-      name: teamName.trim(),
-      color: teamColor,
-    });
-    if (ok) {
-      await refreshTeam();
-      setTeamInfoDirty(false);
-      toast.success('✅ Teamgegevens opgeslagen!');
-    } else {
-      toast.error('❌ Kon teamgegevens niet opslaan');
-    }
-    setSavingTeam(false);
-  };
+    setSaving(true);
 
-  const handleSaveSettings = async () => {
-    if (!currentTeam || !draft) return;
-    const clampedDuration = Math.max(10, Math.min(120, parseInt(localDuration) || 90));
-    setLocalDuration(String(clampedDuration));
-    const finalDraft = { ...draft, match_duration: clampedDuration };
-    setSavingSettings(true);
-    const ok = await upsertSettings(currentTeam.id, finalDraft);
-    if (ok) {
-      setSettingsDirty(false);
-      toast.success('✅ Instellingen opgeslagen!');
-      onSettingsSaved?.();
-    } else {
-      toast.error('❌ Kon instellingen niet opslaan');
+    if (teamInfoDirty) {
+      const ok = await updateTeamInfo(currentTeam.id, { name: teamName.trim(), color: teamColor });
+      if (ok) { await refreshTeam(); setTeamInfoDirty(false); }
+      else { toast.error('❌ Kon teamgegevens niet opslaan'); setSaving(false); return; }
     }
-    setSavingSettings(false);
+
+    if (settingsDirty) {
+      const clampedDuration = Math.max(10, Math.min(120, parseInt(localDuration) || 90));
+      setLocalDuration(String(clampedDuration));
+      const ok = await upsertSettings(currentTeam.id, { ...draft, match_duration: clampedDuration });
+      if (ok) { setSettingsDirty(false); onSettingsSaved?.(); }
+      else { toast.error('❌ Kon instellingen niet opslaan'); setSaving(false); return; }
+    }
+
+    if (playerLinkDirty && currentUserId) {
+      const newPlayerId = selectedPlayerId === 'unset' ? null : selectedPlayerId;
+      const { error } = await supabase
+        .from('team_members')
+        .update({ player_id: newPlayerId })
+        .eq('team_id', currentTeam.id)
+        .eq('user_id', currentUserId);
+      if (error) { toast.error('❌ Kon spelersprofiel niet opslaan'); setSaving(false); return; }
+      await refreshTeam();
+      setPlayerLinkDirty(false);
+    }
+
+    toast.success('✅ Opgeslagen!');
+    setSaving(false);
   };
 
   const handleDeleteTeam = async () => {
@@ -311,13 +296,6 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
             </div>
           </div>
 
-          <button
-            onClick={handleSaveTeamInfo}
-            disabled={savingTeam}
-            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition"
-          >
-            {savingTeam ? 'Opslaan...' : 'Opslaan'}
-          </button>
         </section>
 
         {/* ── Spelvorm ── */}
@@ -635,17 +613,6 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
           </div>
         </section>
 
-        {/* ── Opslaan ── */}
-        <div className="flex justify-end pb-4">
-          <button
-            onClick={handleSaveSettings}
-            disabled={savingSettings}
-            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition text-base"
-          >
-            {savingSettings ? 'Opslaan...' : '💾 Instellingen opslaan'}
-          </button>
-        </div>
-
         {/* ── Mijn spelersprofiel ── */}
         {(isManager || isStaff) && (
           <section className="bg-gray-800 rounded-xl p-5 space-y-4">
@@ -657,7 +624,7 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
               <label className="block text-sm font-medium text-gray-400 mb-1">Ik ben</label>
               <select
                 value={selectedPlayerId === 'unset' || selectedPlayerId === null ? '' : String(selectedPlayerId)}
-                onChange={(e) => setSelectedPlayerId(e.target.value === '' ? 'unset' : Number(e.target.value))}
+                onChange={(e) => { setSelectedPlayerId(e.target.value === '' ? 'unset' : Number(e.target.value)); setPlayerLinkDirty(true); }}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-500"
               >
                 <option value="">— Geen (alleen trainer/staff) —</option>
@@ -666,15 +633,19 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
                 ))}
               </select>
             </div>
-            <button
-              onClick={handleSavePlayerLink}
-              disabled={savingPlayerLink}
-              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition"
-            >
-              {savingPlayerLink ? 'Opslaan...' : 'Opslaan'}
-            </button>
           </section>
         )}
+
+        {/* ── Opslaan ── */}
+        <div className="flex justify-end pb-4">
+          <button
+            onClick={handleSaveAll}
+            disabled={saving || (!teamInfoDirty && !settingsDirty && !playerLinkDirty)}
+            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition text-base"
+          >
+            {saving ? 'Opslaan...' : '💾 Opslaan'}
+          </button>
+        </div>
 
         {/* ── Gevaarzone ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3 border border-red-900/40">
