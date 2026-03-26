@@ -68,7 +68,7 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
       .select('id, name')
       .eq('team_id', currentTeam.id)
       .order('name')
-      .then(({ data }) => setPlayers((data ?? []) as { id: number; name: string }[]));
+      .then(({ data }: { data: { id: number; name: string }[] | null }) => setPlayers(data ?? []));
     setSelectedPlayerId(currentPlayerId ?? 'unset');
   }, [currentTeam, currentPlayerId]);
 
