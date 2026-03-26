@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Substitution, TempSubstitution } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -13,6 +13,10 @@ export function useSubstitutions() {
   const [showSubModalMinute, setShowSubModalMinute] = useState<number | null>(null);
   const [customMinuteInput, setCustomMinuteInput] = useState<number>(45);
   const fetchIdRef = useRef(0);
+
+  useEffect(() => {
+    setSubstitutions([]);
+  }, [currentTeam?.id]);
 
   const fetchSubstitutions = useCallback(async (matchId: number) => {
     if (!currentTeam) return;

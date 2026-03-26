@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -12,6 +12,12 @@ export function useLineup() {
   const [savingLineup, setSavingLineup] = useState(false);
   const lineupSnapshot = useRef<(Player | null)[]>(Array(11).fill(null));
   const fetchIdRef = useRef(0);
+
+  useEffect(() => {
+    setFieldOccupants(Array(11).fill(null));
+    setSelectedPlayer(null);
+    setSelectedPosition(null);
+  }, [currentTeam?.id]);
 
   const loadLineup = useCallback(async (matchId: number, players: Player[], playerCount: number = 11) => {
     if (!currentTeam || players.length === 0) return;

@@ -23,7 +23,7 @@ const PRESET_COLORS = [
 type SettingsDraft = Omit<TeamSettings, 'team_id'>;
 
 export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { onSettingsSaved?: () => void; onDirtyChange?: (dirty: boolean) => void }) {
-  const { currentTeam, isManager, refreshTeam } = useTeamContext();
+  const { currentTeam, isManager, isStaff, refreshTeam, currentUserId, currentPlayerId } = useTeamContext();
   const { settings, isLoading, fetchSettings, upsertSettings, updateTeamInfo } = useTeamSettings();
   const toast = useToast();
 
@@ -32,6 +32,11 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
   const [teamColor, setTeamColor] = useState('#f59e0b');
   const [savingTeam, setSavingTeam] = useState(false);
   const [teamInfoDirty, setTeamInfoDirty] = useState(false);
+
+  // --- Mijn spelersprofiel ---
+  const [players, setPlayers] = useState<{ id: number; name: string }[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null | 'unset'>(null);
+  const [savingPlayerLink, setSavingPlayerLink] = useState(false);
 
   // --- Settings draft (één opslaan voor spelvorm + formatie + statistieken) ---
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
@@ -54,6 +59,36 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
       setSettingsDirty(false);
     }
   }, [currentTeam, fetchSettings]);
+
+  // Haal spelers op + initialiseer huidige koppeling
+  useEffect(() => {
+    if (!currentTeam) return;
+    supabase
+      .from('players')
+      .select('id, name')
+      .eq('team_id', currentTeam.id)
+      .order('name')
+      .then(({ data }) => setPlayers((data ?? []) as { id: number; name: string }[]));
+    setSelectedPlayerId(currentPlayerId ?? 'unset');
+  }, [currentTeam, currentPlayerId]);
+
+  const handleSavePlayerLink = async () => {
+    if (!currentTeam || !currentUserId) return;
+    setSavingPlayerLink(true);
+    const newPlayerId = selectedPlayerId === 'unset' ? null : selectedPlayerId;
+    const { error } = await supabase
+      .from('team_members')
+      .update({ player_id: newPlayerId })
+      .eq('team_id', currentTeam.id)
+      .eq('user_id', currentUserId);
+    setSavingPlayerLink(false);
+    if (error) {
+      toast.error('Kon koppeling niet opslaan');
+    } else {
+      await refreshTeam();
+      toast.success('✅ Spelersprofiel opgeslagen!');
+    }
+  };
 
   // Meld dirty state aan parent
   useEffect(() => {
@@ -579,6 +614,36 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
             {savingSettings ? 'Opslaan...' : '💾 Instellingen opslaan'}
           </button>
         </div>
+
+        {/* ── Mijn spelersprofiel ── */}
+        {(isManager || isStaff) && (
+          <section className="bg-gray-800 rounded-xl p-5 space-y-4">
+            <div>
+              <h2 className="font-bold text-base text-gray-200">Mijn spelersprofiel</h2>
+              <p className="text-sm text-gray-400 mt-1">Koppel jouw account aan een speler in dit team. Dit wordt gebruikt voor je persoonlijke kaart op het dashboard.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Ik ben</label>
+              <select
+                value={selectedPlayerId === 'unset' || selectedPlayerId === null ? '' : String(selectedPlayerId)}
+                onChange={(e) => setSelectedPlayerId(e.target.value === '' ? 'unset' : Number(e.target.value))}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-500"
+              >
+                <option value="">— Geen (alleen trainer/staff) —</option>
+                {players.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={handleSavePlayerLink}
+              disabled={savingPlayerLink}
+              className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition"
+            >
+              {savingPlayerLink ? 'Opslaan...' : 'Opslaan'}
+            </button>
+          </section>
+        )}
 
         {/* ── Gevaarzone ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3 border border-red-900/40">

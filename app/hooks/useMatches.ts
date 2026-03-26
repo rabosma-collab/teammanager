@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -12,6 +12,13 @@ export function useMatches() {
   const [loading, setLoading] = useState(true);
   const fetchMatchesIdRef = useRef(0);
   const fetchAbsencesIdRef = useRef(0);
+
+  useEffect(() => {
+    setMatches([]);
+    setSelectedMatch(null);
+    setMatchAbsences([]);
+    setLoading(true);
+  }, [currentTeam?.id]);
 
   const fetchMatches = useCallback(async (seasonId?: number | null) => {
     if (!currentTeam) {
