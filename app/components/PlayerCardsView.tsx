@@ -101,7 +101,9 @@ export default function PlayerCardsView({
 
       if (!lineupRows || !matchRows) return;
 
-      const matchMap = new Map(matchRows.map((m: { id: number; goals_for: number | null; goals_against: number | null }) => [m.id, m]));
+      const matchMap = new Map<number, { id: number; goals_for: number | null; goals_against: number | null }>(
+        matchRows.map((m: { id: number; goals_for: number | null; goals_against: number | null }) => [m.id, m])
+      );
       const result: Record<number, { gamesPlayed: number; wins: number }> = {};
 
       for (const row of lineupRows as { player_id: number; match_id: number }[]) {
