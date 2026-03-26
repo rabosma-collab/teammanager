@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
 import type { SeasonBadge } from './PlayerCard';
-import PlayerCard, { calcRating } from './PlayerCard';
+import PlayerCard, { calcRating, TeamsterrenCard } from './PlayerCard';
 import PlayerStatsEditModal from './modals/PlayerStatsEditModal';
+import { useTeamContext } from '../contexts/TeamContext';
+import { supabase } from '../lib/supabase';
 
 const OUTFIELD_STAT_LABELS: { key: keyof Player; label: string }[] = [
   { key: 'pac', label: 'PAC' },
@@ -63,6 +65,10 @@ export default function PlayerCardsView({
   onSaveStatDraft,
   spdwWinnerPlayerIds = [],
 }: PlayerCardsViewProps) {
+  const { currentTeam, teamSettings } = useTeamContext();
+  const playerCardMode = teamSettings?.player_card_mode ?? 'competitive';
+  const allowEditOthers = teamSettings?.allow_edit_others ?? true;
+
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [creditEditingId, setCreditEditingId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'position' | 'rating'>('position');
@@ -74,6 +80,45 @@ export default function PlayerCardsView({
   const [originalStats, setOriginalStats] = useState<Record<string, number> | null>(null);
   const [draftStats, setDraftStats] = useState<Record<string, number> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Teamsterren: gamesPlayed + wins per player (afgeronde wedstrijden)
+  const [starData, setStarData] = useState<Record<number, { gamesPlayed: number; wins: number }>>({});
+
+  useEffect(() => {
+    if (playerCardMode !== 'teamsterren' || !currentTeam) return;
+    async function fetchStarData() {
+      const { data: lineupRows } = await supabase
+        .from('lineups')
+        .select('player_id, match_id')
+        .eq('team_id', currentTeam!.id)
+        .not('player_id', 'is', null);
+
+      const { data: matchRows } = await supabase
+        .from('matches')
+        .select('id, goals_for, goals_against')
+        .eq('team_id', currentTeam!.id)
+        .eq('match_status', 'afgerond');
+
+      if (!lineupRows || !matchRows) return;
+
+      const matchMap = new Map<number, { id: number; goals_for: number | null; goals_against: number | null }>(
+        matchRows.map((m: { id: number; goals_for: number | null; goals_against: number | null }) => [m.id, m])
+      );
+      const result: Record<number, { gamesPlayed: number; wins: number }> = {};
+
+      for (const row of lineupRows as { player_id: number; match_id: number }[]) {
+        const match = matchMap.get(row.match_id);
+        if (!match) continue;
+        if (!result[row.player_id]) result[row.player_id] = { gamesPlayed: 0, wins: 0 };
+        result[row.player_id].gamesPlayed++;
+        if ((match.goals_for ?? 0) > (match.goals_against ?? 0)) {
+          result[row.player_id].wins++;
+        }
+      }
+      setStarData(result);
+    }
+    fetchStarData();
+  }, [playerCardMode, currentTeam]);
 
   useEffect(() => {
     return () => {
@@ -237,47 +282,79 @@ export default function PlayerCardsView({
     );
   };
 
-  const renderCard = (player: Player) => (
-    <div key={player.id} className="flex flex-col items-center">
-      <div className="relative">
-        <PlayerCard
-          player={player}
-          size="sm"
-          isFlippable
-          isSpdwWinner={spdwWinnerPlayerIds.includes(player.id)}
-          seasonBadges={seasonBadges[player.id] ?? []}
-          isJustUpgraded={justUpgradedId === player.id}
-        />
-        {isAdmin && (
+  const canEditCard = (player: Player) =>
+    hasCredits && !player.is_guest &&
+    (allowEditOthers || player.id === currentPlayerId);
+
+  const renderCard = (player: Player) => {
+    if (playerCardMode === 'teamsterren') {
+      const sd = starData[player.id] ?? { gamesPlayed: 0, wins: 0 };
+      return (
+        <div key={player.id} className="flex flex-col items-center">
+          <div className="relative">
+            <TeamsterrenCard
+              player={player}
+              gamesPlayed={sd.gamesPlayed}
+              wins={sd.wins}
+              size="sm"
+            />
+            {isAdmin && (
+              <button
+                onClick={e => { e.stopPropagation(); setEditingPlayer(player); }}
+                className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
+              >
+                ✏️
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div key={player.id} className="flex flex-col items-center">
+        <div className="relative">
+          <PlayerCard
+            player={player}
+            size="sm"
+            isFlippable
+            isSpdwWinner={spdwWinnerPlayerIds.includes(player.id)}
+            seasonBadges={seasonBadges[player.id] ?? []}
+            isJustUpgraded={justUpgradedId === player.id}
+          />
+          {isAdmin && (
+            <button
+              onClick={e => { e.stopPropagation(); setEditingPlayer(player); }}
+              className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
+            >
+              ✏️
+            </button>
+          )}
+        </div>
+        {canEditCard(player) && (
           <button
-            onClick={e => { e.stopPropagation(); setEditingPlayer(player); }}
-            className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
+            onClick={() => openCreditPanel(player)}
+            className={`mt-1.5 px-3 py-1 rounded-full text-xs font-bold transition touch-manipulation ${
+              creditEditingId === player.id
+                ? 'bg-yellow-600 text-black'
+                : 'bg-gray-700 hover:bg-yellow-700/50 text-yellow-400'
+            }`}
           >
-            ✏️
+            💰
           </button>
         )}
+        {creditEditingId === player.id && renderCreditPanel(player)}
       </div>
-      {hasCredits && !player.is_guest && (
-        <button
-          onClick={() => openCreditPanel(player)}
-          className={`mt-1.5 px-3 py-1 rounded-full text-xs font-bold transition touch-manipulation ${
-            creditEditingId === player.id
-              ? 'bg-yellow-600 text-black'
-              : 'bg-gray-700 hover:bg-yellow-700/50 text-yellow-400'
-          }`}
-        >
-          💰
-        </button>
-      )}
-      {creditEditingId === player.id && renderCreditPanel(player)}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="p-4 sm:p-8 overflow-y-auto flex-1">
       <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-2xl sm:text-3xl font-bold">🃏 Spelerskaarten</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">
+            {playerCardMode === 'teamsterren' ? '⭐ Teamsterren' : '🃏 Spelerskaarten'}
+          </h2>
           <button
             onClick={() => setShowInfo(v => !v)}
             title="Hoe werkt het?"
@@ -291,7 +368,7 @@ export default function PlayerCardsView({
           </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {hasCredits && (
+          {hasCredits && playerCardMode === 'competitive' && (
             <span className="px-3 py-1.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs font-bold text-yellow-400">
               💰 {creditBalance} {creditBalance === 1 ? 'credit' : 'credits'}
             </span>
@@ -310,132 +387,163 @@ export default function PlayerCardsView({
               sortBy === 'rating' ? 'bg-yellow-500 text-black' : 'bg-gray-700 hover:bg-gray-600'
             }`}
           >
-            Op rating
+            {playerCardMode === 'teamsterren' ? 'Op sterren' : 'Op rating'}
           </button>
         </div>
       </div>
 
-      {/* Tier legenda */}
-      <div className="mb-4 flex flex-wrap gap-2 items-center">
-        {[
-          { tier: 'bronze', label: 'Bronze',  color: 'bg-amber-700',   text: '< 65' },
-          { tier: 'silver', label: 'Silver',  color: 'bg-gray-500',    text: '65–74' },
-          { tier: 'gold',   label: 'Goud',    color: 'bg-yellow-600',  text: '75–84' },
-          { tier: 'elite',  label: 'Elite',   color: 'bg-violet-700',  text: '85–89' },
-          { tier: 'legend', label: 'Legend',  color: 'bg-cyan-700',    text: '90+' },
-        ].map(({ label, color, text }) => (
-          <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${color}`} />
-            <span className="font-bold text-white">{label}</span>
-            <span>{text}</span>
+      {/* Legenda — alleen bij competitive */}
+      {playerCardMode === 'competitive' && (
+        <div className="mb-4 flex flex-wrap gap-2 items-center">
+          {[
+            { tier: 'bronze', label: 'Bronze',  color: 'bg-amber-700',   text: '< 65' },
+            { tier: 'silver', label: 'Silver',  color: 'bg-gray-500',    text: '65–74' },
+            { tier: 'gold',   label: 'Goud',    color: 'bg-yellow-600',  text: '75–84' },
+            { tier: 'elite',  label: 'Elite',   color: 'bg-violet-700',  text: '85–89' },
+            { tier: 'legend', label: 'Legend',  color: 'bg-cyan-700',    text: '90+' },
+          ].map(({ label, color, text }) => (
+            <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
+              <span className={`inline-block w-2.5 h-2.5 rounded-full ${color}`} />
+              <span className="font-bold text-white">{label}</span>
+              <span>{text}</span>
+            </span>
+          ))}
+          <span className="flex items-center gap-1 text-xs text-gray-400 ml-1">
+            <span>👑</span><span>SPDW-winnaar</span>
           </span>
-        ))}
-        <span className="flex items-center gap-1 text-xs text-gray-400 ml-1">
-          <span>👑</span><span>SPDW-winnaar</span>
-        </span>
-        <span className="flex items-center gap-1 text-xs text-gray-400">
-          <span className="w-4 h-4 rounded-full bg-yellow-600 flex items-center justify-center" style={{ fontSize: '9px' }}>⚽</span>
-          <span>Topschutter</span>
-        </span>
-        <span className="flex items-center gap-1 text-xs text-gray-400">
-          <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center" style={{ fontSize: '9px' }}>🎯</span>
-          <span>Meeste assists</span>
-        </span>
-        <span className="flex items-center gap-1 text-xs text-gray-400">
-          <span>↻</span><span>tik = flip voor details</span>
-        </span>
-      </div>
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span className="w-4 h-4 rounded-full bg-yellow-600 flex items-center justify-center" style={{ fontSize: '9px' }}>⚽</span>
+            <span>Topschutter</span>
+          </span>
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center" style={{ fontSize: '9px' }}>🎯</span>
+            <span>Meeste assists</span>
+          </span>
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span>↻</span><span>tik = flip voor details</span>
+          </span>
+        </div>
+      )}
+
+      {/* Teamsterren legenda */}
+      {playerCardMode === 'teamsterren' && (
+        <div className="mb-4 flex flex-wrap gap-2 items-center">
+          {[
+            { label: '⚪ Rookie',  text: '0–9 ⭐' },
+            { label: '🔵 Belofte', text: '10–24 ⭐' },
+            { label: '🟣 Ster',    text: '25–49 ⭐' },
+            { label: '👑 Legende', text: '50+ ⭐' },
+          ].map(({ label, text }) => (
+            <span key={label} className="flex items-center gap-1 text-xs text-gray-400">
+              <span className="font-bold text-white">{label}</span>
+              <span>{text}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {showInfo && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowInfo(false)}>
         <div className="bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-300 space-y-5 max-w-lg w-full max-h-[80vh] overflow-y-auto p-4" onClick={e => e.stopPropagation()}>
-          <div>
-            <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
-              <span>⚡</span> Hoe wordt de rating berekend?
-            </h3>
-            <p className="text-gray-400 text-xs mb-3">
-              De overall rating is een gewogen gemiddelde van de basisstats. Per positie tellen andere stats zwaarder mee.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                {
-                  pos: '🧤 Keeper',
-                  color: 'border-green-600',
-                  stats: [
-                    { label: 'DIV', pct: 25 }, { label: 'REF', pct: 25 },
-                    { label: 'POS', pct: 20 }, { label: 'HAN', pct: 15 },
-                    { label: 'SPE', pct: 10 }, { label: 'KIC', pct: 5 },
-                  ],
-                },
-                {
-                  pos: '🛡️ Verdediger',
-                  color: 'border-blue-600',
-                  stats: [
-                    { label: 'DEF', pct: 45 }, { label: 'PHY', pct: 15 },
-                    { label: 'PAC', pct: 15 }, { label: 'PAS', pct: 10 },
-                    { label: 'DRI', pct: 10 }, { label: 'SHO', pct: 5 },
-                  ],
-                },
-                {
-                  pos: '⚙️ Middenvelder',
-                  color: 'border-yellow-600',
-                  stats: [
-                    { label: 'PAS', pct: 25 }, { label: 'DRI', pct: 20 },
-                    { label: 'PAC', pct: 15 }, { label: 'SHO', pct: 15 },
-                    { label: 'PHY', pct: 15 }, { label: 'DEF', pct: 10 },
-                  ],
-                },
-                {
-                  pos: '⚡ Aanvaller',
-                  color: 'border-red-600',
-                  stats: [
-                    { label: 'SHO', pct: 30 }, { label: 'DRI', pct: 25 },
-                    { label: 'PAC', pct: 20 }, { label: 'PHY', pct: 15 },
-                    { label: 'PAS', pct: 5 }, { label: 'DEF', pct: 5 },
-                  ],
-                },
-              ].map(({ pos, color, stats }) => (
-                <div key={pos} className={`bg-gray-900 rounded-lg p-3 border-l-2 ${color}`}>
-                  <div className="font-semibold text-white text-xs mb-2">{pos}</div>
-                  <div className="space-y-1.5">
-                    {stats.map(({ label, pct }) => (
-                      <div key={label} className="flex items-center gap-2">
-                        <span className="text-gray-400 text-xs w-8">{label}</span>
-                        <div className="flex-1 bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="text-gray-300 text-xs w-7 text-right">{pct}%</span>
-                      </div>
-                    ))}
+
+          {playerCardMode === 'teamsterren' ? (
+            <>
+              <div>
+                <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
+                  <span>⭐</span> Hoe werken Teamsterren?
+                </h3>
+                <div className="space-y-2 text-xs text-gray-400">
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400 mt-0.5">→</span>
+                    <span>Je verdient sterren voor elke wedstrijd die je meespeelt: <span className="text-yellow-300 font-semibold">3 sterren</span> bij winst, <span className="text-yellow-300 font-semibold">1 ster</span> bij gelijkspel of verlies.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400 mt-0.5">→</span>
+                    <span>Sterren stapelen op en bepalen je level: <span className="text-white font-semibold">Rookie → Belofte → Ster → Legende</span>.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400 mt-0.5">→</span>
+                    <span>Sterren zijn puur visueel — je kaart groeit automatisch. Er is niets te winnen of verliezen.</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+              <div className="border-t border-gray-700 pt-3">
+                <h3 className="font-bold text-white mb-2">Niveaus</h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {[
+                    { badge: '⚪ Rookie',  range: '0–9 sterren',   color: 'border-gray-500' },
+                    { badge: '🔵 Belofte', range: '10–24 sterren', color: 'border-blue-500' },
+                    { badge: '🟣 Ster',    range: '25–49 sterren', color: 'border-purple-500' },
+                    { badge: '👑 Legende', range: '50+ sterren',   color: 'border-yellow-500' },
+                  ].map(({ badge, range, color }) => (
+                    <div key={badge} className={`bg-gray-900 rounded-lg p-2.5 border-l-2 ${color}`}>
+                      <div className="font-bold text-white">{badge}</div>
+                      <div className="text-gray-400 mt-0.5">{range}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
+                  <span>⚡</span> Hoe wordt de rating berekend?
+                </h3>
+                <p className="text-gray-400 text-xs mb-3">
+                  De overall rating is een gewogen gemiddelde van de basisattributen. Per positie tellen andere attributen zwaarder mee.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { pos: '🧤 Keeper',     color: 'border-green-600',  stats: [{ label: 'DIV', pct: 25 }, { label: 'REF', pct: 25 }, { label: 'POS', pct: 20 }, { label: 'HAN', pct: 15 }, { label: 'SPE', pct: 10 }, { label: 'KIC', pct: 5 }] },
+                    { pos: '🛡️ Verdediger', color: 'border-blue-600',   stats: [{ label: 'DEF', pct: 45 }, { label: 'PHY', pct: 15 }, { label: 'PAC', pct: 15 }, { label: 'PAS', pct: 10 }, { label: 'DRI', pct: 10 }, { label: 'SHO', pct: 5 }] },
+                    { pos: '⚙️ Middenvelder', color: 'border-yellow-600', stats: [{ label: 'PAS', pct: 25 }, { label: 'DRI', pct: 20 }, { label: 'PAC', pct: 15 }, { label: 'SHO', pct: 15 }, { label: 'PHY', pct: 15 }, { label: 'DEF', pct: 10 }] },
+                    { pos: '⚡ Aanvaller',  color: 'border-red-600',    stats: [{ label: 'SHO', pct: 30 }, { label: 'DRI', pct: 25 }, { label: 'PAC', pct: 20 }, { label: 'PHY', pct: 15 }, { label: 'PAS', pct: 5 }, { label: 'DEF', pct: 5 }] },
+                  ].map(({ pos, color, stats }) => (
+                    <div key={pos} className={`bg-gray-900 rounded-lg p-3 border-l-2 ${color}`}>
+                      <div className="font-semibold text-white text-xs mb-2">{pos}</div>
+                      <div className="space-y-1.5">
+                        {stats.map(({ label, pct }) => (
+                          <div key={label} className="flex items-center gap-2">
+                            <span className="text-gray-400 text-xs w-8">{label}</span>
+                            <div className="flex-1 bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-gray-300 text-xs w-7 text-right">{pct}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          <div className="border-t border-gray-700 pt-4">
-            <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
-              <span>💰</span> Hoe werkt het creditsysteem?
-            </h3>
-            <div className="space-y-2 text-xs text-gray-400">
-              <div className="flex items-start gap-2">
-                <span className="text-yellow-400 mt-0.5">→</span>
-                <span>Je verdient credits op twee manieren: <span className="text-yellow-300 font-semibold">1 credit</span> voor elke wedstrijd die je hebt meegespeeld, en extra credits door de <span className="text-yellow-300 font-semibold">Speler van de Week</span> te worden via de stemming op het Dashboard.</span>
+              <div className="border-t border-gray-700 pt-4">
+                <h3 className="font-bold text-white mb-2 flex items-center gap-1.5">
+                  <span>💰</span> Hoe werkt het creditsysteem?
+                </h3>
+                <div className="space-y-2 text-xs text-gray-400">
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400 mt-0.5">→</span>
+                    <span>Je verdient <span className="text-yellow-300 font-semibold">1 credit</span> voor elke wedstrijd die je hebt meegespeeld{(teamSettings?.spdw_enabled ?? true) ? <>, en extra credits door de <span className="text-yellow-300 font-semibold">Speler van de Week</span> te worden via de stemming op het Dashboard</> : null}.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400 mt-0.5">→</span>
+                    <span>Met 1 credit kun je <span className="text-white font-semibold">één attribuutpunt</span> omhoog of omlaag aanpassen{(teamSettings?.allow_edit_others ?? true) ? <> bij <em>elke willekeurige speler</em>, inclusief jezelf</> : <> bij <em>je eigen kaart</em></>}.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400 mt-0.5">→</span>
+                    <span>Klik op de <span className="text-yellow-300 font-semibold">💰-knop</span> onder een spelerskaart om het aanpasspaneel te openen. Pas attributen naar wens aan en klik <span className="text-white font-semibold">Opslaan</span> — credits worden pas dan afgetrokken op basis van de netto wijziging.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400 mt-0.5">→</span>
+                    <span>Jouw huidige saldo staat rechts bovenaan deze pagina. Credits kun je niet overdragen.</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-start gap-2">
-                <span className="text-yellow-400 mt-0.5">→</span>
-                <span>Met 1 credit kun je <span className="text-white font-semibold">één statpunt</span> omhoog of omlaag aanpassen bij <em>elke willekeurige speler</em>, inclusief jezelf.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-yellow-400 mt-0.5">→</span>
-                <span>Klik op de <span className="text-yellow-300 font-semibold">💰-knop</span> onder een spelerskaart om het aanpasspaneel te openen. Pas stats naar wens aan en klik <span className="text-white font-semibold">Opslaan</span> — credits worden pas dan afgetrokken op basis van de netto wijziging.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-yellow-400 mt-0.5">→</span>
-                <span>Jouw huidige saldo staat rechts bovenaan deze pagina. Credits kun je niet overdragen.</span>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
+
           <div className="border-t border-gray-700 pt-3">
             <button onClick={() => setShowInfo(false)} className="text-blue-400 hover:text-blue-200 text-xs font-medium">Sluiten</button>
           </div>

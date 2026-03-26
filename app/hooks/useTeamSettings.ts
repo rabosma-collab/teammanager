@@ -22,6 +22,9 @@ const DEFAULT_SETTINGS: Omit<TeamSettings, 'team_id'> = {
   track_match_time: false,
   track_location_details: false,
   track_played_minutes: false,
+  player_card_mode: 'competitive',
+  spdw_enabled: true,
+  allow_edit_others: false,
 };
 
 
@@ -54,7 +57,6 @@ export function useTeamSettings() {
       .upsert({ team_id: teamId, ...DEFAULT_SETTINGS, ...updates }, { onConflict: 'team_id' });
 
     if (error) {
-      console.error('Fout bij opslaan teaminstellingen:', error);
       return false;
     }
 
@@ -73,7 +75,6 @@ export function useTeamSettings() {
       .eq('id', teamId);
 
     if (error) {
-      console.error('Fout bij updaten teaminfo:', error);
       return false;
     }
     return true;

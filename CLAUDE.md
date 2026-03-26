@@ -2,6 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Context
+
+This is a Dutch-language team manager app (youth football/soccer). Users are managers and players. Key domain terms: wedstrijd (match), opstelling (lineup), wissel (substitution), wisselminuten (bench minutes), uitslag (result), seizoen (season), taken (tasks), wasbeurt/vervoer (laundry/transport duty). Always use Dutch for user-facing strings unless told otherwise.
+
+## Interaction Style
+
+Do NOT start implementing until the user explicitly says to proceed. During brainstorming sessions, wait for confirmation before writing code. The user often thinks in stages and will say when they're ready.
+
+## Code Changes
+
+When renaming or removing a concept/term, always use Grep to find ALL occurrences across the entire codebase (including types, constants, enums, UI strings, and database references) before making changes. Never assume the first set of results is complete.
+
+## Database & Security
+
+This app uses Supabase with Row Level Security (RLS). When modifying RLS policies, always consider the credit-spending mechanic where managers can spend credits on OTHER players' rows. Never assume users should only be able to edit their own rows without checking the existing gameplay logic.
+
+When writing SQL for Supabase, always check column types (especially uuid vs text) before constructing queries. Cast explicitly when comparing across different types.
+
+## Debugging
+
+When fixing a bug, always verify the root cause by checking team-specific settings and configurations before assuming defaults. This app has per-team settings (e.g., match duration is not always 90 minutes).
+
 ## Build & Development Commands
 
 ```bash

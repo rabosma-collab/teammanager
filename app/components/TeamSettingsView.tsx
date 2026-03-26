@@ -7,7 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { formationLabels, GAME_FORMATS, DEFAULT_FORMATIONS } from '../lib/constants';
 import InfoButton from './InfoButton';
-import type { TeamSettings } from '../lib/types';
+import type { TeamSettings, PlayerCardMode } from '../lib/types';
 
 const PRESET_COLORS = [
   { hex: '#f59e0b', name: 'Geel' },
@@ -22,20 +22,28 @@ const PRESET_COLORS = [
 
 type SettingsDraft = Omit<TeamSettings, 'team_id'>;
 
-export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?: () => void }) {
-  const { currentTeam, isManager, refreshTeam } = useTeamContext();
+export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { onSettingsSaved?: () => void; onDirtyChange?: (dirty: boolean) => void }) {
+  const { currentTeam, isManager, isStaff, refreshTeam, currentUserId, currentPlayerId } = useTeamContext();
   const { settings, isLoading, fetchSettings, upsertSettings, updateTeamInfo } = useTeamSettings();
   const toast = useToast();
 
-  // --- Teamgegevens (eigen opslaan) ---
+  // --- Teamgegevens ---
   const [teamName, setTeamName] = useState('');
   const [teamColor, setTeamColor] = useState('#f59e0b');
-  const [savingTeam, setSavingTeam] = useState(false);
+  const [teamInfoDirty, setTeamInfoDirty] = useState(false);
 
-  // --- Settings draft (één opslaan voor spelvorm + formatie + statistieken) ---
+  // --- Mijn spelersprofiel ---
+  const [players, setPlayers] = useState<{ id: number; name: string }[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number | null | 'unset'>('unset');
+  const [playerLinkDirty, setPlayerLinkDirty] = useState(false);
+
+  // --- Settings draft ---
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [localDuration, setLocalDuration] = useState<string>('90');
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+
+  // --- Gezamenlijk opslaan ---
+  const [saving, setSaving] = useState(false);
 
   // --- Team verwijderen ---
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -47,8 +55,30 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
       setTeamName(currentTeam.name);
       setTeamColor(currentTeam.color || '#f59e0b');
       fetchSettings(currentTeam.id);
+      // Reset dirty on team switch
+      setTeamInfoDirty(false);
+      setSettingsDirty(false);
+      setPlayerLinkDirty(false);
     }
   }, [currentTeam, fetchSettings]);
+
+  // Haal spelers op + initialiseer huidige koppeling
+  useEffect(() => {
+    if (!currentTeam) return;
+    supabase
+      .from('players')
+      .select('id, name')
+      .eq('team_id', currentTeam.id)
+      .order('name')
+      .then(({ data }: { data: { id: number; name: string }[] | null }) => setPlayers(data ?? []));
+    setSelectedPlayerId(currentPlayerId ?? 'unset');
+    setPlayerLinkDirty(false);
+  }, [currentTeam, currentPlayerId]);
+
+  // Meld dirty state aan parent
+  useEffect(() => {
+    onDirtyChange?.(teamInfoDirty || settingsDirty || playerLinkDirty);
+  }, [teamInfoDirty, settingsDirty, playerLinkDirty, onDirtyChange]);
 
   // Initialiseer draft zodra settings geladen zijn
   useEffect(() => {
@@ -75,44 +105,49 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
         track_match_time:       settings.track_match_time       ?? false,
         track_location_details: settings.track_location_details ?? false,
         track_played_minutes:   settings.track_played_minutes   ?? false,
+        player_card_mode:       (settings.player_card_mode      ?? 'competitive') as PlayerCardMode,
+        spdw_enabled:           settings.spdw_enabled           ?? true,
+        allow_edit_others:      settings.allow_edit_others      ?? true,
       });
     }
   }, [settings]);
 
-  const handleSaveTeamInfo = async () => {
-    if (!currentTeam) return;
-    if (!teamName.trim() || teamName.trim().length < 2) {
+  const handleSaveAll = async () => {
+    if (!currentTeam || !draft) return;
+    if (teamInfoDirty && (!teamName.trim() || teamName.trim().length < 2)) {
       toast.error('Teamnaam moet minimaal 2 tekens zijn');
       return;
     }
-    setSavingTeam(true);
-    const ok = await updateTeamInfo(currentTeam.id, {
-      name: teamName.trim(),
-      color: teamColor,
-    });
-    if (ok) {
-      await refreshTeam();
-      toast.success('✅ Teamgegevens opgeslagen!');
-    } else {
-      toast.error('❌ Kon teamgegevens niet opslaan');
-    }
-    setSavingTeam(false);
-  };
+    setSaving(true);
 
-  const handleSaveSettings = async () => {
-    if (!currentTeam || !draft) return;
-    const clampedDuration = Math.max(10, Math.min(120, parseInt(localDuration) || 90));
-    setLocalDuration(String(clampedDuration));
-    const finalDraft = { ...draft, match_duration: clampedDuration };
-    setSavingSettings(true);
-    const ok = await upsertSettings(currentTeam.id, finalDraft);
-    if (ok) {
-      toast.success('✅ Instellingen opgeslagen!');
-      onSettingsSaved?.();
-    } else {
-      toast.error('❌ Kon instellingen niet opslaan');
+    if (teamInfoDirty) {
+      const ok = await updateTeamInfo(currentTeam.id, { name: teamName.trim(), color: teamColor });
+      if (ok) { await refreshTeam(); setTeamInfoDirty(false); }
+      else { toast.error('❌ Kon teamgegevens niet opslaan'); setSaving(false); return; }
     }
-    setSavingSettings(false);
+
+    if (settingsDirty) {
+      const clampedDuration = Math.max(10, Math.min(120, parseInt(localDuration) || 90));
+      setLocalDuration(String(clampedDuration));
+      const ok = await upsertSettings(currentTeam.id, { ...draft, match_duration: clampedDuration });
+      if (ok) { setSettingsDirty(false); onSettingsSaved?.(); }
+      else { toast.error('❌ Kon instellingen niet opslaan'); setSaving(false); return; }
+    }
+
+    if (playerLinkDirty && currentUserId) {
+      const newPlayerId = selectedPlayerId === 'unset' ? null : selectedPlayerId;
+      const { error } = await supabase
+        .from('team_members')
+        .update({ player_id: newPlayerId })
+        .eq('team_id', currentTeam.id)
+        .eq('user_id', currentUserId);
+      if (error) { toast.error('❌ Kon spelersprofiel niet opslaan'); setSaving(false); return; }
+      await refreshTeam();
+      setPlayerLinkDirty(false);
+    }
+
+    toast.success('✅ Opgeslagen!');
+    setSaving(false);
   };
 
   const handleDeleteTeam = async () => {
@@ -178,18 +213,22 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
       default_formation: defaultFormation,
       // periods wordt NIET gereset — manager kiest dit zelf
     } : null);
+    setSettingsDirty(true);
   };
 
   const handleFormationChange = (formation: string) => {
     setDraft(prev => prev ? { ...prev, default_formation: formation } : null);
+    setSettingsDirty(true);
   };
 
   const handleDurationChange = (value: string) => {
     setLocalDuration(value);
+    setSettingsDirty(true);
   };
 
   const handleToggle = (key: keyof SettingsDraft, value: boolean) => {
     setDraft(prev => prev ? { ...prev, [key]: value } : null);
+    setSettingsDirty(true);
   };
 
   if (isLoading || !settings || !draft) {
@@ -217,7 +256,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
             <input
               type="text"
               value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
+              onChange={(e) => { setTeamName(e.target.value); setTeamInfoDirty(true); }}
               maxLength={50}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-500"
               placeholder="Naam van het team"
@@ -230,7 +269,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
               {PRESET_COLORS.map((c) => (
                 <button
                   key={c.hex}
-                  onClick={() => setTeamColor(c.hex)}
+                  onClick={() => { setTeamColor(c.hex); setTeamInfoDirty(true); }}
                   title={c.name}
                   className={`w-8 h-8 rounded-full border-2 transition-transform ${
                     teamColor === c.hex ? 'border-white scale-110' : 'border-gray-600 hover:border-gray-400'
@@ -243,7 +282,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
               <input
                 type="color"
                 value={teamColor}
-                onChange={(e) => setTeamColor(e.target.value)}
+                onChange={(e) => { setTeamColor(e.target.value); setTeamInfoDirty(true); }}
                 className="w-10 h-8 rounded cursor-pointer bg-transparent border-0"
                 title="Aangepaste kleur"
               />
@@ -257,13 +296,6 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
             </div>
           </div>
 
-          <button
-            onClick={handleSaveTeamInfo}
-            disabled={savingTeam}
-            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition"
-          >
-            {savingTeam ? 'Opslaan...' : 'Opslaan'}
-          </button>
         </section>
 
         {/* ── Spelvorm ── */}
@@ -298,7 +330,7 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
               {[2, 3, 4].map((p) => (
                 <button
                   key={p}
-                  onClick={() => setDraft(prev => prev ? { ...prev, periods: p } : null)}
+                  onClick={() => { setDraft(prev => prev ? { ...prev, periods: p } : null); setSettingsDirty(true); }}
                   className={`flex-1 py-2 rounded-lg border text-sm font-bold transition ${
                     draft.periods === p
                       ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
@@ -424,18 +456,114 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
                 <span className="text-sm text-gray-400 flex-1">Aantal chauffeurs</span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setDraft(prev => prev ? { ...prev, vervoer_count: Math.max(1, (prev.vervoer_count ?? 3) - 1) } : null)}
+                    onClick={() => { setDraft(prev => prev ? { ...prev, vervoer_count: Math.max(1, (prev.vervoer_count ?? 3) - 1) } : null); setSettingsDirty(true); }}
                     className="w-7 h-7 rounded bg-gray-600 hover:bg-gray-500 text-white font-bold text-sm flex items-center justify-center transition"
                   >−</button>
                   <span className="text-white font-bold text-sm w-4 text-center">{draft.vervoer_count ?? 3}</span>
                   <button
-                    onClick={() => setDraft(prev => prev ? { ...prev, vervoer_count: Math.min(6, (prev.vervoer_count ?? 3) + 1) } : null)}
+                    onClick={() => { setDraft(prev => prev ? { ...prev, vervoer_count: Math.min(6, (prev.vervoer_count ?? 3) + 1) } : null); setSettingsDirty(true); }}
                     className="w-7 h-7 rounded bg-gray-600 hover:bg-gray-500 text-white font-bold text-sm flex items-center justify-center transition"
                   >+</button>
                 </div>
               </div>
             )}
           </div>
+        </section>
+
+        {/* ── Spelersmotivatie ── */}
+        <section className="bg-gray-800 rounded-xl p-5 space-y-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-base text-gray-200">Spelersmotivatie</h2>
+              <InfoButton>
+                <p className="font-semibold text-white mb-1.5">Wat doet elke modus?</p>
+                <div className="space-y-2">
+                  <div>
+                    <div className="text-white font-semibold">🎮 Competitief</div>
+                    <div className="text-gray-300 space-y-0.5 mt-0.5">
+                      <div>✓ 1 credit per gespeelde wedstrijd</div>
+                      <div>✓ Spelersattributen upgraden met credits</div>
+                      <div>✓ Optioneel: Speler van de Week stemming (top 3 krijgt extra credits)</div>
+                      <div>✓ Optioneel: credits uitgeven aan de kaart van een teamgenoot</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">⭐ Teamsterren</div>
+                    <div className="text-gray-300 space-y-0.5 mt-0.5">
+                      <div>✓ Sterren verdienen per wedstrijd (win = 3, gelijk/verlies = 1)</div>
+                      <div>✓ Kaart groeit van Rookie naar Legende</div>
+                      <div>✗ Geen ranglijst of stemming</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">○ Geen kaarten</div>
+                    <div className="text-gray-300 space-y-0.5 mt-0.5">
+                      <div>✓ Puur opstellingen en wedstrijden beheren</div>
+                      <div>✗ Geen spelerskaarten of beloningen</div>
+                    </div>
+                  </div>
+                </div>
+              </InfoButton>
+            </div>
+            <p className="text-sm text-gray-400 mt-1">Hoe wil je spelers betrekken en belonen?</p>
+          </div>
+
+          <div className="space-y-2">
+            {([
+              { mode: 'competitive' as PlayerCardMode, icon: '🎮', label: 'Competitief', sub: 'Uitdagend & competitief' },
+              { mode: 'teamsterren' as PlayerCardMode, icon: '⭐', label: 'Teamsterren', sub: 'Positief & motiverend' },
+              { mode: 'none'        as PlayerCardMode, icon: '○', label: 'Geen kaarten', sub: 'Simpel & overzichtelijk' },
+            ] as const).map(({ mode, icon, label, sub }) => (
+              <button
+                key={mode}
+                onClick={() => { setDraft(prev => prev ? { ...prev, player_card_mode: mode } : null); setSettingsDirty(true); }}
+                className={`w-full text-left flex items-center gap-3 p-3 rounded-xl border-2 transition ${
+                  draft.player_card_mode === mode
+                    ? 'border-yellow-500 bg-yellow-500/10'
+                    : 'border-gray-700 hover:border-gray-500'
+                }`}
+              >
+                <span className="text-xl">{icon}</span>
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-white">{label}</div>
+                  <div className="text-xs text-gray-400">{sub}</div>
+                </div>
+                {draft.player_card_mode === mode && <span className="text-yellow-400 text-sm">✓</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Sub-instellingen — alleen bij competitive */}
+          {draft.player_card_mode === 'competitive' && (
+            <div className="space-y-2 pt-2 border-t border-gray-700">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Opties Competitief</p>
+              {[
+                { key: 'spdw_enabled',      label: '🏆 Speler van de Week', desc: 'Spelers stemmen na elke wedstrijd. Top 3 ontvangt extra credits.' },
+                { key: 'allow_edit_others', label: '✏️ Andermans kaart bewerken', desc: 'Sta toe dat spelers credits uitgeven aan de kaart van een teamgenoot.' },
+              ].map(({ key, label, desc }) => (
+                <label key={key} className="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                  <button
+                    role="switch"
+                    aria-checked={draft[key as keyof SettingsDraft] as boolean}
+                    onClick={() => handleToggle(key as keyof SettingsDraft, !(draft[key as keyof SettingsDraft] as boolean))}
+                    className={`relative w-11 h-6 rounded-full flex-shrink-0 mt-0.5 transition-colors focus:outline-none ${
+                      draft[key as keyof SettingsDraft] ? 'bg-yellow-500' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        draft[key as keyof SettingsDraft] ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <div>
+                    <div className="text-sm font-medium">{label}</div>
+                    <div className="text-xs text-gray-400">{desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── Statistieken bijhouden ── */}
@@ -485,14 +613,37 @@ export default function TeamSettingsView({ onSettingsSaved }: { onSettingsSaved?
           </div>
         </section>
 
+        {/* ── Mijn spelersprofiel ── */}
+        {(isManager || isStaff) && (
+          <section className="bg-gray-800 rounded-xl p-5 space-y-4">
+            <div>
+              <h2 className="font-bold text-base text-gray-200">Mijn spelersprofiel</h2>
+              <p className="text-sm text-gray-400 mt-1">Koppel jouw account aan een speler in dit team. Dit wordt gebruikt voor je persoonlijke kaart op het dashboard.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Ik ben</label>
+              <select
+                value={selectedPlayerId === 'unset' || selectedPlayerId === null ? '' : String(selectedPlayerId)}
+                onChange={(e) => { setSelectedPlayerId(e.target.value === '' ? 'unset' : Number(e.target.value)); setPlayerLinkDirty(true); }}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-500"
+              >
+                <option value="">— Geen (alleen trainer/staff) —</option>
+                {players.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          </section>
+        )}
+
         {/* ── Opslaan ── */}
         <div className="flex justify-end pb-4">
           <button
-            onClick={handleSaveSettings}
-            disabled={savingSettings}
+            onClick={handleSaveAll}
+            disabled={saving || (!teamInfoDirty && !settingsDirty && !playerLinkDirty)}
             className="px-6 py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg disabled:opacity-50 transition text-base"
           >
-            {savingSettings ? 'Opslaan...' : '💾 Instellingen opslaan'}
+            {saving ? 'Opslaan...' : '💾 Opslaan'}
           </button>
         </div>
 

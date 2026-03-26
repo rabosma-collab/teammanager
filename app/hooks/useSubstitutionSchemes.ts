@@ -21,8 +21,8 @@ export function useSubstitutionSchemes() {
       const { data, error } = await query;
       if (error) throw error;
       setSchemes(data || []);
-    } catch (error) {
-      console.error('Error fetching substitution schemes:', error);
+    } catch {
+      // state ongewijzigd laten bij fetch-fout
     }
   }, []);
 

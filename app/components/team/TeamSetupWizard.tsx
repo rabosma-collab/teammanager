@@ -10,12 +10,14 @@ import StepBasicInfo from './wizard/StepBasicInfo';
 import StepSpelvorm from './wizard/StepSpelvorm';
 import StepFormation from './wizard/StepFormation';
 import StepSettings from './wizard/StepSettings';
+import StepSpelersmotivatie from './wizard/StepSpelersmotivatie';
 import StepPlayers from './wizard/StepPlayers';
 import StepMatch from './wizard/StepMatch';
 import StepSummary from './wizard/StepSummary';
 import StepWedstrijdbeheer from './wizard/StepWedstrijdbeheer';
+import type { PlayerCardMode } from '../../lib/types';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 const STEP_LABELS = [
   'Team',
@@ -23,6 +25,7 @@ const STEP_LABELS = [
   'Formatie',
   'Stats',
   'Beheer',
+  'Motivatie',
   'Spelers',
   'Wedstrijd',
   'Klaar',
@@ -99,13 +102,17 @@ export default function TeamSetupWizard() {
   // Stap 5
   const [wedstrijd, setWedstrijd] = useState<WedstrijdState>(DEFAULT_WEDSTRIJD);
 
-  // Stap 6
+  // Stap 6 — Spelersmotivatie
+  const [playerCardMode, setPlayerCardMode] = useState<PlayerCardMode>('competitive');
+  const [spdwEnabled, setSpdwEnabled] = useState(true);
+
+  // Stap 7
   const [playersImported, setPlayersImported] = useState(0);
 
-  // Stap 7
+  // Stap 8
   const [matchCreated, setMatchCreated] = useState(false);
 
-  // Stap 7
+  // Stap 8
   const [finishLoading, setFinishLoading] = useState(false);
 
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
@@ -266,6 +273,21 @@ export default function TeamSetupWizard() {
     setStep(6);
   };
 
+  // ── Stap 6: Spelersmotivatie opslaan ──────────────────────
+  const handleSaveMotivatie = async () => {
+    if (teamId) {
+      await supabase
+        .from('team_settings')
+        .upsert({
+          team_id: teamId,
+          player_card_mode: playerCardMode,
+          spdw_enabled: playerCardMode === 'competitive' ? spdwEnabled : false,
+          allow_edit_others: false,
+        }, { onConflict: 'team_id' });
+    }
+    setStep(7);
+  };
+
   // ── Stap 8: Afronden ──────────────────────────────────────
   const handleFinish = async () => {
     if (!teamId) return;
@@ -303,6 +325,8 @@ export default function TeamSetupWizard() {
     setSettings(DEFAULT_SETTINGS);
     setSettingsSaved(false);
     setWedstrijd(DEFAULT_WEDSTRIJD);
+    setPlayerCardMode('competitive');
+    setSpdwEnabled(true);
     setPlayersImported(0);
     setMatchCreated(false);
     setRestoredFromStorage(false);
@@ -417,27 +441,38 @@ export default function TeamSetupWizard() {
               onSkip={() => setStep(6)}
             />
           )}
-          {step === 6 && teamId && (
+          {step === 6 && (
+            <StepSpelersmotivatie
+              playerCardMode={playerCardMode}
+              spdwEnabled={spdwEnabled}
+              onSelectMode={setPlayerCardMode}
+              onToggleSpdw={() => setSpdwEnabled(v => !v)}
+              onNext={handleSaveMotivatie}
+              onBack={() => setStep(5)}
+              onSkip={() => setStep(7)}
+            />
+          )}
+          {step === 7 && teamId && (
             <StepPlayers
               teamId={teamId}
               currentUserId={currentUserId}
-              onNext={() => setStep(7)}
-              onBack={() => setStep(5)}
+              onNext={() => setStep(8)}
+              onBack={() => setStep(6)}
               onSkip={handleSkip}
               onPlayersImported={(count) => setPlayersImported(count)}
             />
           )}
-          {step === 7 && teamId && (
+          {step === 8 && teamId && (
             <StepMatch
               teamId={teamId}
               defaultFormation={formation}
-              onNext={() => setStep(8)}
-              onBack={() => setStep(6)}
+              onNext={() => setStep(9)}
+              onBack={() => setStep(7)}
               onSkip={handleSkip}
               onMatchCreated={() => setMatchCreated(true)}
             />
           )}
-          {step === 8 && (
+          {step === 9 && (
             <StepSummary
               data={{
                 name,
@@ -449,7 +484,7 @@ export default function TeamSetupWizard() {
                 settingsDone: settingsSaved,
               }}
               onFinish={handleFinish}
-              onBack={() => setStep(7)}
+              onBack={() => setStep(8)}
               isLoading={finishLoading}
             />
           )}

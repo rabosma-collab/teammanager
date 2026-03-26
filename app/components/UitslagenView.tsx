@@ -13,9 +13,11 @@ interface UitslagenViewProps {
   teamSettings: TeamSettings | null;
   seasons: Season[];
   activeSeasonId: number | null;
+  currentPlayerId: number | null;
   onRefreshPlayers: () => void;
   onUpdateMatchReport: (matchId: number, report: string | null) => Promise<boolean>;
   onUpdateMatchScore: (matchId: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
+  onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
 }
 
 // ─── Hulpfuncties ─────────────────────────────────────────────
@@ -169,8 +171,47 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
   );
 }
 
+// ─── Taken badges (read-only, voor aankomende wedstrijden) ────
+function TakenBadges({ match, players, teamSettings }: { match: Match; players: Player[]; teamSettings: TeamSettings | null }) {
+  const trackWasbeurt = teamSettings?.track_wasbeurt ?? true;
+  const trackConsumpties = teamSettings?.track_consumpties ?? true;
+  const trackVervoer = (teamSettings?.track_vervoer ?? true) && match.home_away !== 'Thuis';
+
+  const getPlayer = (id: number | null | undefined) => id ? players.find(p => p.id === id) ?? null : null;
+  const wasbeurtPlayer = getPlayer(match.wasbeurt_player_id);
+  const consumptiesPlayer = getPlayer(match.consumpties_player_id);
+  const transportPlayers = (match.transport_player_ids ?? []).map(id => getPlayer(id)).filter(Boolean) as Player[];
+
+  const hasAny = (trackWasbeurt && wasbeurtPlayer) || (trackConsumpties && consumptiesPlayer) || (trackVervoer && transportPlayers.length > 0);
+  if (!hasAny) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2 mt-2">
+      {trackWasbeurt && wasbeurtPlayer && (
+        <span className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
+          🧺 <span className="font-medium text-white">{wasbeurtPlayer.name}</span>
+        </span>
+      )}
+      {trackConsumpties && consumptiesPlayer && (
+        <span className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
+          🥤 <span className="font-medium text-white">{consumptiesPlayer.name}</span>
+        </span>
+      )}
+      {trackVervoer && transportPlayers.map((p, i) => (
+        <span key={p.id} className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
+          {i === 0 ? '🚗' : '🚙'} <span className="font-medium text-white">{p.name}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function formatTime(timeStr: string): string {
+  return timeStr.slice(0, 5);
+}
+
 // ─── Hoofd component ──────────────────────────────────────────
-export default function UitslagenView({ matches, players, teamSettings, seasons, activeSeasonId, onRefreshPlayers, onUpdateMatchReport, onUpdateMatchScore }: UitslagenViewProps) {
+export default function UitslagenView({ matches, players, teamSettings, seasons, activeSeasonId, currentPlayerId, onRefreshPlayers, onUpdateMatchReport, onUpdateMatchScore, onToggleAbsence }: UitslagenViewProps) {
   const { isManager, currentTeam } = useTeamContext();
   const toast = useToast();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
@@ -209,6 +250,14 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
       });
   }, [selectedSeasonId, activeSeasonId, matches, currentTeam]);
 
+  // Aankomende wedstrijden (concept), vroegste eerst
+  const upcomingMatches = useMemo(
+    () => matches
+      .filter(m => m.match_status === 'concept')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [matches]
+  );
+
   // Afgeronde + geannuleerde wedstrijden, nieuwste eerst
   const finishedMatches = useMemo(
     () => seasonMatches
@@ -216,6 +265,40 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [seasonMatches]
   );
+
+  // Afwezigheden per match voor aankomende wedstrijden
+  const [absencesMap, setAbsencesMap] = useState<Record<number, number[]>>({});
+
+  useEffect(() => {
+    if (!currentTeam || upcomingMatches.length === 0) return;
+    const ids = upcomingMatches.map(m => m.id);
+    supabase
+      .from('match_absences')
+      .select('match_id, player_id')
+      .in('match_id', ids)
+      .then(({ data }: { data: { match_id: number; player_id: number }[] | null }) => {
+        const map: Record<number, number[]> = {};
+        for (const row of data ?? []) {
+          if (!map[row.match_id]) map[row.match_id] = [];
+          map[row.match_id].push(row.player_id);
+        }
+        setAbsencesMap(map);
+      });
+  }, [upcomingMatches.length, currentTeam]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleToggleAbsence = async (playerId: number, matchId: number) => {
+    const ok = await onToggleAbsence(playerId, matchId);
+    if (ok) {
+      setAbsencesMap(prev => {
+        const current = prev[matchId] ?? [];
+        const isAbsent = current.includes(playerId);
+        return {
+          ...prev,
+          [matchId]: isAbsent ? current.filter(id => id !== playerId) : [...current, playerId],
+        };
+      });
+    }
+  };
 
   const [statsMap, setStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -313,17 +396,17 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
     </div>
   );
 
-  if (finishedMatches.length === 0 && !seasonLoading) {
+  if (finishedMatches.length === 0 && upcomingMatches.length === 0 && !seasonLoading) {
     return (
       <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-lg font-bold mb-4">📋 Uitslagen</h2>
+          <h2 className="text-lg font-bold mb-4">📅 Wedstrijden</h2>
           {seasonSelector}
           <div className="flex items-center justify-center text-gray-500 py-16">
             <div className="text-center">
-              <div className="text-4xl mb-3">📋</div>
-              <div className="font-bold">Nog geen afgesloten wedstrijden</div>
-              <div className="text-sm mt-1">Uitslagen verschijnen hier zodra wedstrijden zijn afgesloten.</div>
+              <div className="text-4xl mb-3">📅</div>
+              <div className="font-bold">Nog geen wedstrijden gepland</div>
+              <div className="text-sm mt-1">Wedstrijden verschijnen hier zodra ze zijn ingepland.</div>
             </div>
           </div>
         </div>
@@ -334,8 +417,101 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
   return (
     <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
       <div className="max-w-2xl mx-auto">
-        <h2 className="text-lg font-bold mb-4">📋 Uitslagen</h2>
+        <h2 className="text-lg font-bold mb-4">📅 Wedstrijden</h2>
         {seasonSelector}
+
+        {/* Aankomende wedstrijden */}
+        {upcomingMatches.length > 0 && (
+          <div className="mb-6">
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Aankomend</div>
+            <div className="space-y-2">
+              {upcomingMatches.map(match => {
+                const matchAbsences = absencesMap[match.id] ?? [];
+                const trackAssemblyTime = teamSettings?.track_assembly_time ?? false;
+                const trackMatchTime = teamSettings?.track_match_time ?? false;
+                const trackLocationDetails = teamSettings?.track_location_details ?? false;
+                const hasMatchInfo = (trackAssemblyTime && match.assembly_time) ||
+                  (trackMatchTime && match.match_time) ||
+                  (trackLocationDetails && match.location_details);
+                return (
+                  <div key={match.id} className="bg-gray-800 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      {/* Datum */}
+                      <div className="w-12 text-center flex-shrink-0">
+                        <div className="text-xs text-gray-500">{new Date(match.date).toLocaleDateString('nl-NL', { month: 'short' })}</div>
+                        <div className="text-lg font-black leading-tight">{new Date(match.date).getDate()}</div>
+                      </div>
+
+                      {/* Wedstrijd info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-sm">{match.opponent}</div>
+                        <div className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
+                          <span>{match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit'}</span>
+                          {match.match_type === 'oefenwedstrijd' && (
+                            <span className="text-gray-500">· 🔵 Oefenwedstrijd</span>
+                          )}
+                        </div>
+
+                        {/* Tijden & locatie */}
+                        {hasMatchInfo && (
+                          <div className="mt-1.5 space-y-0.5">
+                            {trackAssemblyTime && match.assembly_time && (
+                              <div className="text-xs text-gray-400">🕐 Verzamelen: <span className="text-white font-medium">{formatTime(match.assembly_time)}</span></div>
+                            )}
+                            {trackMatchTime && match.match_time && (
+                              <div className="text-xs text-gray-400">⚽ Aanvang: <span className="text-white font-medium">{formatTime(match.match_time)}</span></div>
+                            )}
+                            {trackLocationDetails && match.location_details && (
+                              <div className="text-xs text-gray-400">📍 Kleedkamer: <span className="text-white font-medium">{match.location_details}</span></div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Taken badges */}
+                        <TakenBadges match={match} players={players} teamSettings={teamSettings} />
+                      </div>
+                    </div>
+
+                    {/* Afwezigheidsknop */}
+                    {currentPlayerId && (
+                      <div className="mt-3 pt-3 border-t border-gray-700/60">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={!matchAbsences.includes(currentPlayerId) ? undefined : () => handleToggleAbsence(currentPlayerId, match.id)}
+                            disabled={!matchAbsences.includes(currentPlayerId)}
+                            className={`flex-1 px-4 py-2 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 ${
+                              !matchAbsences.includes(currentPlayerId)
+                                ? 'bg-green-600 text-white shadow-inner ring-2 ring-green-400'
+                                : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'
+                            } disabled:cursor-default`}
+                          >
+                            Aanwezig
+                          </button>
+                          <button
+                            onClick={matchAbsences.includes(currentPlayerId) ? undefined : () => handleToggleAbsence(currentPlayerId, match.id)}
+                            disabled={matchAbsences.includes(currentPlayerId)}
+                            className={`flex-1 px-4 py-2 rounded-lg font-bold text-sm transition touch-manipulation active:scale-95 ${
+                              matchAbsences.includes(currentPlayerId)
+                                ? 'bg-red-600 text-white shadow-inner ring-2 ring-red-400'
+                                : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-white'
+                            } disabled:cursor-default`}
+                          >
+                            Afwezig
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Afgesloten wedstrijden */}
+        {finishedMatches.length > 0 && (
+          <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Gespeeld</div>
+        )}
 
         {loading && (
           <div className="text-center text-gray-500 py-4 text-sm">Statistieken laden…</div>

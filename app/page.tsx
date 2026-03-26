@@ -102,6 +102,15 @@ export default function FootballApp() {
 
   // ---- UI STATE ----
   const [view, setView] = useState('dashboard');
+  const [isDirty, setIsDirty] = useState(false);
+
+  const handleSetView = useCallback((newView: string) => {
+    if (isDirty) {
+      if (!window.confirm('Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je deze pagina wilt verlaten?')) return;
+      setIsDirty(false);
+    }
+    setView(newView);
+  }, [isDirty]);
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [subMoments, setSubMoments] = useState<number>(1);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(1);
@@ -758,8 +767,8 @@ export default function FootballApp() {
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error ?? 'Onbekende fout');
 
-      // 2. Ken 1 aanwezigheidscredit toe aan elke speler in de opstelling
-      if (currentTeam) {
+      // 2. Ken 1 aanwezigheidscredit toe aan elke speler in de opstelling (alleen bij competitive)
+      if (currentTeam && (teamSettings?.player_card_mode ?? 'competitive') === 'competitive') {
         const { data: lineupRows } = await supabase
           .from('lineups')
           .select('player_id')
@@ -952,7 +961,7 @@ export default function FootballApp() {
     <div className="flex flex-col h-screen bg-gray-900 text-white">
       <Navbar
         view={view}
-        setView={setView}
+        setView={handleSetView}
         isAdmin={isManager}
         onLogout={handleLogout}
         onPlayerUpdated={fetchPlayers}
@@ -1253,7 +1262,7 @@ export default function FootballApp() {
         </div>
       ) : view === 'mededelingen' && isManager ? (
         <div className="flex-1 overflow-y-auto">
-          <MededelingenView />
+          <MededelingenView onDirtyChange={setIsDirty} />
         </div>
       ) : view === 'feedback' && isManager ? (
         <div className="flex-1 overflow-y-auto">
@@ -1261,13 +1270,13 @@ export default function FootballApp() {
         </div>
       ) : view === 'team-settings' && isManager ? (
         <div className="flex-1 overflow-y-auto">
-          <TeamSettingsView onSettingsSaved={refreshTeamSettings} />
+          <TeamSettingsView onSettingsSaved={refreshTeamSettings} onDirtyChange={setIsDirty} />
         </div>
       ) : view === 'season-settings' && isManager ? (
         <div className="flex-1 overflow-y-auto">
           <SeasonSettingsView />
         </div>
-      ) : view === 'cards' ? (
+      ) : view === 'cards' && (teamSettings?.player_card_mode ?? 'competitive') !== 'none' ? (
         <div className="flex-1 overflow-y-auto">
           <PlayerCardsView
             players={players}
@@ -1296,6 +1305,8 @@ export default function FootballApp() {
             }}
             onUpdateMatchReport={updateMatchReport}
             onUpdateMatchScore={updateMatchScore}
+            currentPlayerId={teamPlayerId}
+            onToggleAbsence={toggleAbsence}
           />
         </div>
       ) : view === 'dashboard' ? (
@@ -1322,10 +1333,16 @@ export default function FootballApp() {
           matchDuration={matchDuration}
           trackWasbeurt={teamSettings?.track_wasbeurt ?? true}
           trackConsumpties={teamSettings?.track_consumpties ?? true}
+          trackVervoer={teamSettings?.track_vervoer ?? true}
+          vervoerCount={teamSettings?.vervoer_count ?? 3}
           trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
           trackMatchTime={teamSettings?.track_match_time ?? false}
           trackLocationDetails={teamSettings?.track_location_details ?? false}
-          trackSpdw={teamSettings?.track_spdw ?? true}
+          trackSpdw={
+            (teamSettings?.track_spdw ?? true) &&
+            (teamSettings?.player_card_mode ?? 'competitive') === 'competitive' &&
+            (teamSettings?.spdw_enabled ?? true)
+          }
           activities={activities}
           onActivityRead={markAsRead}
           onOpenActivity={() => { setShowActivity(true); fetchActivities(); }}
@@ -1377,27 +1394,14 @@ export default function FootballApp() {
 
             {/* Wedstrijd & formatie selectors */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6 justify-center">
-              <select
-                value={selectedMatch?.id || ''}
-                onChange={(e) => {
-                  const match = matches.find(m => m.id === parseInt(e.target.value));
-                  setSelectedMatch(match || null);
+              <MatchDropdown
+                matches={matches}
+                selectedMatch={selectedMatch}
+                onSelect={(match) => {
+                  setSelectedMatch(match);
                   clearField(playerCount);
                 }}
-                className="px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white font-bold text-sm sm:text-base flex-1 sm:flex-initial"
-              >
-                {matches.map(match => {
-                  const isPast = new Date(match.date) < new Date();
-                  const done = match.match_status === 'afgerond';
-                  const cancelled = match.match_status === 'geannuleerd';
-                  return (
-                    <option key={match.id} value={match.id}>
-                      {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - {match.opponent}
-                      {done ? ' ✅' : cancelled ? ' 🚫' : isPast ? ' ✓' : ''}
-                    </option>
-                  );
-                })}
-              </select>
+              />
 
               <select
                 value={displayedFormation}
@@ -1737,7 +1741,7 @@ export default function FootballApp() {
                 consumptiesAllPlayers={consumptiesAllPlayers}
                 consumptiesOverrideId={consumptiesOverrideId}
                 onConsumptiesChange={(id) => updateConsumptiesPlayer(selectedMatch.id, id)}
-                trackVervoer={teamSettings?.track_vervoer ?? true}
+                trackVervoer={(teamSettings?.track_vervoer ?? true) && selectedMatch.home_away !== 'Thuis'}
                 vervoerCount={vervoerCount}
                 vervoerEligible={vervoerEligible}
                 vervoerAllPlayers={vervoerAllPlayers}
@@ -1776,6 +1780,72 @@ export default function FootballApp() {
       )}
 
 
+    </div>
+  );
+}
+
+function MatchDropdown({
+  matches,
+  selectedMatch,
+  onSelect,
+}: {
+  matches: import('./lib/types').Match[];
+  selectedMatch: import('./lib/types').Match | null;
+  onSelect: (match: import('./lib/types').Match) => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const getLabel = (match: import('./lib/types').Match) => {
+    const isPast = new Date(match.date) < new Date();
+    const done = match.match_status === 'afgerond';
+    const cancelled = match.match_status === 'geannuleerd';
+    const date = new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+    const suffix = done ? ' ✅' : cancelled ? ' 🚫' : isPast ? ' ✓' : '';
+    return `${date} - ${match.opponent}${suffix}`;
+  };
+
+  return (
+    <div className="relative flex-1 sm:flex-initial" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full px-3 sm:px-4 py-2 rounded bg-gray-700 border border-gray-600 text-white font-bold text-sm sm:text-base flex items-center gap-2 text-left"
+      >
+        <span className="flex-1 truncate">
+          {selectedMatch ? getLabel(selectedMatch) : 'Selecteer wedstrijd'}
+        </span>
+        <svg className="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl z-50 max-h-72 overflow-y-auto min-w-full">
+          {matches.map(match => {
+            const isSelected = match.id === selectedMatch?.id;
+            return (
+              <button
+                key={match.id}
+                onClick={() => { onSelect(match); setOpen(false); }}
+                className={`w-full text-left px-3 py-2.5 text-sm flex items-center gap-2 hover:bg-gray-700 transition whitespace-nowrap ${
+                  isSelected ? 'bg-gray-700' : ''
+                }`}
+              >
+                <span className="w-4 flex-shrink-0 text-yellow-400">{isSelected ? '✓' : ''}</span>
+                <span>{getLabel(match)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

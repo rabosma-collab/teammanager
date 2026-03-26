@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { positionOrder } from '../lib/constants';
 import type { Player } from '../lib/types';
@@ -11,6 +11,10 @@ export function usePlayers() {
   const toast = useToast();
   const [players, setPlayers] = useState<Player[]>([]);
   const fetchIdRef = useRef(0);
+
+  useEffect(() => {
+    setPlayers([]);
+  }, [currentTeam?.id]);
 
   const fetchPlayers = useCallback(async (matchId?: number) => {
     if (!currentTeam) return [];
