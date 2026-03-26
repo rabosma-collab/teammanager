@@ -1750,7 +1750,7 @@ export default function FootballApp() {
                 consumptiesAllPlayers={consumptiesAllPlayers}
                 consumptiesOverrideId={consumptiesOverrideId}
                 onConsumptiesChange={(id) => updateConsumptiesPlayer(selectedMatch.id, id)}
-                trackVervoer={(teamSettings?.track_vervoer ?? true) && selectedMatch.home_away !== 'thuis'}
+                trackVervoer={(teamSettings?.track_vervoer ?? true) && selectedMatch.home_away !== 'Thuis'}
                 vervoerCount={vervoerCount}
                 vervoerEligible={vervoerEligible}
                 vervoerAllPlayers={vervoerAllPlayers}
