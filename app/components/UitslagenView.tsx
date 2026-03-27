@@ -488,7 +488,7 @@ export default function UitslagenView({
               <div className="text-4xl mb-3">📅</div>
               <div className="font-bold">Nog geen wedstrijden gepland</div>
               {isManager && isEditMode && (
-                <div className="text-sm mt-2 text-gray-400">Gebruik "+ Nieuw" of "📂 Importeer" hierboven.</div>
+                <div className="text-sm mt-2 text-gray-400">Gebruik &quot;+ Nieuw&quot; of &quot;📂 Importeer&quot; hierboven.</div>
               )}
             </div>
           </div>
