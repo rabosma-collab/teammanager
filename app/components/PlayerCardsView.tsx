@@ -84,7 +84,7 @@ export default function PlayerCardsView({
   const [isSaving, setIsSaving] = useState(false);
 
   // Teamsterren: gamesPlayed + wins per player (afgeronde wedstrijden)
-  const [starData, setStarData] = useState<Record<number, { gamesPlayed: number; wins: number }>>({});
+  const [starData, setStarData] = useState<Record<number, { gamesPlayed: number; wins: number; draws: number }>>({});
 
   useEffect(() => {
     if (playerCardMode !== 'teamsterren' || !currentTeam) return;
@@ -106,16 +106,17 @@ export default function PlayerCardsView({
       const matchMap = new Map<number, { id: number; goals_for: number | null; goals_against: number | null }>(
         matchRows.map((m: { id: number; goals_for: number | null; goals_against: number | null }) => [m.id, m])
       );
-      const result: Record<number, { gamesPlayed: number; wins: number }> = {};
+      const result: Record<number, { gamesPlayed: number; wins: number; draws: number }> = {};
 
       for (const row of lineupRows as { player_id: number; match_id: number }[]) {
         const match = matchMap.get(row.match_id);
         if (!match) continue;
-        if (!result[row.player_id]) result[row.player_id] = { gamesPlayed: 0, wins: 0 };
+        if (!result[row.player_id]) result[row.player_id] = { gamesPlayed: 0, wins: 0, draws: 0 };
         result[row.player_id].gamesPlayed++;
-        if ((match.goals_for ?? 0) > (match.goals_against ?? 0)) {
-          result[row.player_id].wins++;
-        }
+        const gf = match.goals_for ?? 0;
+        const ga = match.goals_against ?? 0;
+        if (gf > ga) result[row.player_id].wins++;
+        else if (gf === ga) result[row.player_id].draws++;
       }
       setStarData(result);
     }
@@ -298,6 +299,7 @@ export default function PlayerCardsView({
               player={player}
               gamesPlayed={sd.gamesPlayed}
               wins={sd.wins}
+              draws={sd.draws}
               starOverride={player.star_override}
               isFlippable
               size="sm"
@@ -462,7 +464,7 @@ export default function PlayerCardsView({
                 <div className="space-y-2 text-xs text-gray-400">
                   <div className="flex items-start gap-2">
                     <span className="text-yellow-400 mt-0.5">→</span>
-                    <span>Je verdient sterren voor elke wedstrijd die je meespeelt: <span className="text-yellow-300 font-semibold">3 sterren</span> bij winst, <span className="text-yellow-300 font-semibold">1 ster</span> bij gelijkspel of verlies.</span>
+                    <span>Je verdient sterren voor elke wedstrijd waar <span className="text-white font-semibold">jij in de opstelling stond</span>: <span className="text-yellow-300 font-semibold">3 sterren</span> bij winst, <span className="text-yellow-300 font-semibold">1 ster</span> bij gelijkspel, <span className="text-white/60 font-semibold">0</span> bij verlies.</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-yellow-400 mt-0.5">→</span>
@@ -574,6 +576,7 @@ export default function PlayerCardsView({
           player={editingTeamsterrenPlayer}
           gamesPlayed={starData[editingTeamsterrenPlayer.id]?.gamesPlayed ?? 0}
           wins={starData[editingTeamsterrenPlayer.id]?.wins ?? 0}
+          draws={starData[editingTeamsterrenPlayer.id]?.draws ?? 0}
           onSave={(starOverride) => {
             onUpdateStat(editingTeamsterrenPlayer.id, 'star_override', starOverride == null ? 'null' : String(starOverride));
           }}

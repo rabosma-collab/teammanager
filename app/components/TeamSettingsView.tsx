@@ -535,7 +535,7 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
                   <div>
                     <div className="text-white font-semibold">⭐ Teamsterren</div>
                     <div className="text-gray-300 space-y-0.5 mt-0.5">
-                      <div>✓ Sterren verdienen per wedstrijd (win = 3, gelijk/verlies = 1)</div>
+                      <div>✓ Sterren voor wedstrijden waar jij speelt (win = 3 ⭐, gelijk = 1 ⭐, verlies = 0 ⭐)</div>
                       <div>✓ Kaart groeit van Rookie naar Legende</div>
                       <div>✗ Geen ranglijst of stemming</div>
                     </div>

@@ -165,15 +165,17 @@ interface TeamsterrenCardProps {
   player: Player;
   gamesPlayed: number;
   wins: number;
+  draws: number;
   starOverride?: number | null;
   isFlippable?: boolean;
   size?: 'sm' | 'md';
 }
 
-export function TeamsterrenCard({ player, gamesPlayed, wins, starOverride, isFlippable = false, size = 'md' }: TeamsterrenCardProps) {
+export function TeamsterrenCard({ player, gamesPlayed, wins, draws, starOverride, isFlippable = false, size = 'md' }: TeamsterrenCardProps) {
   const [flipped, setFlipped] = useState(false);
 
-  const calculatedStars = wins * 2 + gamesPlayed; // wins×3 + nonWins×1 = wins×2 + gamesPlayed
+  const losses = gamesPlayed - wins - draws;
+  const calculatedStars = wins * 3 + draws; // verlies = 0 sterren
   const stars = starOverride != null ? starOverride : calculatedStars;
   const level = getTeamsterrenLevel(stars);
   const nextThreshold = getTeamsterrenNextThreshold(stars);
@@ -188,9 +190,8 @@ export function TeamsterrenCard({ player, gamesPlayed, wins, starOverride, isFli
   const roundClass = isSm ? 'rounded-xl' : 'rounded-2xl';
   const shellClass = `bg-gradient-to-b ${ls.gradient} ${cardW} border-2 ${ls.border} shadow-lg relative overflow-hidden`;
 
-  const nonWins = gamesPlayed - wins;
   const winsStars = wins * 3;
-  const nonWinsStars = nonWins;
+  const drawsStars = draws;
 
   const nextLevelName = level === 'Rookie' ? 'Belofte' : level === 'Belofte' ? 'Ster' : 'Legende';
   const starsToNext = level !== 'Legende' ? nextThreshold - stars : 0;
@@ -330,18 +331,23 @@ export function TeamsterrenCard({ player, gamesPlayed, wins, starOverride, isFli
                     Berekend zou zijn: {calculatedStars} ⭐
                   </div>
                   <div className="text-[9px] text-white/30">
-                    ({wins} gewonnen, {gamesPlayed} gespeeld)
+                    ({wins}W · {draws}G · {losses}V)
                   </div>
                 </div>
               ) : (
                 <div className="space-y-1.5">
+                  <div className="text-[9px] text-white/40 mb-0.5">Jouw wedstrijden:</div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-white/70">🏆 {wins}× gewonnen</span>
                     <span className={`font-black ${ls.badgeColor}`}>+{winsStars} ⭐</span>
                   </div>
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-white/70">➖ {nonWins}× overig</span>
-                    <span className="font-black text-white/60">+{nonWinsStars} ⭐</span>
+                    <span className="text-white/70">➖ {draws}× gelijk</span>
+                    <span className="font-black text-white/60">+{drawsStars} ⭐</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-white/70">❌ {losses}× verloren</span>
+                    <span className="font-black text-white/30">+0 ⭐</span>
                   </div>
                   <div className="border-t border-white/20 pt-1 flex items-center justify-between text-[10px]">
                     <span className="text-white/50 font-bold">Totaal</span>
