@@ -33,7 +33,7 @@ export default function PersonalCard({
   const playerCardMode     = teamSettings?.player_card_mode     ?? 'competitive';
   const spdwEnabled        = teamSettings?.spdw_enabled         ?? true;
 
-  const [starData, setStarData] = useState<{ gamesPlayed: number; wins: number }>({ gamesPlayed: 0, wins: 0 });
+  const [starData, setStarData] = useState<{ gamesPlayed: number; wins: number; draws: number }>({ gamesPlayed: 0, wins: 0, draws: 0 });
 
   useEffect(() => {
     if (playerCardMode !== 'teamsterren' || !player || !currentTeam) return;
@@ -44,13 +44,16 @@ export default function PersonalCard({
       ]);
       if (!lineupRes.data || !matchRes.data) return;
       const playedMatchIds = new Set(lineupRes.data.map((r: { match_id: number }) => r.match_id));
-      let gamesPlayed = 0, wins = 0;
+      let gamesPlayed = 0, wins = 0, draws = 0;
       for (const m of matchRes.data as { id: number; goals_for: number | null; goals_against: number | null }[]) {
         if (!playedMatchIds.has(m.id)) continue;
         gamesPlayed++;
-        if ((m.goals_for ?? 0) > (m.goals_against ?? 0)) wins++;
+        const gf = m.goals_for ?? 0;
+        const ga = m.goals_against ?? 0;
+        if (gf > ga) wins++;
+        else if (gf === ga) draws++;
       }
-      setStarData({ gamesPlayed, wins });
+      setStarData({ gamesPlayed, wins, draws });
     }
     fetch();
   }, [playerCardMode, player?.id, currentTeam?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -87,7 +90,7 @@ export default function PersonalCard({
             <>
               <p className="font-semibold text-white mb-1">Jouw Teamsterren-kaart</p>
               <p>Je kaart groeit automatisch naarmate je meer wedstrijden speelt en wint.</p>
-              <p className="mt-1"><span className="text-yellow-300 font-semibold">⭐ Sterren</span>: win = 3, gelijk/verlies = 1. Bereik Rookie → Belofte → Ster → Legende.</p>
+              <p className="mt-1"><span className="text-yellow-300 font-semibold">⭐ Sterren</span>: win = 3 ⭐, gelijk = 1 ⭐, verlies = 0 ⭐ — alleen voor wedstrijden waar jij in de opstelling stond. Bereik Rookie → Belofte → Ster → Legende.</p>
             </>
           ) : (
             <>
@@ -100,7 +103,7 @@ export default function PersonalCard({
       </div>
       <div className="flex justify-center mb-4">
         {playerCardMode === 'teamsterren' ? (
-          <TeamsterrenCard player={player} gamesPlayed={starData.gamesPlayed} wins={starData.wins} starOverride={player.star_override} isFlippable size="md" />
+          <TeamsterrenCard player={player} gamesPlayed={starData.gamesPlayed} wins={starData.wins} draws={starData.draws} starOverride={player.star_override} isFlippable size="md" />
         ) : (
           <PlayerCard player={player} size="md" isFlippable backContent="radar-only" />
         )}

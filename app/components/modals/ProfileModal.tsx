@@ -175,8 +175,11 @@ export default function ProfileModal({ onClose, onPlayerUpdated, onLogout, welco
         setPreviewUrl(null);
         setSelectedFile(null);
         setAvatarUrl(newAvatarUrl);
+      }
 
-        // 3. Sync naar alle gekoppelde spelers
+      // 3. Sync avatar naar alle gekoppelde spelers — altijd, ook zonder nieuwe foto.
+      //    Dit herstelt eventuele inconsistentie tussen teams (bijv. na een mislukte sync).
+      if (newAvatarUrl) {
         await syncAvatarToPlayers(user.id, newAvatarUrl);
       }
 

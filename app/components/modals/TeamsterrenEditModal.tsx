@@ -7,6 +7,7 @@ interface TeamsterrenEditModalProps {
   player: Player;
   gamesPlayed: number;
   wins: number;
+  draws: number;
   onSave: (starOverride: number | null) => void;
   onClose: () => void;
 }
@@ -15,18 +16,18 @@ export default function TeamsterrenEditModal({
   player,
   gamesPlayed,
   wins,
+  draws,
   onSave,
   onClose,
 }: TeamsterrenEditModalProps) {
-  const calculatedStars = wins * 2 + gamesPlayed;
+  const losses = gamesPlayed - wins - draws;
+  const calculatedStars = wins * 3 + draws;
   const hasOverride = player.star_override != null;
 
   const [useOverride, setUseOverride] = useState(hasOverride);
   const [overrideValue, setOverrideValue] = useState<number>(
     player.star_override ?? calculatedStars
   );
-
-  const previewStars = useOverride ? overrideValue : calculatedStars;
 
   const handleSave = () => {
     onSave(useOverride ? overrideValue : null);
@@ -46,6 +47,7 @@ export default function TeamsterrenEditModal({
             player={player}
             gamesPlayed={gamesPlayed}
             wins={wins}
+            draws={draws}
             starOverride={useOverride ? overrideValue : null}
             size="sm"
           />
@@ -78,8 +80,8 @@ export default function TeamsterrenEditModal({
         {!useOverride && (
           <div className="text-sm text-gray-400 text-center mb-4 bg-gray-800 rounded-lg p-3">
             <div className="text-white font-bold text-lg mb-1">{calculatedStars} sterren</div>
-            <div className="text-xs">{gamesPlayed} gespeeld · {wins} gewonnen</div>
-            <div className="text-xs mt-1 text-gray-500">(winst = 3 ⭐, rest = 1 ⭐)</div>
+            <div className="text-xs">{wins}W · {draws}G · {losses}V</div>
+            <div className="text-xs mt-1 text-gray-500">(winst = 3 ⭐, gelijk = 1 ⭐, verlies = 0 ⭐)</div>
           </div>
         )}
 
@@ -121,11 +123,9 @@ export default function TeamsterrenEditModal({
               />
               <span className="ml-2 text-yellow-400 font-bold">⭐</span>
             </div>
-            {hasOverride && (
-              <div className="text-center text-xs text-gray-500 mt-1">
-                Berekend zou zijn: {calculatedStars} ⭐
-              </div>
-            )}
+            <div className="text-center text-xs text-gray-500 mt-1">
+              Berekend zou zijn: {calculatedStars} ⭐
+            </div>
           </div>
         )}
 

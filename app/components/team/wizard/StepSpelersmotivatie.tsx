@@ -52,9 +52,9 @@ const MODES: Array<{
     title: 'Teamsterren',
     subtitle: 'Positief & motiverend',
     features: [
-      'Sterren verdienen per wedstrijd',
+      'Sterren voor wedstrijden waar jij in de opstelling stond',
       'Kaart groeit van Rookie naar Legende',
-      'Win = 3 sterren, Gelijk/Verlies = 1 ster',
+      'Win = 3 ⭐, Gelijk = 1 ⭐, Verlies = 0 ⭐',
     ],
     noFeatures: [
       'Geen ranglijst of stemming',
