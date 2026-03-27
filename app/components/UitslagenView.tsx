@@ -589,7 +589,7 @@ export default function UitslagenView({
                               <div className="text-xs text-gray-400">⚽ Aanvang: <span className="text-white font-medium">{formatTime(match.match_time)}</span></div>
                             )}
                             {trackLocationDetails && match.location_details && (
-                              <div className="text-xs text-gray-400">📍 Kleedkamer: <span className="text-white font-medium">{match.location_details}</span></div>
+                              <div className="text-xs text-gray-400">📍 Verzamellocatie: <span className="text-white font-medium">{match.location_details}</span></div>
                             )}
                           </div>
                         )}

@@ -400,7 +400,7 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
             {[
               { key: 'track_assembly_time',      label: '🕐 Verzameltijd' },
               { key: 'track_match_time',         label: '⚽ Speeltijd (aanvang)' },
-              { key: 'track_location_details',   label: '📍 Kleedkamer / locatie' },
+              { key: 'track_location_details',   label: '📍 Verzamellocatie' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
                 <span className="text-sm font-medium">{label}</span>

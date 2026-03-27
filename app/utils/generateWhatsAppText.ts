@@ -81,7 +81,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
     lines.push(`⚽ Aanvang: *${formatTime(match.match_time)}*`);
   }
   if (trackLocationDetails && match.location_details) {
-    lines.push(`📍 Kleedkamer: *${match.location_details}*`);
+    lines.push(`📍 Verzamellocatie: *${match.location_details}*`);
   }
 
   // Opstelling — alleen tonen als gepubliceerd
