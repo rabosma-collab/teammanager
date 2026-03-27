@@ -166,17 +166,20 @@ interface TeamsterrenCardProps {
   gamesPlayed: number;
   wins: number;
   draws: number;
-  starOverride?: number | null;
+  bonusWins?: number;
+  bonusDraws?: number;
   isFlippable?: boolean;
   size?: 'sm' | 'md';
 }
 
-export function TeamsterrenCard({ player, gamesPlayed, wins, draws, starOverride, isFlippable = false, size = 'md' }: TeamsterrenCardProps) {
+export function TeamsterrenCard({ player, gamesPlayed, wins, draws, bonusWins = 0, bonusDraws = 0, isFlippable = false, size = 'md' }: TeamsterrenCardProps) {
   const [flipped, setFlipped] = useState(false);
 
+  const totalWins  = wins  + bonusWins;
+  const totalDraws = draws + bonusDraws;
+  const totalGames = gamesPlayed + bonusWins + bonusDraws;
   const losses = gamesPlayed - wins - draws;
-  const calculatedStars = wins * 3 + draws; // verlies = 0 sterren
-  const stars = starOverride != null ? starOverride : calculatedStars;
+  const stars = totalWins * 3 + totalDraws;
   const level = getTeamsterrenLevel(stars);
   const nextThreshold = getTeamsterrenNextThreshold(stars);
   const prevThreshold = level === 'Rookie' ? 0 : level === 'Belofte' ? 10 : level === 'Ster' ? 25 : 50;
@@ -190,8 +193,9 @@ export function TeamsterrenCard({ player, gamesPlayed, wins, draws, starOverride
   const roundClass = isSm ? 'rounded-xl' : 'rounded-2xl';
   const shellClass = `bg-gradient-to-b ${ls.gradient} ${cardW} border-2 ${ls.border} shadow-lg relative overflow-hidden`;
 
-  const winsStars = wins * 3;
-  const drawsStars = draws;
+  const winsStars = totalWins * 3;
+  const drawsStars = totalDraws;
+  const hasBonus = bonusWins > 0 || bonusDraws > 0;
 
   const nextLevelName = level === 'Rookie' ? 'Belofte' : level === 'Belofte' ? 'Ster' : 'Legende';
   const starsToNext = level !== 'Legende' ? nextThreshold - stars : 0;
@@ -258,12 +262,12 @@ export function TeamsterrenCard({ player, gamesPlayed, wins, draws, starOverride
             <div className="flex justify-around mb-2">
               <div className="text-center">
                 <div className="text-lg">⚽</div>
-                <div className="text-sm font-black text-white">{gamesPlayed}</div>
+                <div className="text-sm font-black text-white">{totalGames}</div>
                 <div className="text-[9px] text-white/40">gespeeld</div>
               </div>
               <div className="text-center">
                 <div className="text-lg">🏆</div>
-                <div className="text-sm font-black text-white">{wins}</div>
+                <div className="text-sm font-black text-white">{totalWins}</div>
                 <div className="text-[9px] text-white/40">gewonnen</div>
               </div>
               <div className="text-center">
@@ -323,38 +327,25 @@ export function TeamsterrenCard({ player, gamesPlayed, wins, draws, starOverride
               <div className="border-t border-white/20" />
 
               {/* Sterren-opbouw (A) */}
-              {starOverride != null ? (
-                <div className="text-center space-y-1">
-                  <div className="text-[10px] text-yellow-300 font-bold">⚡ Handmatig ingesteld</div>
-                  <div className={`text-xl font-black ${ls.badgeColor}`}>{stars} ⭐</div>
-                  <div className="text-[9px] text-white/40">
-                    Berekend zou zijn: {calculatedStars} ⭐
-                  </div>
-                  <div className="text-[9px] text-white/30">
-                    ({wins}W · {draws}G · {losses}V)
-                  </div>
+              <div className="space-y-1.5">
+                <div className="text-[9px] text-white/40 mb-0.5">Jouw wedstrijden:</div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-white/70">🏆 {wins}× gewonnen{hasBonus && bonusWins > 0 ? <span className="text-yellow-400"> +{bonusWins}</span> : null}</span>
+                  <span className={`font-black ${ls.badgeColor}`}>+{winsStars} ⭐</span>
                 </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <div className="text-[9px] text-white/40 mb-0.5">Jouw wedstrijden:</div>
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-white/70">🏆 {wins}× gewonnen</span>
-                    <span className={`font-black ${ls.badgeColor}`}>+{winsStars} ⭐</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-white/70">➖ {draws}× gelijk</span>
-                    <span className="font-black text-white/60">+{drawsStars} ⭐</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-white/70">❌ {losses}× verloren</span>
-                    <span className="font-black text-white/30">+0 ⭐</span>
-                  </div>
-                  <div className="border-t border-white/20 pt-1 flex items-center justify-between text-[10px]">
-                    <span className="text-white/50 font-bold">Totaal</span>
-                    <span className={`font-black text-sm ${ls.badgeColor}`}>{stars} ⭐</span>
-                  </div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-white/70">➖ {draws}× gelijk{hasBonus && bonusDraws > 0 ? <span className="text-yellow-400"> +{bonusDraws}</span> : null}</span>
+                  <span className="font-black text-white/60">+{drawsStars} ⭐</span>
                 </div>
-              )}
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-white/70">❌ {losses}× verloren</span>
+                  <span className="font-black text-white/30">+0 ⭐</span>
+                </div>
+                <div className="border-t border-white/20 pt-1 flex items-center justify-between text-[10px]">
+                  <span className="text-white/50 font-bold">Totaal</span>
+                  <span className={`font-black text-sm ${ls.badgeColor}`}>{stars} ⭐</span>
+                </div>
+              </div>
 
               <div className="border-t border-white/20" />
 
