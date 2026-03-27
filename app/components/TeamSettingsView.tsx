@@ -355,6 +355,7 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
             <p className="text-xs text-gray-500 mt-1.5">
               {draft.periods} periodes van {Math.round((parseInt(localDuration) || 90) / draft.periods)} minuten
             </p>
+            <p className="text-xs text-gray-500 mt-1">Per periode kun je de opstelling en formatie aanpassen. De app stelt wisselstops voor op basis van dit aantal. Je kunt dit per wedstrijd aanpassen.</p>
           </div>
 
           <div className="pt-2 border-t border-gray-700">
@@ -439,12 +440,15 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wedstrijdinfo</p>
             <p className="text-xs text-gray-500">Informatie die je vastlegt bij het aanmaken van een wedstrijd.</p>
             {[
-              { key: 'track_assembly_time',      label: '🕐 Verzameltijd' },
-              { key: 'track_match_time',         label: '⚽ Speeltijd (aanvang)' },
-              { key: 'track_location_details',   label: '📍 Verzamellocatie' },
-            ].map(({ key, label }) => (
+              { key: 'track_assembly_time',      label: '🕐 Verzameltijd',        description: 'Noteer hoe laat spelers aanwezig moeten zijn' },
+              { key: 'track_match_time',         label: '⚽ Speeltijd (aanvang)',  description: 'Noteer hoe laat de wedstrijd begint' },
+              { key: 'track_location_details',   label: '📍 Verzamellocatie',     description: 'Noteer de verzamellocatie of kleedkamernummer' },
+            ].map(({ key, label, description }) => (
               <label key={key} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
-                <span className="text-sm font-medium">{label}</span>
+                <div className="flex-1">
+                  <span className="text-sm font-medium">{label}</span>
+                  <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+                </div>
                 <button
                   role="switch"
                   aria-checked={draft[key as keyof SettingsDraft] as boolean}
