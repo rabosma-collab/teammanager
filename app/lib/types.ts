@@ -26,6 +26,7 @@ export interface Player {
     spe?: number;
     pos?: number;
     avatar_url?: string | null;
+    star_override?: number | null;
     is_guest?: boolean;
     guest_match_id?: number;
     lineup_position?: number | null;
