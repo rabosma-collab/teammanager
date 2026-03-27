@@ -144,6 +144,16 @@ Supabase Storage bucket `avatars` — public read, for profile pictures.
 - **Stat credits (SPDW)**: Players earn credits by voting; spend credits to edit FIFA stats. `useStatCredits.ts`.
 - **Lineup published flag**: `matches.lineup_published` — controls visibility to non-managers.
 
+## Na elke implementatie
+
+After completing any code change, always perform these three checks before closing out. Present findings proactively — do not ask whether to check, just do it and report.
+
+1. **Wizard** — Scan `app/components/team/wizard/` and `TeamSetupWizard.tsx`. Does the change affect any setting, concept, or flow that is also part of the team setup wizard? If yes, state exactly which step and what needs updating.
+2. **Uniformiteit** — Look for similar features or patterns elsewhere in the app (other views, modals, hooks). If the same concept exists in multiple places, check whether the change is applied consistently. Report any gaps.
+3. **Toelichtingen** — Check whether any UI labels, placeholder text, help text, or tooltip copy in the changed area has become outdated. Same for wizard step descriptions that reference the changed concept.
+
+After presenting the findings (even if all clear), ask: **"Moet deze wijziging worden opgenomen in de releasenotes?"**
+
 ## Language
 
 All UI text is in Dutch. Position names: Keeper, Verdediger, Middenvelder, Aanvaller.

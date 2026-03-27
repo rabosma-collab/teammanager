@@ -428,6 +428,8 @@ export default function DashboardView({
             subMomentMinutes={dashboardSubMomentMinutes}
             trackWasbeurt={trackWasbeurt}
             trackConsumpties={trackConsumpties}
+            trackVervoer={trackVervoer}
+            vervoerCount={vervoerCount}
             trackAssemblyTime={trackAssemblyTime}
             trackMatchTime={trackMatchTime}
             trackLocationDetails={trackLocationDetails}

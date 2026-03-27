@@ -1,22 +1,8 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { DM_Sans, Barlow_Condensed } from 'next/font/google';
 import { TeamProvider } from './contexts/TeamContext';
 import { ToastProvider } from './contexts/ToastContext';
 import CookieBanner from './components/CookieBanner';
-
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  variable: '--font-dm-sans',
-  display: 'swap',
-});
-
-const barlowCondensed = Barlow_Condensed({
-  subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
-  variable: '--font-barlow-condensed',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Team Manager',
@@ -67,7 +53,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="nl">
-      <body className={`${dmSans.variable} ${barlowCondensed.variable} font-sans`}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="font-sans">
         <ToastProvider>
           <TeamProvider>{children}</TeamProvider>
         </ToastProvider>

@@ -2,7 +2,7 @@
 
 import React, { forwardRef } from 'react';
 import type { Match, Player, Substitution, PositionInstruction, SubstitutionScheme } from '../lib/types';
-import { formationLabels, positionEmojis } from '../lib/constants';
+import { formationLabels, positionEmojis, getPositionCategory } from '../lib/constants';
 
 interface MatchPdfViewProps {
   match: Match;
@@ -27,12 +27,16 @@ const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function Matc
 ) {
   const color = teamColor || '#f59e0b';
 
-  // Basisspelers gegroepeerd per positie
-  const fieldPlayers = fieldOccupants.filter((p): p is Player => p !== null);
+  // Basisspelers gegroepeerd per positie (op basis van hun slot in de opstelling, niet de standaardpositie)
+  const fieldPlayersWithCategory = fieldOccupants
+    .map((p, index) => p ? { player: p, category: getPositionCategory(gameFormat, match.formation, index) } : null)
+    .filter((x): x is { player: Player; category: string } => x !== null);
+
+  const fieldPlayers = fieldPlayersWithCategory.map(x => x.player);
 
   const groupedField = POSITION_ORDER.map(pos => ({
     position: pos,
-    players: fieldPlayers.filter(p => p.position === pos),
+    players: fieldPlayersWithCategory.filter(x => x.category === pos).map(x => x.player),
   })).filter(g => g.players.length > 0);
 
   // Bankspelers: niet op het veld, niet afwezig, niet geblesseerd

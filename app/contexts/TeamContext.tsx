@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { Team, TeamMember, TeamContext as TeamContextType } from '../lib/types';
-import { createClientComponentClient } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { useTeamSettings } from '../hooks/useTeamSettings';
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
@@ -16,7 +17,6 @@ export function useTeamContext(): TeamContextType {
 }
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
-  const supabase = createClientComponentClient();
   const { settings: teamSettings, fetchSettings } = useTeamSettings();
   const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -69,7 +69,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     setCurrentPlayerId(activeRow?.player_id ?? null);
 
     setIsLoading(false);
-  }, [supabase]);
+  }, []);
 
   const switchTeam = useCallback(async (teamId: string) => {
     setIsLoading(true);
@@ -96,28 +96,28 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     setCurrentPlayerId(row.player_id ?? null);
     localStorage.setItem('selectedTeamId', teamId);
     setIsLoading(false);
-  }, [supabase]);
+  }, []);
 
   const refreshTeam = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await loadTeams(user.id);
     }
-  }, [supabase, loadTeams]);
+  }, [loadTeams]);
 
   // Auth state listener: load teams on sign-in, clear on sign-out
   useEffect(() => {
     // Initial load
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        loadTeams(user.id);
+    supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
+      if (data.user) {
+        loadTeams(data.user.id);
       } else {
         setIsLoading(false);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (_event: AuthChangeEvent, session: Session | null) => {
         if (session?.user) {
           loadTeams(session.user.id);
         } else {
@@ -133,7 +133,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, loadTeams]);
+  }, [loadTeams]);
 
   const isManager = userRole === 'manager';
   const isStaff = userRole === 'staff';

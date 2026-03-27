@@ -6,12 +6,12 @@ import { supabase } from '../../../lib/supabase';
 interface MatchRow {
   date: string;
   opponent: string;
-  home_away: 'thuis' | 'uit';
+  home_away: 'Thuis' | 'Uit';
 }
 
-const HOME_ALIASES: Record<string, 'thuis' | 'uit'> = {
-  'thuis': 'thuis', 'home': 'thuis', 'h': 'thuis', 't': 'thuis',
-  'uit': 'uit', 'away': 'uit', 'a': 'uit', 'u': 'uit',
+const HOME_ALIASES: Record<string, 'Thuis' | 'Uit'> = {
+  'thuis': 'Thuis', 'home': 'Thuis', 'h': 'Thuis', 't': 'Thuis',
+  'uit': 'Uit', 'away': 'Uit', 'a': 'Uit', 'u': 'Uit',
 };
 
 function parseDate(raw: string): string | null {
@@ -26,6 +26,7 @@ interface ParsedMatch extends MatchRow {
   error?: string;
 }
 
+
 function parseCsvMatches(text: string): ParsedMatch[] {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const sep = lines[0]?.includes(';') ? ';' : ',';
@@ -38,7 +39,7 @@ function parseCsvMatches(text: string): ParsedMatch[] {
     const opponent = cols[1]?.trim() ?? '';
     const rawHA = (cols[2] ?? 'thuis').trim().toLowerCase();
     const date = parseDate(rawDate);
-    const home_away = HOME_ALIASES[rawHA] ?? 'thuis';
+    const home_away = HOME_ALIASES[rawHA] ?? 'Thuis';
     if (!date) return { date: rawDate, opponent, home_away, error: `Ongeldige datum: "${rawDate}"` };
     if (!opponent) return { date: date, opponent: '(leeg)', home_away, error: 'Tegenstander ontbreekt' };
     return { date, opponent, home_away };
@@ -62,7 +63,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
   // ── Handmatig ─────────────────────────────────────────────
   const [date, setDate] = useState('');
   const [opponent, setOpponent] = useState('');
-  const [homeAway, setHomeAway] = useState<'thuis' | 'uit'>('thuis');
+  const [homeAway, setHomeAway] = useState<'Thuis' | 'Uit'>('Thuis');
   const [matchList, setMatchList] = useState<MatchRow[]>([]);
   const [addError, setAddError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -205,7 +206,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">Thuis / Uit</label>
                   <div className="flex gap-1.5">
-                    {(['thuis', 'uit'] as const).map(opt => (
+                    {(['Thuis', 'Uit'] as const).map(opt => (
                       <button
                         key={opt}
                         onClick={() => setHomeAway(opt)}
@@ -213,7 +214,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
                           homeAway === opt ? 'bg-yellow-500 text-black' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         }`}
                       >
-                        {opt === 'thuis' ? '🏠' : '✈️'} {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                        {opt === 'Thuis' ? '🏠' : '✈️'} {opt}
                       </button>
                     ))}
                   </div>
@@ -251,7 +252,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
                       <span className="text-gray-400 ml-2">{formatDate(m.date)}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-gray-500">{m.home_away === 'thuis' ? '🏠' : '✈️'}</span>
+                      <span className="text-gray-500">{m.home_away === 'Thuis' ? '🏠' : '✈️'}</span>
                       {!saved && (
                         <button onClick={() => setMatchList(prev => prev.filter((_, j) => j !== i))} className="text-gray-600 hover:text-red-400 transition">✕</button>
                       )}
@@ -319,7 +320,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
                       {!m.error && <span className="text-gray-400 ml-2">{formatDate(m.date)}</span>}
                     </div>
                     <span className={m.error ? 'text-red-400 text-xs' : 'text-gray-500 text-xs'}>
-                      {m.error ?? (m.home_away === 'thuis' ? '🏠' : '✈️')}
+                      {m.error ?? (m.home_away === 'Thuis' ? '🏠' : '✈️')}
                     </span>
                   </div>
                 ))}

@@ -16,7 +16,7 @@ interface NavbarProps {
   onBellClick?: () => void;
 }
 
-const ADMIN_VIEWS = ['mededelingen', 'instructions', 'players-manage', 'matches-manage', 'invites', 'team-settings', 'season-settings', 'feedback'] as const;
+const ADMIN_VIEWS = ['mededelingen', 'instructions', 'players-manage', 'invites', 'team-settings', 'season-settings', 'feedback'] as const;
 
 export default function Navbar({
   view,
@@ -316,12 +316,6 @@ export default function Navbar({
                   label="Spelers"
                   active={view === 'players-manage'}
                   onClick={() => navigateTo('players-manage')}
-                />
-                <BeheerItem
-                  icon="📅"
-                  label="Wedstrijden"
-                  active={view === 'matches-manage'}
-                  onClick={() => navigateTo('matches-manage')}
                 />
                 <div className="relative">
                   <BeheerItem

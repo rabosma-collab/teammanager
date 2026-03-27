@@ -6,6 +6,8 @@ import { useMatchStats } from '../hooks/useMatchStats';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
+import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
+import ImportMatchesModal from './modals/ImportMatchesModal';
 
 interface UitslagenViewProps {
   matches: Match[];
@@ -14,9 +16,16 @@ interface UitslagenViewProps {
   seasons: Season[];
   activeSeasonId: number | null;
   currentPlayerId: number | null;
+  gameFormat: string;
+  defaultFormation?: string;
   onRefreshPlayers: () => void;
+  onRefreshMatches: () => void;
   onUpdateMatchReport: (matchId: number, report: string | null) => Promise<boolean>;
   onUpdateMatchScore: (matchId: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
+  onAddMatch: (data: MatchFormData) => Promise<boolean>;
+  onUpdateMatch: (id: number, data: MatchFormData) => Promise<boolean>;
+  onCancelMatch: (id: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
+  onDeleteMatch: (id: number) => Promise<boolean>;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
 }
 
@@ -56,7 +65,6 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
     [players]
   );
 
-  // Initialiseer lokale state vanuit existingStats
   type Row = { player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number };
   const [rows, setRows] = useState<Row[]>(() => {
     if (existingStats.length > 0) {
@@ -91,7 +99,6 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
     <div className="mt-3 p-3 bg-gray-900/60 rounded-lg border border-gray-600">
       <div className="text-xs font-bold text-gray-300 mb-3 uppercase tracking-wide">Statistieken bewerken</div>
 
-      {/* Header */}
       <div className={`grid gap-1 text-[10px] text-gray-500 font-bold uppercase mb-1 px-1 ${
         trackCards ? 'grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto]' : trackAssists ? 'grid-cols-[2fr_1fr_1fr_1fr_auto]' : 'grid-cols-[2fr_1fr_1fr_auto]'
       }`}>
@@ -171,7 +178,7 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
   );
 }
 
-// ─── Taken badges (read-only, voor aankomende wedstrijden) ────
+// ─── Taken badges (read-only) ──────────────────────────────────
 function TakenBadges({ match, players, teamSettings }: { match: Match; players: Player[]; teamSettings: TeamSettings | null }) {
   const trackWasbeurt = teamSettings?.track_wasbeurt ?? true;
   const trackConsumpties = teamSettings?.track_consumpties ?? true;
@@ -211,7 +218,14 @@ function formatTime(timeStr: string): string {
 }
 
 // ─── Hoofd component ──────────────────────────────────────────
-export default function UitslagenView({ matches, players, teamSettings, seasons, activeSeasonId, currentPlayerId, onRefreshPlayers, onUpdateMatchReport, onUpdateMatchScore, onToggleAbsence }: UitslagenViewProps) {
+export default function UitslagenView({
+  matches, players, teamSettings, seasons, activeSeasonId, currentPlayerId,
+  gameFormat, defaultFormation = '4-3-3-aanvallend',
+  onRefreshPlayers, onRefreshMatches,
+  onUpdateMatchReport, onUpdateMatchScore,
+  onAddMatch, onUpdateMatch, onCancelMatch, onDeleteMatch,
+  onToggleAbsence,
+}: UitslagenViewProps) {
   const { isManager, currentTeam } = useTeamContext();
   const toast = useToast();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
@@ -220,62 +234,47 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
   const trackAssists = teamSettings?.track_assists  ?? true;
   const trackCards   = teamSettings?.track_cards    ?? false;
   const trackResults = teamSettings?.track_results  ?? true;
+  const trackAssemblyTime  = teamSettings?.track_assembly_time  ?? false;
+  const trackMatchTime     = teamSettings?.track_match_time     ?? false;
+  const trackLocationDetails = teamSettings?.track_location_details ?? false;
 
+  // ── Seizoen selector ──────────────────────────────────────
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(activeSeasonId);
   const [seasonMatches, setSeasonMatches] = useState<Match[]>(matches);
   const [seasonLoading, setSeasonLoading] = useState(false);
 
-  // Sync naar activeSeasonId als die verandert (bijv. nieuw seizoen gestart)
-  useEffect(() => {
-    setSelectedSeasonId(activeSeasonId);
-  }, [activeSeasonId]);
+  useEffect(() => { setSelectedSeasonId(activeSeasonId); }, [activeSeasonId]);
 
-  // Bij actief seizoen: gebruik matches van parent; bij oud seizoen: fetch zelf
   useEffect(() => {
-    if (selectedSeasonId === activeSeasonId) {
-      setSeasonMatches(matches);
-      return;
-    }
+    if (selectedSeasonId === activeSeasonId) { setSeasonMatches(matches); return; }
     if (!currentTeam || selectedSeasonId == null) return;
     setSeasonLoading(true);
     supabase
-      .from('matches')
-      .select('*')
+      .from('matches').select('*')
       .eq('team_id', currentTeam.id)
       .eq('season_id', selectedSeasonId)
       .order('date', { ascending: false })
-      .then(({ data }: { data: Match[] | null }) => {
-        setSeasonMatches(data || []);
-        setSeasonLoading(false);
-      });
+      .then(({ data }: { data: Match[] | null }) => { setSeasonMatches(data || []); setSeasonLoading(false); });
   }, [selectedSeasonId, activeSeasonId, matches, currentTeam]);
 
-  // Aankomende wedstrijden (concept), vroegste eerst
+  // ── Gesplitste lijsten ────────────────────────────────────
   const upcomingMatches = useMemo(
-    () => matches
-      .filter(m => m.match_status === 'concept')
+    () => matches.filter(m => m.match_status === 'concept')
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [matches]
   );
-
-  // Afgeronde + geannuleerde wedstrijden, nieuwste eerst
   const finishedMatches = useMemo(
-    () => seasonMatches
-      .filter(m => m.match_status === 'afgerond' || m.match_status === 'geannuleerd')
+    () => seasonMatches.filter(m => m.match_status === 'afgerond' || m.match_status === 'geannuleerd')
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [seasonMatches]
   );
 
-  // Afwezigheden per match voor aankomende wedstrijden
+  // ── Afwezigheid voor aankomende wedstrijden ───────────────
   const [absencesMap, setAbsencesMap] = useState<Record<number, number[]>>({});
-
   useEffect(() => {
     if (!currentTeam || upcomingMatches.length === 0) return;
     const ids = upcomingMatches.map(m => m.id);
-    supabase
-      .from('match_absences')
-      .select('match_id, player_id')
-      .in('match_id', ids)
+    supabase.from('match_absences').select('match_id, player_id').in('match_id', ids)
       .then(({ data }: { data: { match_id: number; player_id: number }[] | null }) => {
         const map: Record<number, number[]> = {};
         for (const row of data ?? []) {
@@ -292,17 +291,15 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
       setAbsencesMap(prev => {
         const current = prev[matchId] ?? [];
         const isAbsent = current.includes(playerId);
-        return {
-          ...prev,
-          [matchId]: isAbsent ? current.filter(id => id !== playerId) : [...current, playerId],
-        };
+        return { ...prev, [matchId]: isAbsent ? current.filter(id => id !== playerId) : [...current, playerId] };
       });
     }
   };
 
+  // ── Stats ────────────────────────────────────────────────
   const [statsMap, setStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingStatsId, setEditingStatsId] = useState<number | null>(null);
   const [editingReportId, setEditingReportId] = useState<number | null>(null);
   const [reportDraft, setReportDraft] = useState('');
   const [savingReport, setSavingReport] = useState(false);
@@ -311,8 +308,6 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
   const [scoreDraftFor, setScoreDraftFor] = useState<number>(0);
   const [scoreDraftAgainst, setScoreDraftAgainst] = useState<number>(0);
   const [savingScore, setSavingScore] = useState(false);
-
-  // Lokale match_report overrides (na opslaan zonder page refresh)
   const [reportOverrides, setReportOverrides] = useState<Record<number, string | null>>({});
 
   const startEditReport = (match: Match) => {
@@ -333,15 +328,10 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
     setSavingReport(false);
   };
 
-  // Laad stats voor alle afgeronde wedstrijden
   useEffect(() => {
     if (finishedMatches.length === 0) return;
     setLoading(true);
-    const ids = finishedMatches.map(m => m.id);
-    fetchStatsForMatches(ids).then(data => {
-      setStatsMap(data);
-      setLoading(false);
-    });
+    fetchStatsForMatches(finishedMatches.map(m => m.id)).then(data => { setStatsMap(data); setLoading(false); });
   }, [finishedMatches.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startEditScore = (match: Match) => {
@@ -353,12 +343,8 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
   const handleSaveScore = async (matchId: number) => {
     setSavingScore(true);
     const ok = await onUpdateMatchScore(matchId, scoreDraftFor, scoreDraftAgainst);
-    if (ok) {
-      toast.success('✅ Uitslag opgeslagen!');
-      setEditingScoreId(null);
-    } else {
-      toast.error('❌ Kon uitslag niet opslaan');
-    }
+    if (ok) { toast.success('✅ Uitslag opgeslagen!'); setEditingScoreId(null); }
+    else toast.error('❌ Kon uitslag niet opslaan');
     setSavingScore(false);
   };
 
@@ -369,16 +355,75 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
     const ok = await saveMatchStats(matchId, stats);
     if (ok) {
       toast.success('✅ Statistieken opgeslagen!');
-      // Herlaad stats voor dit match
       const updated = await fetchStatsForMatches([matchId]);
       setStatsMap(prev => ({ ...prev, ...updated }));
-      setEditingId(null);
+      setEditingStatsId(null);
       onRefreshPlayers();
     } else {
       toast.error('❌ Kon statistieken niet opslaan');
     }
   }, [saveMatchStats, fetchStatsForMatches, onRefreshPlayers, toast]);
 
+  // ── Beheer state ─────────────────────────────────────────
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingMatch, setEditingMatch] = useState<Match | 'new' | null>(null);
+  const [showImport, setShowImport] = useState(false);
+
+  // Cancel modal
+  const [cancellingMatch, setCancellingMatch] = useState<Match | null>(null);
+  const [cancelHasScore, setCancelHasScore] = useState(false);
+  const [cancelGoalsFor, setCancelGoalsFor] = useState<number>(0);
+  const [cancelGoalsAgainst, setCancelGoalsAgainst] = useState<number>(0);
+  const [cancelling, setCancelling] = useState(false);
+
+  const openCancelModal = (match: Match) => {
+    setCancellingMatch(match);
+    setCancelHasScore(false);
+    setCancelGoalsFor(0);
+    setCancelGoalsAgainst(0);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!cancellingMatch) return;
+    setCancelling(true);
+    const ok = await onCancelMatch(
+      cancellingMatch.id,
+      cancelHasScore ? cancelGoalsFor : null,
+      cancelHasScore ? cancelGoalsAgainst : null,
+    );
+    setCancelling(false);
+    if (ok) { toast.success('✅ Wedstrijd geannuleerd'); setCancellingMatch(null); }
+    else toast.error('❌ Kon wedstrijd niet annuleren');
+  };
+
+  const handleDeleteMatch = async (match: Match) => {
+    const dateStr = new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' });
+    const extra = match.match_status === 'afgerond'
+      ? '\n\nLet op: dit is een AFGESLOTEN wedstrijd.'
+      : match.match_status === 'geannuleerd'
+      ? '\n\nLet op: dit is een GEANNULEERDE wedstrijd.'
+      : '';
+    if (!confirm(`Weet je zeker dat je de wedstrijd tegen ${match.opponent} (${dateStr}) wilt verwijderen?${extra}`)) return;
+    const ok = await onDeleteMatch(match.id);
+    if (ok) toast.success('✅ Wedstrijd verwijderd!');
+    else toast.error('❌ Kon wedstrijd niet verwijderen');
+  };
+
+  const handleSaveMatch = async (data: MatchFormData) => {
+    let ok: boolean;
+    if (editingMatch === 'new') {
+      ok = await onAddMatch(data);
+      if (ok) { toast.success('✅ Wedstrijd toegevoegd!'); onRefreshMatches(); }
+      else toast.error('❌ Kon wedstrijd niet toevoegen');
+    } else if (editingMatch) {
+      ok = await onUpdateMatch(editingMatch.id, data);
+      if (ok) toast.success('✅ Wedstrijd bijgewerkt!');
+      else toast.error('❌ Kon wedstrijd niet bijwerken');
+    }
+    setEditingMatch(null);
+  };
+
+  // ── Seizoen selector ──────────────────────────────────────
   const seasonSelector = seasons.length > 1 && (
     <div className="flex items-center gap-2 mb-4">
       <label className="text-xs text-gray-400 shrink-0">Seizoen:</label>
@@ -388,48 +433,74 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
         className="bg-gray-700 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-yellow-500"
       >
         {seasons.map(s => (
-          <option key={s.id} value={s.id}>
-            {s.name}{s.is_active ? ' (actief)' : ''}
-          </option>
+          <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (actief)' : ''}</option>
         ))}
       </select>
     </div>
   );
 
-  if (finishedMatches.length === 0 && upcomingMatches.length === 0 && !seasonLoading) {
-    return (
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-lg font-bold mb-4">📅 Wedstrijden</h2>
-          {seasonSelector}
-          <div className="flex items-center justify-center text-gray-500 py-16">
-            <div className="text-center">
-              <div className="text-4xl mb-3">📅</div>
-              <div className="font-bold">Nog geen wedstrijden gepland</div>
-              <div className="text-sm mt-1">Wedstrijden verschijnen hier zodra ze zijn ingepland.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const isEmpty = finishedMatches.length === 0 && upcomingMatches.length === 0 && !seasonLoading;
 
   return (
     <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
       <div className="max-w-2xl mx-auto">
-        <h2 className="text-lg font-bold mb-4">📅 Wedstrijden</h2>
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">📅 Wedstrijden</h2>
+          {isManager && (
+            <div className="flex items-center gap-2">
+              {isEditMode && (
+                <>
+                  <button
+                    onClick={() => setEditingMatch('new')}
+                    className="px-3 py-1.5 bg-green-700 hover:bg-green-600 rounded-lg text-xs font-bold transition"
+                  >
+                    + Nieuw
+                  </button>
+                  <button
+                    onClick={() => setShowImport(true)}
+                    className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 rounded-lg text-xs font-bold transition"
+                  >
+                    📂 Importeer
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setIsEditMode(v => !v)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  isEditMode
+                    ? 'bg-yellow-500 text-black hover:bg-yellow-400'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
+              >
+                {isEditMode ? '✓ Klaar' : '✏️ Bewerken'}
+              </button>
+            </div>
+          )}
+        </div>
+
         {seasonSelector}
 
-        {/* Aankomende wedstrijden */}
+        {isEmpty && (
+          <div className="flex items-center justify-center text-gray-500 py-16">
+            <div className="text-center">
+              <div className="text-4xl mb-3">📅</div>
+              <div className="font-bold">Nog geen wedstrijden gepland</div>
+              {isManager && isEditMode && (
+                <div className="text-sm mt-2 text-gray-400">Gebruik &quot;+ Nieuw&quot; of &quot;📂 Importeer&quot; hierboven.</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Aankomende wedstrijden ── */}
         {upcomingMatches.length > 0 && (
           <div className="mb-6">
             <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Aankomend</div>
             <div className="space-y-2">
               {upcomingMatches.map(match => {
                 const matchAbsences = absencesMap[match.id] ?? [];
-                const trackAssemblyTime = teamSettings?.track_assembly_time ?? false;
-                const trackMatchTime = teamSettings?.track_match_time ?? false;
-                const trackLocationDetails = teamSettings?.track_location_details ?? false;
                 const hasMatchInfo = (trackAssemblyTime && match.assembly_time) ||
                   (trackMatchTime && match.match_time) ||
                   (trackLocationDetails && match.location_details);
@@ -442,7 +513,7 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                         <div className="text-lg font-black leading-tight">{new Date(match.date).getDate()}</div>
                       </div>
 
-                      {/* Wedstrijd info */}
+                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm">{match.opponent}</div>
                         <div className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
@@ -452,7 +523,6 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                           )}
                         </div>
 
-                        {/* Tijden & locatie */}
                         {hasMatchInfo && (
                           <div className="mt-1.5 space-y-0.5">
                             {trackAssemblyTime && match.assembly_time && (
@@ -467,9 +537,29 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                           </div>
                         )}
 
-                        {/* Taken badges */}
                         <TakenBadges match={match} players={players} teamSettings={teamSettings} />
                       </div>
+
+                      {/* Beheer-knoppen (edit mode) */}
+                      {isManager && isEditMode && (
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => setEditingMatch(match)}
+                            className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+                            title="Bewerken"
+                          >✏️</button>
+                          <button
+                            onClick={() => openCancelModal(match)}
+                            className="p-1.5 bg-orange-900/50 hover:bg-orange-800/60 rounded text-sm transition"
+                            title="Annuleren"
+                          >🚫</button>
+                          <button
+                            onClick={() => handleDeleteMatch(match)}
+                            className="p-1.5 bg-red-900/50 hover:bg-red-800/60 rounded text-sm transition"
+                            title="Verwijderen"
+                          >🗑️</button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Afwezigheidsknop */}
@@ -508,7 +598,7 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
           </div>
         )}
 
-        {/* Afgesloten wedstrijden */}
+        {/* ── Gespeelde wedstrijden ── */}
         {finishedMatches.length > 0 && (
           <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Gespeeld</div>
         )}
@@ -522,74 +612,74 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
             const result = getResult(match);
             const stats = statsMap[match.id] ?? [];
             const isExpanded = expandedId === match.id;
-            const isEditing = editingId === match.id;
+            const isEditing = editingStatsId === match.id;
             const isEditingReport = editingReportId === match.id;
             const reportText = reportOverrides[match.id] !== undefined ? reportOverrides[match.id] : match.match_report;
 
             return (
               <div key={match.id} className="bg-gray-800 rounded-xl overflow-hidden">
-                {/* Match header — klikbaar om uit te klappen */}
-                <button
-                  className="w-full flex items-center gap-3 p-4 hover:bg-gray-700/40 transition text-left"
-                  onClick={() => setExpandedId(isExpanded ? null : match.id)}
-                >
-                  {/* Datum */}
-                  <div className="w-12 text-center flex-shrink-0">
-                    <div className="text-xs text-gray-500">{new Date(match.date).toLocaleDateString('nl-NL', { month: 'short' })}</div>
-                    <div className="text-lg font-black leading-tight">{new Date(match.date).getDate()}</div>
-                  </div>
-
-                  {/* Wedstrijd info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm truncate">
-                      {match.opponent}
-                      {match.match_status === 'geannuleerd' && (
-                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-400 font-normal">W.O.</span>
-                      )}
+                <div className="flex items-center">
+                  {/* Klikbaar deel */}
+                  <button
+                    className="flex-1 flex items-center gap-3 p-4 hover:bg-gray-700/40 transition text-left min-w-0"
+                    onClick={() => setExpandedId(isExpanded ? null : match.id)}
+                  >
+                    <div className="w-12 text-center flex-shrink-0">
+                      <div className="text-xs text-gray-500">{new Date(match.date).toLocaleDateString('nl-NL', { month: 'short' })}</div>
+                      <div className="text-lg font-black leading-tight">{new Date(match.date).getDate()}</div>
                     </div>
-                    <div className="text-xs text-gray-400 flex items-center gap-2">
-                      <span>{match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit'}</span>
-                      {match.match_type === 'oefenwedstrijd' && (
-                        <span className="text-gray-500">· 🔵 Oefenwedstrijd</span>
-                      )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm truncate">
+                        {match.opponent}
+                        {match.match_status === 'geannuleerd' && (
+                          <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-400 font-normal">W.O.</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 flex items-center gap-2">
+                        <span>{match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit'}</span>
+                        {match.match_type === 'oefenwedstrijd' && (
+                          <span className="text-gray-500">· 🔵 Oefenwedstrijd</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Score */}
-                  {trackResults && match.goals_for != null && match.goals_against != null ? (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <ResultBadge result={result} />
-                      <span className="font-black text-base">
-                        <span className={result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400'}>
-                          {match.goals_for}
+                    {trackResults && match.goals_for != null && match.goals_against != null ? (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <ResultBadge result={result} />
+                        <span className="font-black text-base">
+                          <span className={result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400'}>
+                            {match.goals_for}
+                          </span>
+                          <span className="text-gray-500 mx-1">–</span>
+                          <span>{match.goals_against}</span>
                         </span>
-                        <span className="text-gray-500 mx-1">–</span>
-                        <span>{match.goals_against}</span>
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-gray-600">geen uitslag</span>
-                  )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-600">geen uitslag</span>
+                    )}
+                    <span className="text-gray-500 text-xs ml-1">{isExpanded ? '▲' : '▼'}</span>
+                  </button>
 
-                  {/* Pijl */}
-                  <span className="text-gray-500 text-xs ml-1">{isExpanded ? '▲' : '▼'}</span>
-                </button>
+                  {/* Verwijder-knop (edit mode) */}
+                  {isManager && isEditMode && (
+                    <button
+                      onClick={() => handleDeleteMatch(match)}
+                      className="p-3 text-gray-500 hover:text-red-400 transition flex-shrink-0"
+                      title="Verwijderen"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
 
                 {/* Uitklapbare details */}
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-gray-700/60">
-
-                    {/* Score editor trigger voor managers */}
                     {isManager && trackResults && editingScoreId !== match.id && (
-                      <button
-                        onClick={() => startEditScore(match)}
-                        className="mt-3 text-xs text-gray-400 hover:text-yellow-400 transition"
-                      >
+                      <button onClick={() => startEditScore(match)} className="mt-3 text-xs text-gray-400 hover:text-yellow-400 transition">
                         ✏️ {match.goals_for != null ? 'Uitslag aanpassen' : 'Uitslag invullen'}
                       </button>
                     )}
 
-                    {/* Score editor */}
                     {isManager && trackResults && editingScoreId === match.id && (
                       <div className="mt-3 p-3 bg-gray-700/50 rounded-lg">
                         <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-2">Uitslag aanpassen</div>
@@ -606,25 +696,15 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                             <button onClick={() => setScoreDraftAgainst(v => v + 1)} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 text-white font-bold flex items-center justify-center">+</button>
                           </div>
                           <div className="flex gap-2 ml-auto">
-                            <button
-                              onClick={() => handleSaveScore(match.id)}
-                              disabled={savingScore}
-                              className="py-1.5 px-3 bg-green-700 hover:bg-green-600 rounded text-xs font-bold transition disabled:opacity-50"
-                            >
+                            <button onClick={() => handleSaveScore(match.id)} disabled={savingScore} className="py-1.5 px-3 bg-green-700 hover:bg-green-600 rounded text-xs font-bold transition disabled:opacity-50">
                               {savingScore ? '…' : '✅'}
                             </button>
-                            <button
-                              onClick={() => setEditingScoreId(null)}
-                              className="py-1.5 px-3 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold transition"
-                            >
-                              ✕
-                            </button>
+                            <button onClick={() => setEditingScoreId(null)} className="py-1.5 px-3 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold transition">✕</button>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Stats overzicht */}
                     {trackGoals && (
                       <>
                         {stats.filter(s => s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0 || s.own_goals > 0).length > 0 ? (
@@ -651,7 +731,6 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                       </>
                     )}
 
-                    {/* Wedstrijdverslag */}
                     {(reportText != null || isEditingReport || isManager) && (
                       <div className="mt-3">
                         <div className="text-xs text-gray-500 font-bold uppercase tracking-wide mb-1.5">Verslag</div>
@@ -666,55 +745,35 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                             />
                             <div className="text-xs text-gray-500 text-right">{reportDraft.length} / 2000</div>
                             <div className="flex gap-2">
-                              <button
-                                onClick={() => handleSaveReport(match.id)}
-                                disabled={savingReport}
-                                className="flex-1 py-1.5 bg-green-700 hover:bg-green-600 rounded text-xs font-bold transition disabled:opacity-50"
-                              >
+                              <button onClick={() => handleSaveReport(match.id)} disabled={savingReport} className="flex-1 py-1.5 bg-green-700 hover:bg-green-600 rounded text-xs font-bold transition disabled:opacity-50">
                                 {savingReport ? 'Opslaan…' : '✅ Opslaan'}
                               </button>
-                              <button
-                                onClick={() => setEditingReportId(null)}
-                                className="py-1.5 px-3 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold transition"
-                              >
-                                Annuleren
-                              </button>
+                              <button onClick={() => setEditingReportId(null)} className="py-1.5 px-3 bg-gray-700 hover:bg-gray-600 rounded text-xs font-bold transition">Annuleren</button>
                             </div>
                           </div>
                         ) : reportText ? (
                           <div className="text-sm text-gray-300 whitespace-pre-wrap bg-gray-700/20 rounded-lg p-3">
                             {reportText}
                             {isManager && (
-                              <button
-                                onClick={() => startEditReport(match)}
-                                className="block mt-2 text-xs text-gray-500 hover:text-yellow-400 transition"
-                              >
+                              <button onClick={() => startEditReport(match)} className="block mt-2 text-xs text-gray-500 hover:text-yellow-400 transition">
                                 ✏️ Verslag bewerken
                               </button>
                             )}
                           </div>
                         ) : isManager && (
-                          <button
-                            onClick={() => startEditReport(match)}
-                            className="text-xs text-gray-500 hover:text-yellow-400 transition"
-                          >
+                          <button onClick={() => startEditReport(match)} className="text-xs text-gray-500 hover:text-yellow-400 transition">
                             + Verslag toevoegen
                           </button>
                         )}
                       </div>
                     )}
 
-                    {/* Manager: bewerkknop statistieken */}
                     {isManager && !isEditing && (
-                      <button
-                        onClick={() => setEditingId(match.id)}
-                        className="mt-3 text-xs text-gray-400 hover:text-yellow-400 transition"
-                      >
+                      <button onClick={() => setEditingStatsId(match.id)} className="mt-3 text-xs text-gray-400 hover:text-yellow-400 transition">
                         ✏️ Statistieken bewerken
                       </button>
                     )}
 
-                    {/* Inline editor */}
                     {isManager && isEditing && (
                       <StatsEditor
                         players={players}
@@ -722,7 +781,7 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
                         trackAssists={trackAssists}
                         trackCards={trackCards}
                         onSave={newStats => handleSaveStats(match.id, newStats)}
-                        onCancel={() => setEditingId(null)}
+                        onCancel={() => setEditingStatsId(null)}
                       />
                     )}
                   </div>
@@ -732,6 +791,83 @@ export default function UitslagenView({ matches, players, teamSettings, seasons,
           })}
         </div>
       </div>
+
+      {/* ── Modals ── */}
+      {editingMatch !== null && (
+        <MatchEditModal
+          match={editingMatch === 'new' ? null : editingMatch}
+          gameFormat={gameFormat}
+          defaultFormation={defaultFormation}
+          trackAssemblyTime={trackAssemblyTime}
+          trackMatchTime={trackMatchTime}
+          trackLocationDetails={trackLocationDetails}
+          onSave={handleSaveMatch}
+          onClose={() => setEditingMatch(null)}
+        />
+      )}
+
+      {showImport && currentTeam && (
+        <ImportMatchesModal
+          teamId={currentTeam.id}
+          defaultFormation={defaultFormation}
+          onImported={() => { onRefreshMatches(); setShowImport(false); }}
+          onClose={() => setShowImport(false)}
+        />
+      )}
+
+      {/* Cancel modal */}
+      {cancellingMatch && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+            <h3 className="font-bold text-base mb-1">🚫 Wedstrijd annuleren</h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Wedstrijd tegen <strong className="text-white">{cancellingMatch.opponent}</strong> als W.O. markeren?
+            </p>
+
+            <label className="flex items-center gap-2 text-sm text-gray-300 mb-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cancelHasScore}
+                onChange={e => setCancelHasScore(e.target.checked)}
+                className="rounded"
+              />
+              Er is wel een uitslag gespeeld
+            </label>
+
+            {cancelHasScore && (
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setCancelGoalsFor(v => Math.max(0, v - 1))} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 font-bold flex items-center justify-center">−</button>
+                  <span className="text-xl font-black w-6 text-center tabular-nums">{cancelGoalsFor}</span>
+                  <button onClick={() => setCancelGoalsFor(v => v + 1)} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 font-bold flex items-center justify-center">+</button>
+                </div>
+                <span className="text-gray-500 font-bold">–</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setCancelGoalsAgainst(v => Math.max(0, v - 1))} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 font-bold flex items-center justify-center">−</button>
+                  <span className="text-xl font-black w-6 text-center tabular-nums">{cancelGoalsAgainst}</span>
+                  <button onClick={() => setCancelGoalsAgainst(v => v + 1)} className="w-7 h-7 rounded-full bg-gray-600 hover:bg-gray-500 font-bold flex items-center justify-center">+</button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleCancelConfirm}
+                disabled={cancelling}
+                className="flex-1 py-2.5 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition"
+              >
+                {cancelling ? 'Bezig…' : '🚫 Annuleren'}
+              </button>
+              <button
+                onClick={() => setCancellingMatch(null)}
+                className="py-2.5 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl text-sm transition"
+              >
+                Terug
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

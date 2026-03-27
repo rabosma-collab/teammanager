@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 :root {
+  --font-dm-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-barlow-condensed: 'Barlow Condensed', ui-sans-serif, sans-serif;
+
   /* Brand colors */
   --color-brand: oklch(78% 0.18 85);          /* warm golden yellow */
   --color-brand-dark: oklch(60% 0.16 80);
