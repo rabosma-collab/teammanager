@@ -25,6 +25,7 @@ export interface WhatsAppTextData {
   trackAssemblyTime?: boolean;
   trackMatchTime?: boolean;
   trackLocationDetails?: boolean;
+  appUrl?: string;
 }
 
 function formatTime(timeStr: string): string {
@@ -56,6 +57,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
     trackAssemblyTime = false,
     trackMatchTime = false,
     trackLocationDetails = false,
+    appUrl,
   } = data;
 
   const fmt = gameFormat ?? DEFAULT_GAME_FORMAT;
@@ -192,6 +194,10 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
   }
 
   lines.push('');
+  if (appUrl) {
+    lines.push(`📱 Bekijk de opstelling per wisselmoment in de app: ${appUrl}`);
+    lines.push('');
+  }
   lines.push('_Verstuurd via Team Manager_');
 
   return lines.join('\n');

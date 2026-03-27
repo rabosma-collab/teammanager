@@ -102,6 +102,7 @@ export default function NextMatchCard({
       trackAssemblyTime,
       trackMatchTime,
       trackLocationDetails,
+      appUrl: window.location.origin,
     });
 
     if (navigator.share) {

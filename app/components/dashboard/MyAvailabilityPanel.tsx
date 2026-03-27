@@ -15,6 +15,13 @@ interface MyAvailabilityPanelProps {
   vervoerCount?: number;
 }
 
+interface TaskItem {
+  emoji: string;
+  label: string;
+  playerName: string;
+  isCurrentPlayer: boolean;
+}
+
 function formatShortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('nl-NL', {
     weekday: 'short',
@@ -23,46 +30,73 @@ function formatShortDate(dateStr: string): string {
   });
 }
 
-function getMyTasks(
+function getAllTasks(
   match: Match,
   currentPlayerId: number,
   players: Player[],
+  absentIds: Set<number>,
   trackWasbeurt: boolean,
   trackConsumpties: boolean,
   trackVervoer: boolean,
   vervoerCount: number
-): string[] {
-  const tasks: string[] = [];
+): TaskItem[] {
+  const tasks: TaskItem[] = [];
   const eligible = (sortBy: 'wash_count' | 'consumption_count' | 'transport_count') =>
     players
-      .filter(p => !p.is_guest && !p.injured)
+      .filter(p => !p.is_guest && !p.injured && !absentIds.has(p.id))
       .sort((a, b) => (a[sortBy] - b[sortBy]) || a.name.localeCompare(b.name));
 
   if (trackWasbeurt) {
-    const override = match.wasbeurt_player_id ?? null;
-    if (override === currentPlayerId) {
-      tasks.push('🧺 Wasbeurt');
-    } else if (!override) {
-      if (eligible('wash_count')[0]?.id === currentPlayerId) tasks.push('🧺 Wasbeurt');
+    const overrideId = match.wasbeurt_player_id ?? null;
+    const player = overrideId
+      ? players.find(p => p.id === overrideId && !p.is_guest && !p.injured && !absentIds.has(p.id)) ?? eligible('wash_count')[0] ?? null
+      : eligible('wash_count')[0] ?? null;
+    if (player) {
+      tasks.push({ emoji: '🧺', label: 'Wasbeurt', playerName: player.name, isCurrentPlayer: player.id === currentPlayerId });
     }
   }
 
   if (trackConsumpties) {
-    const override = match.consumpties_player_id ?? null;
-    if (override === currentPlayerId) {
-      tasks.push('🥤 Consumpties');
-    } else if (!override) {
-      if (eligible('consumption_count')[0]?.id === currentPlayerId) tasks.push('🥤 Consumpties');
+    const overrideId = match.consumpties_player_id ?? null;
+    const player = overrideId
+      ? players.find(p => p.id === overrideId && !p.is_guest && !p.injured && !absentIds.has(p.id)) ?? eligible('consumption_count')[0] ?? null
+      : eligible('consumption_count')[0] ?? null;
+    if (player) {
+      tasks.push({ emoji: '🥤', label: 'Consumpties', playerName: player.name, isCurrentPlayer: player.id === currentPlayerId });
     }
   }
 
   if (trackVervoer && match.home_away !== 'Thuis') {
     const overrideIds = match.transport_player_ids ?? [];
-    if (overrideIds.includes(currentPlayerId)) {
-      tasks.push('🚗 Vervoer');
-    } else if (overrideIds.length === 0) {
-      const topN = eligible('transport_count').slice(0, vervoerCount);
-      if (topN.some(p => p.id === currentPlayerId)) tasks.push('🚗 Vervoer');
+    const usedIds = new Set<number>();
+    const vervoerPlayers: Player[] = [];
+    const eligibleList = eligible('transport_count');
+
+    for (let i = 0; i < vervoerCount; i++) {
+      const overrideId = overrideIds[i] ?? null;
+      if (overrideId) {
+        const op = players.find(p => p.id === overrideId && !p.is_guest && !p.injured && !absentIds.has(p.id)) ?? null;
+        if (op && !usedIds.has(op.id)) {
+          vervoerPlayers.push(op);
+          usedIds.add(op.id);
+          continue;
+        }
+      }
+      const auto = eligibleList.find(p => !usedIds.has(p.id)) ?? null;
+      if (auto) {
+        vervoerPlayers.push(auto);
+        usedIds.add(auto.id);
+      }
+    }
+
+    if (vervoerPlayers.length > 0) {
+      const isCurrent = vervoerPlayers.some(p => p.id === currentPlayerId);
+      tasks.push({
+        emoji: '🚗',
+        label: 'Vervoer',
+        playerName: vervoerPlayers.map(p => p.name).join(', '),
+        isCurrentPlayer: isCurrent,
+      });
     }
   }
 
@@ -82,6 +116,7 @@ export default function MyAvailabilityPanel({
   vervoerCount = 3,
 }: MyAvailabilityPanelProps) {
   const [absencesByMatch, setAbsencesByMatch] = useState<Record<number, boolean>>({});
+  const [allAbsencesByMatch, setAllAbsencesByMatch] = useState<Record<number, Set<number>>>({});
   const [loadingMatchId, setLoadingMatchId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -92,12 +127,19 @@ export default function MyAvailabilityPanel({
       .from('match_absences')
       .select('match_id, player_id')
       .in('match_id', matchIds)
-      .eq('player_id', currentPlayerId)
       .then(({ data }: { data: { match_id: number; player_id: number }[] | null }) => {
-        const map: Record<number, boolean> = {};
-        for (const id of matchIds) map[id] = false;
-        for (const row of data ?? []) map[row.match_id] = true;
-        setAbsencesByMatch(map);
+        const myMap: Record<number, boolean> = {};
+        const allMap: Record<number, Set<number>> = {};
+        for (const id of matchIds) {
+          myMap[id] = false;
+          allMap[id] = new Set();
+        }
+        for (const row of data ?? []) {
+          allMap[row.match_id].add(row.player_id);
+          if (row.player_id === currentPlayerId) myMap[row.match_id] = true;
+        }
+        setAbsencesByMatch(myMap);
+        setAllAbsencesByMatch(allMap);
       });
   }, [futureMatches.map(m => m.id).join(','), currentPlayerId]);
 
@@ -107,6 +149,15 @@ export default function MyAvailabilityPanel({
       const success = await onToggleAbsence(currentPlayerId, matchId);
       if (success) {
         setAbsencesByMatch(prev => ({ ...prev, [matchId]: !prev[matchId] }));
+        setAllAbsencesByMatch(prev => {
+          const updated = new Set(prev[matchId] ?? []);
+          if (updated.has(currentPlayerId)) {
+            updated.delete(currentPlayerId);
+          } else {
+            updated.add(currentPlayerId);
+          }
+          return { ...prev, [matchId]: updated };
+        });
       }
     } finally {
       setLoadingMatchId(null);
@@ -117,6 +168,7 @@ export default function MyAvailabilityPanel({
 
   const visibleMatches = expanded ? futureMatches : futureMatches.slice(0, DEFAULT_VISIBLE);
   const hasMore = futureMatches.length > DEFAULT_VISIBLE;
+  const hasTasks = trackWasbeurt || trackConsumpties || trackVervoer;
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
@@ -129,8 +181,9 @@ export default function MyAvailabilityPanel({
           const isAbsent = absencesByMatch[match.id] ?? false;
           const isLoading = loadingMatchId === match.id;
           const isThuis = match.home_away === 'Thuis';
-          const myTasks = players.length > 0 && !isAbsent
-            ? getMyTasks(match, currentPlayerId, players, trackWasbeurt, trackConsumpties, trackVervoer, vervoerCount)
+          const absentIds = allAbsencesByMatch[match.id] ?? new Set<number>();
+          const tasks = players.length > 0 && hasTasks && !isAbsent
+            ? getAllTasks(match, currentPlayerId, players, absentIds, trackWasbeurt, trackConsumpties, trackVervoer, vervoerCount)
             : [];
 
           return (
@@ -177,15 +230,15 @@ export default function MyAvailabilityPanel({
                 </button>
               </div>
 
-              {/* Taken badges */}
-              {myTasks.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2 ml-8">
-                  {myTasks.map(task => (
-                    <span
-                      key={task}
-                      className="text-xs bg-yellow-900/40 border border-yellow-700/50 text-yellow-300 rounded px-2 py-0.5 font-medium"
-                    >
-                      {task}
+              {/* Taken */}
+              {tasks.length > 0 && (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 ml-8">
+                  {tasks.map(task => (
+                    <span key={task.label} className="text-xs text-gray-400">
+                      {task.emoji}{' '}
+                      <span className={task.isCurrentPlayer ? 'text-yellow-300 font-semibold' : 'text-gray-300'}>
+                        {task.playerName}
+                      </span>
                     </span>
                   ))}
                 </div>
