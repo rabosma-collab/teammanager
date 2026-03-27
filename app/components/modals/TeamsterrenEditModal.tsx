@@ -8,7 +8,7 @@ interface TeamsterrenEditModalProps {
   gamesPlayed: number;
   wins: number;
   draws: number;
-  onSave: (starOverride: number | null) => void;
+  onSave: (bonusWins: number, bonusDraws: number) => void;
   onClose: () => void;
 }
 
@@ -21,18 +21,44 @@ export default function TeamsterrenEditModal({
   onClose,
 }: TeamsterrenEditModalProps) {
   const losses = gamesPlayed - wins - draws;
-  const calculatedStars = wins * 3 + draws;
-  const hasOverride = player.star_override != null;
-
-  const [useOverride, setUseOverride] = useState(hasOverride);
-  const [overrideValue, setOverrideValue] = useState<number>(
-    player.star_override ?? calculatedStars
-  );
+  const [bonusWins, setBonusWins]   = useState(player.bonus_wins  ?? 0);
+  const [bonusDraws, setBonusDraws] = useState(player.bonus_draws ?? 0);
 
   const handleSave = () => {
-    onSave(useOverride ? overrideValue : null);
+    onSave(bonusWins, bonusDraws);
     onClose();
   };
+
+  const BonusRow = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string;
+    value: number;
+    onChange: (v: number) => void;
+  }) => (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-sm text-gray-300 w-28">{label}</span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onChange(Math.max(0, value - 1))}
+          className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded-lg font-black text-sm touch-manipulation"
+        >
+          −
+        </button>
+        <span className="w-8 text-center font-black text-white text-sm">
+          {value > 0 ? `+${value}` : '0'}
+        </span>
+        <button
+          onClick={() => onChange(value + 1)}
+          className="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded-lg font-black text-sm touch-manipulation"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-sm">
@@ -48,86 +74,31 @@ export default function TeamsterrenEditModal({
             gamesPlayed={gamesPlayed}
             wins={wins}
             draws={draws}
-            starOverride={useOverride ? overrideValue : null}
+            bonusWins={bonusWins}
+            bonusDraws={bonusDraws}
             size="sm"
           />
         </div>
 
-        {/* Modus kiezen */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setUseOverride(false)}
-            className={`flex-1 py-2 rounded text-sm font-bold transition ${
-              !useOverride
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-            }`}
-          >
-            Berekend
-          </button>
-          <button
-            onClick={() => setUseOverride(true)}
-            className={`flex-1 py-2 rounded text-sm font-bold transition ${
-              useOverride
-                ? 'bg-yellow-500 text-black'
-                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-            }`}
-          >
-            Handmatig
-          </button>
+        {/* Huidige stand */}
+        <div className="bg-gray-800 rounded-lg p-3 mb-4 text-xs text-gray-400 space-y-1">
+          <div className="font-bold text-gray-300 mb-1.5">Berekend uit wedstrijden</div>
+          <div className="flex justify-between"><span>🏆 Gewonnen</span><span className="text-white font-bold">{wins}</span></div>
+          <div className="flex justify-between"><span>➖ Gelijk</span><span className="text-white font-bold">{draws}</span></div>
+          <div className="flex justify-between"><span>❌ Verloren</span><span className="text-white font-bold">{losses}</span></div>
         </div>
 
-        {!useOverride && (
-          <div className="text-sm text-gray-400 text-center mb-4 bg-gray-800 rounded-lg p-3">
-            <div className="text-white font-bold text-lg mb-1">{calculatedStars} sterren</div>
-            <div className="text-xs">{wins}W · {draws}G · {losses}V</div>
-            <div className="text-xs mt-1 text-gray-500">(winst = 3 ⭐, gelijk = 1 ⭐, verlies = 0 ⭐)</div>
+        {/* Bonus */}
+        <div className="bg-gray-800 rounded-lg p-3 mb-4 space-y-3">
+          <div className="text-sm font-bold text-gray-300 mb-1">
+            Bonuswedstrijden
           </div>
-        )}
-
-        {useOverride && (
-          <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-2 text-center">
-              Totaal aantal sterren
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setOverrideValue(v => Math.max(0, v - 1))}
-                className="w-10 h-10 bg-red-800 hover:bg-red-700 rounded-lg text-lg font-black touch-manipulation"
-              >
-                −
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={200}
-                value={overrideValue}
-                onChange={e => setOverrideValue(Number(e.target.value))}
-                className="flex-1 accent-yellow-400"
-              />
-              <button
-                onClick={() => setOverrideValue(v => Math.min(200, v + 1))}
-                className="w-10 h-10 bg-green-800 hover:bg-green-700 rounded-lg text-lg font-black touch-manipulation"
-              >
-                +
-              </button>
-            </div>
-            <div className="text-center mt-2">
-              <input
-                type="number"
-                min={0}
-                max={200}
-                value={overrideValue}
-                onChange={e => setOverrideValue(Math.max(0, Math.min(200, Number(e.target.value) || 0)))}
-                className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-lg font-black text-center"
-              />
-              <span className="ml-2 text-yellow-400 font-bold">⭐</span>
-            </div>
-            <div className="text-center text-xs text-gray-500 mt-1">
-              Berekend zou zijn: {calculatedStars} ⭐
-            </div>
-          </div>
-        )}
+          <p className="text-xs text-gray-500 -mt-1 mb-2">
+            Voeg wedstrijden toe van voor de app of van een ander team.
+          </p>
+          <BonusRow label="🏆 Gewonnen" value={bonusWins}  onChange={setBonusWins}  />
+          <BonusRow label="➖ Gelijk"   value={bonusDraws} onChange={setBonusDraws} />
+        </div>
 
         <button
           onClick={handleSave}

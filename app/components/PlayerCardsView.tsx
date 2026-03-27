@@ -291,7 +291,7 @@ export default function PlayerCardsView({
 
   const renderCard = (player: Player) => {
     if (playerCardMode === 'teamsterren') {
-      const sd = starData[player.id] ?? { gamesPlayed: 0, wins: 0 };
+      const sd = starData[player.id] ?? { gamesPlayed: 0, wins: 0, draws: 0 };
       return (
         <div key={player.id} className="flex flex-col items-center">
           <div className="relative">
@@ -300,7 +300,8 @@ export default function PlayerCardsView({
               gamesPlayed={sd.gamesPlayed}
               wins={sd.wins}
               draws={sd.draws}
-              starOverride={player.star_override}
+              bonusWins={player.bonus_wins ?? 0}
+              bonusDraws={player.bonus_draws ?? 0}
               isFlippable
               size="sm"
             />
@@ -577,8 +578,9 @@ export default function PlayerCardsView({
           gamesPlayed={starData[editingTeamsterrenPlayer.id]?.gamesPlayed ?? 0}
           wins={starData[editingTeamsterrenPlayer.id]?.wins ?? 0}
           draws={starData[editingTeamsterrenPlayer.id]?.draws ?? 0}
-          onSave={(starOverride) => {
-            onUpdateStat(editingTeamsterrenPlayer.id, 'star_override', starOverride == null ? 'null' : String(starOverride));
+          onSave={(bonusWins, bonusDraws) => {
+            onUpdateStat(editingTeamsterrenPlayer.id, 'bonus_wins', String(bonusWins));
+            onUpdateStat(editingTeamsterrenPlayer.id, 'bonus_draws', String(bonusDraws));
           }}
           onClose={() => setEditingTeamsterrenPlayer(null)}
         />
