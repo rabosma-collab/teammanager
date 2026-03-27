@@ -57,7 +57,6 @@ import TakenBlok from './components/TakenBlok';
 import StatsView from './components/StatsView';
 import InstructionsView from './components/InstructionsView';
 import PlayersManageView from './components/PlayersManageView';
-import MatchesManageView from './components/MatchesManageView';
 import PlayerCardsView from './components/PlayerCardsView';
 import DashboardView from './components/DashboardView';
 import UitslagenView from './components/UitslagenView';
@@ -442,7 +441,7 @@ export default function FootballApp() {
       loadLineup(selectedMatch.id, players, playerCount);
       fetchPeriodOverrides(selectedMatch.id, players);
     }
-  }, [players.length, selectedMatch?.id, loadLineup, playerCount]);
+  }, [players, selectedMatch?.id, loadLineup, playerCount]);
 
   useEffect(() => {
     fetchInstructions(gameFormat, formation);
@@ -460,7 +459,7 @@ export default function FootballApp() {
       fetchAbsences(selectedMatch.id);
       if (players.length > 0) loadLineup(selectedMatch.id, players, playerCount);
     }
-  }, [view, selectedMatch?.id, players.length, fetchAbsences, loadLineup, playerCount]);
+  }, [view, selectedMatch?.id, players, fetchAbsences, loadLineup, playerCount]);
 
   useEffect(() => {
     if (view === 'instructions') {
@@ -498,7 +497,7 @@ export default function FootballApp() {
     if (finished.length === 0) return;
     const ids = finished.map(m => m.id);
     fetchStatsForMatches(ids).then(data => setRecentStatsMap(data));
-  }, [matches.filter(m => m.match_status === 'afgerond').length, fetchStatsForMatches]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [matches, fetchStatsForMatches]);
 
   // ---- DND-KIT SENSORS ----
   const sensors = useSensors(
@@ -1239,23 +1238,6 @@ export default function FootballApp() {
             onRefresh={() => selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers()}
           />
         </div>
-      ) : view === 'matches-manage' && isManager ? (
-        <div className="flex-1 overflow-y-auto">
-          <MatchesManageView
-            matches={matches}
-            gameFormat={gameFormat}
-            defaultFormation={teamSettings?.default_formation}
-            trackAssemblyTime={teamSettings?.track_assembly_time ?? false}
-            trackMatchTime={teamSettings?.track_match_time ?? false}
-            trackLocationDetails={teamSettings?.track_location_details ?? false}
-            onAddMatch={(data) => addMatch({ ...data, season_id: activeSeason?.id ?? null })}
-            onUpdateMatch={updateMatch}
-            onUpdateScore={updateMatchScore}
-            onCancelMatch={cancelMatch}
-            onDeleteMatch={deleteMatch}
-            onRefresh={fetchMatches}
-          />
-        </div>
       ) : view === 'invites' && isManager ? (
         <div className="flex-1 overflow-y-auto">
           <InvitesManageView />
@@ -1296,6 +1278,8 @@ export default function FootballApp() {
             teamSettings={teamSettings}
             seasons={seasons}
             activeSeasonId={activeSeason?.id ?? null}
+            gameFormat={gameFormat}
+            defaultFormation={teamSettings?.default_formation ?? '4-3-3-aanvallend'}
             onRefreshPlayers={() => {
               selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers();
               const finishedIds = matches.filter(m => m.match_status === 'afgerond').map(m => m.id);
@@ -1303,8 +1287,13 @@ export default function FootballApp() {
                 fetchStatsForMatches(finishedIds).then(data => setRecentStatsMap(data));
               }
             }}
+            onRefreshMatches={fetchMatches}
             onUpdateMatchReport={updateMatchReport}
             onUpdateMatchScore={updateMatchScore}
+            onAddMatch={(data) => addMatch({ ...data, season_id: activeSeason?.id ?? null })}
+            onUpdateMatch={updateMatch}
+            onCancelMatch={cancelMatch}
+            onDeleteMatch={deleteMatch}
             currentPlayerId={teamPlayerId}
             onToggleAbsence={toggleAbsence}
           />
@@ -1317,7 +1306,7 @@ export default function FootballApp() {
           onToggleAbsence={toggleAbsence}
           onToggleInjury={toggleInjury}
           onNavigateToWedstrijd={(match) => { setSelectedMatch(match); setView('pitch'); }}
-          onNavigateToMatches={() => setView('matches-manage')}
+          onNavigateToMatches={() => setView('uitslagen')}
           onNavigateToUitslagen={() => setView('uitslagen')}
           onNavigateToPlayers={() => setView('players-manage')}
           onNavigateToInvites={() => setView('invites')}

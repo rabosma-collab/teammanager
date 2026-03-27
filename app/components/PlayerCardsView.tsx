@@ -349,7 +349,7 @@ export default function PlayerCardsView({
   };
 
   return (
-    <div className="p-4 sm:p-8 overflow-y-auto flex-1">
+    <div className="p-4 sm:p-8">
       <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl sm:text-3xl font-bold">

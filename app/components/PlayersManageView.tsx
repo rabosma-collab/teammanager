@@ -7,6 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import PlayerEditModal, { type PlayerFormData } from './modals/PlayerEditModal';
 import InvitePlayerModal from './modals/InvitePlayerModal';
 import InviteStaffModal from './modals/InviteStaffModal';
+import ImportPlayersModal from './modals/ImportPlayersModal';
 
 interface PlayerAccount {
   userId: string;
@@ -55,6 +56,7 @@ export default function PlayersManageView({
   const [activeInvites, setActiveInvites] = useState<Map<number, ActiveInvite>>(new Map());
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [pendingStaffInvites, setPendingStaffInvites] = useState<PendingStaffInvite[]>([]);
+  const [showImportPlayers, setShowImportPlayers] = useState(false);
   const [copiedPlayerId, setCopiedPlayerId] = useState<number | null>(null);
   const [copiedStaffToken, setCopiedStaffToken] = useState<string | null>(null);
   const [togglingPlayerId, setTogglingPlayerId] = useState<number | null>(null);
@@ -342,14 +344,31 @@ export default function PlayersManageView({
     <div className="p-4 sm:p-8 overflow-y-auto flex-1">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <h2 className="text-2xl sm:text-3xl font-bold">👥 Spelersbeheer</h2>
-        <button
-          onClick={() => setEditingPlayer('new')}
-          className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm flex items-center gap-1.5"
-        >
-          <span>➕</span>
-          <span className="hidden sm:inline">Nieuwe speler</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImportPlayers(true)}
+            className="px-3 py-2 bg-blue-700 hover:bg-blue-600 rounded font-bold text-sm flex items-center gap-1.5"
+          >
+            <span>📂</span>
+            <span className="hidden sm:inline">Importeer CSV</span>
+          </button>
+          <button
+            onClick={() => setEditingPlayer('new')}
+            className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm flex items-center gap-1.5"
+          >
+            <span>➕</span>
+            <span className="hidden sm:inline">Nieuwe speler</span>
+          </button>
+        </div>
       </div>
+
+      {showImportPlayers && currentTeam && (
+        <ImportPlayersModal
+          teamId={currentTeam.id}
+          onImported={() => { onRefresh(); setShowImportPlayers(false); }}
+          onClose={() => setShowImportPlayers(false)}
+        />
+      )}
 
       {editingPlayer !== null && (
         <PlayerEditModal
