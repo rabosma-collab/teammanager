@@ -1,5 +1,14 @@
 [
   {
+    "date": "2026-03-27",
+    "title": "Inloggen onthouden",
+    "items": [
+      "Je hoeft niet meer bij elke browsersessie opnieuw in te loggen",
+      "Nieuwe optie 'Onthoud mij op dit apparaat' op de loginpagina (standaard aan)",
+      "Uitvinken is handig op gedeelde apparaten: sessie vervalt dan bij sluiten van de browser"
+    ]
+  },
+  {
     "date": "2026-03-20",
     "title": "Activiteitenlog",
     "items": [
