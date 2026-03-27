@@ -1,30 +1,22 @@
 import { User } from '@supabase/supabase-js';
-import { createClientComponentClient } from './supabase';
+import { supabase } from './supabase';
 
-/**
- * Lazy singleton — avoids calling createBrowserClient() at module level
- * which would crash during server-side pre-rendering.
- */
-let _supabase: ReturnType<typeof createClientComponentClient> | null = null;
-
-function getAuthClient() {
-  if (!_supabase) {
-    _supabase = createClientComponentClient();
-  }
-  return _supabase;
-}
+const REMEMBER_KEY = 'tm_remember_me';
+const SESSION_KEY = 'tm_session_alive';
 
 /** Get the currently authenticated user, or null if not signed in. */
 export async function getCurrentUser(): Promise<User | null> {
   const {
     data: { user },
-  } = await getAuthClient().auth.getUser();
+  } = await supabase.auth.getUser();
   return user;
 }
 
 /** Sign out the current user. */
 export async function signOut(): Promise<void> {
-  const { error } = await getAuthClient().auth.signOut();
+  localStorage.removeItem(REMEMBER_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
 
@@ -32,8 +24,11 @@ export async function signOut(): Promise<void> {
 export async function signInWithEmail(
   email: string,
   password: string,
+  rememberMe = true,
 ): Promise<User> {
-  const { data, error } = await getAuthClient().auth.signInWithPassword({
+  localStorage.setItem(REMEMBER_KEY, rememberMe ? 'true' : 'false');
+  sessionStorage.setItem(SESSION_KEY, '1');
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -47,7 +42,9 @@ export async function signUpWithEmail(
   password: string,
   fullName: string,
 ): Promise<User> {
-  const { data, error } = await getAuthClient().auth.signUp({
+  localStorage.setItem(REMEMBER_KEY, 'true');
+  sessionStorage.setItem(SESSION_KEY, '1');
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -62,23 +59,25 @@ export async function signUpWithEmail(
 /** Send a password reset email to the given address. */
 export async function resetPasswordForEmail(email: string): Promise<void> {
   const redirectTo = new URL('/reset-password', window.location.origin).toString();
-  const { error } = await getAuthClient().auth.resetPasswordForEmail(email, { redirectTo });
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) throw error;
 }
 
 /** Update the password for the currently authenticated user. */
 export async function updatePassword(newPassword: string): Promise<void> {
-  const { error } = await getAuthClient().auth.updateUser({ password: newPassword });
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 }
 
 /** Start Google OAuth flow. Redirects the browser to Google sign-in. */
 export async function signInWithGoogle(inviteToken?: string): Promise<void> {
+  // Default to remember_me=true for OAuth (sessionStorage doesn't survive the redirect)
+  localStorage.setItem(REMEMBER_KEY, 'true');
   const callbackUrl = new URL('/auth/callback', window.location.origin);
   if (inviteToken) {
     callbackUrl.searchParams.set('inviteToken', inviteToken);
   }
-  const { error } = await getAuthClient().auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: callbackUrl.toString(),

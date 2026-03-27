@@ -110,6 +110,16 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     // Initial load
     supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
       if (data.user) {
+        // Session-only mode: sign out if browser was closed (sessionStorage cleared)
+        const rememberMe = localStorage.getItem('tm_remember_me');
+        const sessionAlive = sessionStorage.getItem('tm_session_alive');
+        if (rememberMe === 'false' && !sessionAlive) {
+          localStorage.removeItem('tm_remember_me');
+          supabase.auth.signOut();
+          setIsLoading(false);
+          return;
+        }
+        sessionStorage.setItem('tm_session_alive', '1');
         loadTeams(data.user.id);
       } else {
         setIsLoading(false);

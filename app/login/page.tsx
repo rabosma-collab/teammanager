@@ -15,6 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
@@ -46,7 +47,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmail(email, password);
+      await signInWithEmail(email, password, rememberMe);
       // Redirect back to pending invite if one exists
       const inviteToken = localStorage.getItem('inviteToken');
       if (inviteToken) {
@@ -140,6 +141,17 @@ export default function LoginPage() {
                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
+
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800 cursor-pointer"
+              />
+              <span className="text-sm text-gray-300">Onthoud mij op dit apparaat</span>
+              <span className="text-xs text-gray-500">(alleen bij e-mail)</span>
+            </label>
 
             <button
               type="submit"
