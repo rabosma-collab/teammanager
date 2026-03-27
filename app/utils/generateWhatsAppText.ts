@@ -1,5 +1,5 @@
 import type { Match, Player, Substitution } from '../lib/types';
-import { formationLabels, DEFAULT_GAME_FORMAT } from '../lib/constants';
+import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory } from '../lib/constants';
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
 const POSITION_EMOJIS: Record<string, string> = {
@@ -86,12 +86,15 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
 
   // Opstelling — alleen tonen als gepubliceerd
   if (match.lineup_published) {
-    const fieldPlayers = fieldOccupants.filter((p): p is Player => p !== null);
-    const fieldIds = new Set(fieldPlayers.map(p => p.id));
+    const fieldIds = new Set(fieldOccupants.filter((p): p is Player => p !== null).map(p => p.id));
+
+    const fieldWithCategories = fieldOccupants
+      .map((p, idx) => p ? { player: p, category: getPositionCategory(fmt, match.formation, idx) } : null)
+      .filter((x): x is { player: Player; category: string } => x !== null);
 
     const groupedField = POSITION_ORDER.map(pos => ({
       position: pos,
-      players: fieldPlayers.filter(p => p.position === pos),
+      players: fieldWithCategories.filter(x => x.category === pos).map(x => x.player),
     })).filter(g => g.players.length > 0);
 
     if (groupedField.length > 0) {
