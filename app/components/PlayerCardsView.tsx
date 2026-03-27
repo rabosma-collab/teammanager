@@ -4,6 +4,7 @@ import type { Player } from '../lib/types';
 import type { SeasonBadge } from './PlayerCard';
 import PlayerCard, { calcRating, TeamsterrenCard } from './PlayerCard';
 import PlayerStatsEditModal from './modals/PlayerStatsEditModal';
+import TeamsterrenEditModal from './modals/TeamsterrenEditModal';
 import { useTeamContext } from '../contexts/TeamContext';
 import { supabase } from '../lib/supabase';
 
@@ -70,6 +71,7 @@ export default function PlayerCardsView({
   const allowEditOthers = teamSettings?.allow_edit_others ?? true;
 
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [editingTeamsterrenPlayer, setEditingTeamsterrenPlayer] = useState<Player | null>(null);
   const [creditEditingId, setCreditEditingId] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<'position' | 'rating'>('position');
   const [showInfo, setShowInfo] = useState(false);
@@ -296,11 +298,13 @@ export default function PlayerCardsView({
               player={player}
               gamesPlayed={sd.gamesPlayed}
               wins={sd.wins}
+              starOverride={player.star_override}
+              isFlippable
               size="sm"
             />
             {isAdmin && (
               <button
-                onClick={e => { e.stopPropagation(); setEditingPlayer(player); }}
+                onClick={e => { e.stopPropagation(); setEditingTeamsterrenPlayer(player); }}
                 className="absolute top-1 right-1 w-7 h-7 bg-gray-700 hover:bg-gray-500 rounded-full flex items-center justify-center text-xs shadow-lg z-10"
               >
                 ✏️
@@ -439,6 +443,9 @@ export default function PlayerCardsView({
               <span>{text}</span>
             </span>
           ))}
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <span>↻</span><span>tik = flip voor opbouw</span>
+          </span>
         </div>
       )}
 
@@ -559,6 +566,18 @@ export default function PlayerCardsView({
             setEditingPlayer(prev => prev ? { ...prev, [field]: parseInt(value) || 0 } : null);
           }}
           onClose={() => setEditingPlayer(null)}
+        />
+      )}
+
+      {editingTeamsterrenPlayer && isAdmin && (
+        <TeamsterrenEditModal
+          player={editingTeamsterrenPlayer}
+          gamesPlayed={starData[editingTeamsterrenPlayer.id]?.gamesPlayed ?? 0}
+          wins={starData[editingTeamsterrenPlayer.id]?.wins ?? 0}
+          onSave={(starOverride) => {
+            onUpdateStat(editingTeamsterrenPlayer.id, 'star_override', starOverride == null ? 'null' : String(starOverride));
+          }}
+          onClose={() => setEditingTeamsterrenPlayer(null)}
         />
       )}
 

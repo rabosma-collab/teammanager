@@ -215,19 +215,19 @@ export function usePlayers() {
     if (!player) return;
 
     const table = player.is_guest ? 'guest_players' : 'players';
-    const numValue = parseInt(value) || 0;
+    const dbValue = value === 'null' ? null : (parseInt(value) || 0);
 
     try {
       const { error } = await supabase
         .from(table)
-        .update({ [field]: numValue })
+        .update({ [field]: dbValue })
         .eq('id', id)
         .eq('team_id', currentTeam.id);
 
       if (error) throw error;
 
       setPlayers(prev =>
-        prev.map(p => p.id === id ? { ...p, [field]: numValue } : p)
+        prev.map(p => p.id === id ? { ...p, [field]: dbValue } : p)
       );
     } catch (error) {
       console.error('Error updating player:', error);

@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-03-27",
+    "title": "Teamsterren verbeterd",
+    "items": [
+      "Teamsterren-kaarten draaien nu om bij een tik: de achterkant toont hoe de sterren zijn opgebouwd en de voortgang naar het volgende level",
+      "Managers kunnen sterren per speler handmatig instellen via de ✏️-knop",
+      "Bugfix: de bewerkknop op een Teamsterren-kaart opende per ongeluk de FIFA-stats editor"
+    ]
+  },
+  {
+    "date": "2026-03-27",
     "title": "Inloggen onthouden",
     "items": [
       "Je hoeft niet meer bij elke browsersessie opnieuw in te loggen",

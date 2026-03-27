@@ -165,11 +165,16 @@ interface TeamsterrenCardProps {
   player: Player;
   gamesPlayed: number;
   wins: number;
+  starOverride?: number | null;
+  isFlippable?: boolean;
   size?: 'sm' | 'md';
 }
 
-export function TeamsterrenCard({ player, gamesPlayed, wins, size = 'md' }: TeamsterrenCardProps) {
-  const stars = wins * 2 + gamesPlayed; // wins×3 + nonWins×1 = wins×2 + gamesPlayed
+export function TeamsterrenCard({ player, gamesPlayed, wins, starOverride, isFlippable = false, size = 'md' }: TeamsterrenCardProps) {
+  const [flipped, setFlipped] = useState(false);
+
+  const calculatedStars = wins * 2 + gamesPlayed; // wins×3 + nonWins×1 = wins×2 + gamesPlayed
+  const stars = starOverride != null ? starOverride : calculatedStars;
   const level = getTeamsterrenLevel(stars);
   const nextThreshold = getTeamsterrenNextThreshold(stars);
   const prevThreshold = level === 'Rookie' ? 0 : level === 'Belofte' ? 10 : level === 'Ster' ? 25 : 50;
@@ -181,6 +186,20 @@ export function TeamsterrenCard({ player, gamesPlayed, wins, size = 'md' }: Team
   const isSm = size === 'sm';
   const cardW = isSm ? 'w-[155px]' : 'w-[180px] sm:w-[210px]';
   const roundClass = isSm ? 'rounded-xl' : 'rounded-2xl';
+  const shellClass = `bg-gradient-to-b ${ls.gradient} ${cardW} border-2 ${ls.border} shadow-lg relative overflow-hidden`;
+
+  const nonWins = gamesPlayed - wins;
+  const winsStars = wins * 3;
+  const nonWinsStars = nonWins;
+
+  const nextLevelName = level === 'Rookie' ? 'Belofte' : level === 'Belofte' ? 'Ster' : 'Legende';
+  const starsToNext = level !== 'Legende' ? nextThreshold - stars : 0;
+
+  const progressBarColor =
+    level === 'Rookie' ? 'bg-gray-400' :
+    level === 'Belofte' ? 'bg-blue-400' :
+    level === 'Ster' ? 'bg-purple-400' :
+    'bg-yellow-400';
 
   const initials = player.name
     .split(' ')
@@ -190,77 +209,182 @@ export function TeamsterrenCard({ player, gamesPlayed, wins, size = 'md' }: Team
     .toUpperCase();
 
   return (
-    <div className={`bg-gradient-to-b ${ls.gradient} ${cardW} border-2 ${ls.border} shadow-lg relative overflow-hidden ${roundClass} ${isSm ? 'p-3' : 'p-3 sm:p-4'} select-none`}>
-      {/* Level badge */}
-      <div className={`text-center text-[10px] font-black tracking-widest ${ls.badgeColor} mb-2`}>
-        {ls.badge}
-      </div>
+    <div
+      className={`relative select-none ${isFlippable ? 'cursor-pointer' : ''} touch-pan-y`}
+      style={{ perspective: '1000px', width: 'fit-content' }}
+      onClick={() => isFlippable && setFlipped(f => !f)}
+    >
+      <div
+        style={{
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.55s cubic-bezier(0.4,0.2,0.2,1)',
+          transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          position: 'relative',
+        }}
+      >
+        {/* ── VOORKANT ── */}
+        <div style={{ backfaceVisibility: 'hidden' }}>
+          <div className={`${shellClass} ${roundClass} ${isSm ? 'p-3' : 'p-3 sm:p-4'}`}>
+            {/* Level badge */}
+            <div className={`text-center text-[10px] font-black tracking-widest ${ls.badgeColor} mb-2`}>
+              {ls.badge}
+            </div>
 
-      {/* Avatar */}
-      <div className="flex justify-center mb-2">
-        {player.avatar_url ? (
-          <div className={`${isSm ? 'w-14 h-14' : 'w-16 h-16'} rounded-full overflow-hidden border-2 border-white/30`}>
-            <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
+            {/* Avatar */}
+            <div className="flex justify-center mb-2">
+              {player.avatar_url ? (
+                <div className={`${isSm ? 'w-14 h-14' : 'w-16 h-16'} rounded-full overflow-hidden border-2 border-white/30`}>
+                  <img src={player.avatar_url} alt={player.name} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className={`${isSm ? 'w-14 h-14' : 'w-16 h-16'} rounded-full border-2 border-white/30 bg-black/30 flex items-center justify-center`}>
+                  <span className="text-lg font-black text-white/80">{initials}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Name + position */}
+            <div className={`${isSm ? 'text-sm' : 'text-base'} font-black text-center text-white truncate leading-tight`}>
+              {player.name}
+            </div>
+            <div className="text-[10px] text-center text-white/50 mb-2">
+              {player.position}
+            </div>
+
+            <div className="border-t border-white/20 mb-2" />
+
+            {/* Stats row */}
+            <div className="flex justify-around mb-2">
+              <div className="text-center">
+                <div className="text-lg">⚽</div>
+                <div className="text-sm font-black text-white">{gamesPlayed}</div>
+                <div className="text-[9px] text-white/40">gespeeld</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg">🏆</div>
+                <div className="text-sm font-black text-white">{wins}</div>
+                <div className="text-[9px] text-white/40">gewonnen</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg">⭐</div>
+                <div className={`text-sm font-black ${ls.badgeColor}`}>{stars}</div>
+                <div className="text-[9px] text-white/40">sterren</div>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            {level !== 'Legende' ? (
+              <div>
+                <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
+                  <span>{stars} sterren</span>
+                  <span>→ {nextThreshold}</span>
+                </div>
+                <div className="w-full bg-black/30 rounded-full h-1.5">
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${progressBarColor}`}
+                    style={{ width: `${Math.min(100, progress)}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-[10px] text-yellow-400 font-bold">
+                ✨ Maximaal niveau bereikt!
+              </div>
+            )}
+
+            {isFlippable && (
+              <div className="mt-1.5 text-center text-[9px] text-white/30 font-bold tracking-wide">
+                ↻ tik voor opbouw
+              </div>
+            )}
           </div>
-        ) : (
-          <div className={`${isSm ? 'w-14 h-14' : 'w-16 h-16'} rounded-full border-2 border-white/30 bg-black/30 flex items-center justify-center`}>
-            <span className="text-lg font-black text-white/80">{initials}</span>
+        </div>
+
+        {/* ── ACHTERKANT ── */}
+        {isFlippable && (
+          <div
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+            }}
+          >
+            <div className={`${shellClass} ${roundClass} p-3 flex flex-col gap-2`}>
+
+              {/* Header */}
+              <div className={`text-center text-[10px] font-black tracking-widest ${ls.badgeColor}`}>
+                ⭐ OPBOUW
+              </div>
+
+              <div className="border-t border-white/20" />
+
+              {/* Sterren-opbouw (A) */}
+              {starOverride != null ? (
+                <div className="text-center space-y-1">
+                  <div className="text-[10px] text-yellow-300 font-bold">⚡ Handmatig ingesteld</div>
+                  <div className={`text-xl font-black ${ls.badgeColor}`}>{stars} ⭐</div>
+                  <div className="text-[9px] text-white/40">
+                    Berekend zou zijn: {calculatedStars} ⭐
+                  </div>
+                  <div className="text-[9px] text-white/30">
+                    ({wins} gewonnen, {gamesPlayed} gespeeld)
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-white/70">🏆 {wins}× gewonnen</span>
+                    <span className={`font-black ${ls.badgeColor}`}>+{winsStars} ⭐</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-white/70">➖ {nonWins}× overig</span>
+                    <span className="font-black text-white/60">+{nonWinsStars} ⭐</span>
+                  </div>
+                  <div className="border-t border-white/20 pt-1 flex items-center justify-between text-[10px]">
+                    <span className="text-white/50 font-bold">Totaal</span>
+                    <span className={`font-black text-sm ${ls.badgeColor}`}>{stars} ⭐</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t border-white/20" />
+
+              {/* Volgend level (D) */}
+              {level !== 'Legende' ? (
+                <div>
+                  <div className="text-[9px] text-white/40 mb-1 text-center">
+                    Volgend level
+                  </div>
+                  <div className="w-full bg-black/30 rounded-full h-2.5 mb-1">
+                    <div
+                      className={`h-2.5 rounded-full transition-all ${progressBarColor}`}
+                      style={{ width: `${Math.min(100, progress)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[9px] text-white/50">
+                    <span>{stars} ⭐</span>
+                    <span>{nextThreshold} ⭐</span>
+                  </div>
+                  <div className="text-center text-[10px] font-bold text-white/70 mt-1">
+                    Nog <span className={ls.badgeColor}>{starsToNext} ⭐</span> voor {nextLevelName}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-[10px] text-yellow-400 font-bold">
+                  ✨ Maximaal niveau bereikt!
+                </div>
+              )}
+
+              <div className="text-center text-[9px] text-white/30 font-bold tracking-wide mt-auto">
+                ↻ tik terug
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Name + position */}
-      <div className={`${isSm ? 'text-sm' : 'text-base'} font-black text-center text-white truncate leading-tight`}>
-        {player.name}
-      </div>
-      <div className="text-[10px] text-center text-white/50 mb-2">
-        {player.position}
-      </div>
-
-      <div className="border-t border-white/20 mb-2" />
-
-      {/* Stats row */}
-      <div className="flex justify-around mb-2">
-        <div className="text-center">
-          <div className="text-lg">⚽</div>
-          <div className="text-sm font-black text-white">{gamesPlayed}</div>
-          <div className="text-[9px] text-white/40">gespeeld</div>
-        </div>
-        <div className="text-center">
-          <div className="text-lg">🏆</div>
-          <div className="text-sm font-black text-white">{wins}</div>
-          <div className="text-[9px] text-white/40">gewonnen</div>
-        </div>
-        <div className="text-center">
-          <div className="text-lg">⭐</div>
-          <div className={`text-sm font-black ${ls.badgeColor}`}>{stars}</div>
-          <div className="text-[9px] text-white/40">sterren</div>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      {level !== 'Legende' ? (
-        <div>
-          <div className="flex justify-between text-[9px] text-white/40 mb-0.5">
-            <span>{stars} sterren</span>
-            <span>→ {nextThreshold}</span>
-          </div>
-          <div className="w-full bg-black/30 rounded-full h-1.5">
-            <div
-              className={`h-1.5 rounded-full transition-all ${
-                level === 'Rookie' ? 'bg-gray-400' :
-                level === 'Belofte' ? 'bg-blue-400' :
-                'bg-purple-400'
-              }`}
-              style={{ width: `${Math.min(100, progress)}%` }}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="text-center text-[10px] text-yellow-400 font-bold">
-          ✨ Maximaal niveau bereikt!
-        </div>
-      )}
     </div>
   );
 }
