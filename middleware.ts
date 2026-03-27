@@ -20,7 +20,9 @@ function resolveKey(): string {
 const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback', '/join', '/forgot-password', '/reset-password'];
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
+  // IMPORTANT: follow the exact @supabase/ssr pattern so token refresh
+  // cookies are correctly forwarded on every request (fixes mobile re-login).
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     resolveUrl(),
@@ -28,13 +30,16 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll().map(({ name, value }) => ({ name, value }));
+          return request.cookies.getAll();
         },
-        setAll(cookies) {
-          for (const { name, value, options } of cookies) {
-            request.cookies.set({ name, value });
-            response.cookies.set({ name, value, ...options });
-          }
+        setAll(cookiesToSet) {
+          // Apply updated cookies to the request so downstream handlers see them
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          // Recreate the response with the updated request, then set cookies on it
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
         },
       },
     },
@@ -51,7 +56,6 @@ export async function middleware(request: NextRequest) {
 
   // Logged in + auth page → redirect to home (or to pending invite)
   if (user && (pathname === '/login' || pathname === '/register')) {
-    // Check for invite token in query param (passed along by OAuth callback)
     const inviteToken = request.nextUrl.searchParams.get('inviteToken');
     if (inviteToken) {
       return NextResponse.redirect(new URL(`/join/${inviteToken}`, request.url));
@@ -59,7 +63,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  return response;
+  // Always return supabaseResponse so refreshed cookies are sent to the browser
+  return supabaseResponse;
 }
 
 export const config = {

@@ -150,7 +150,6 @@ export default function LoginPage() {
                 className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800 cursor-pointer"
               />
               <span className="text-sm text-gray-300">Onthoud mij op dit apparaat</span>
-              <span className="text-xs text-gray-500">(alleen bij e-mail)</span>
             </label>
 
             <button
