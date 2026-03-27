@@ -178,39 +178,91 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
   );
 }
 
-// ─── Taken badges (read-only) ──────────────────────────────────
-function TakenBadges({ match, players, teamSettings }: { match: Match; players: Player[]; teamSettings: TeamSettings | null }) {
-  const trackWasbeurt = teamSettings?.track_wasbeurt ?? true;
-  const trackConsumpties = teamSettings?.track_consumpties ?? true;
-  const trackVervoer = (teamSettings?.track_vervoer ?? true) && match.home_away !== 'Thuis';
-
-  const getPlayer = (id: number | null | undefined) => id ? players.find(p => p.id === id) ?? null : null;
-  const wasbeurtPlayer = getPlayer(match.wasbeurt_player_id);
-  const consumptiesPlayer = getPlayer(match.consumpties_player_id);
-  const transportPlayers = (match.transport_player_ids ?? []).map(id => getPlayer(id)).filter(Boolean) as Player[];
-
-  const hasAny = (trackWasbeurt && wasbeurtPlayer) || (trackConsumpties && consumptiesPlayer) || (trackVervoer && transportPlayers.length > 0);
-  if (!hasAny) return null;
-
+// ─── Taken badges (read-only, ontvangt pre-computed data) ─────
+function TakenBadges({ tasks }: { tasks: { emoji: string; name: string }[] }) {
+  if (tasks.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-2 mt-2">
-      {trackWasbeurt && wasbeurtPlayer && (
-        <span className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
-          🧺 <span className="font-medium text-white">{wasbeurtPlayer.name}</span>
-        </span>
-      )}
-      {trackConsumpties && consumptiesPlayer && (
-        <span className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
-          🥤 <span className="font-medium text-white">{consumptiesPlayer.name}</span>
-        </span>
-      )}
-      {trackVervoer && transportPlayers.map((p, i) => (
-        <span key={p.id} className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
-          {i === 0 ? '🚗' : '🚙'} <span className="font-medium text-white">{p.name}</span>
+      {tasks.map((t, i) => (
+        <span key={i} className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
+          {t.emoji} <span className="font-medium text-white">{t.name}</span>
         </span>
       ))}
     </div>
   );
+}
+
+// ─── Sequentiële taakberekening voor aankomende wedstrijden ───
+function computeUpcomingTasks(
+  matches: Match[],
+  players: Player[],
+  absencesMap: Record<number, number[]>,
+  teamSettings: TeamSettings | null
+): Record<number, { emoji: string; name: string }[]> {
+  const trackWasbeurt = teamSettings?.track_wasbeurt ?? true;
+  const trackConsumpties = teamSettings?.track_consumpties ?? true;
+  const trackVervoer = teamSettings?.track_vervoer ?? true;
+  const vervoerCount = teamSettings?.vervoer_count ?? 3;
+
+  const washCounts = new Map<number, number>(players.filter(p => !p.is_guest).map(p => [p.id, p.wash_count]));
+  const consumptionCounts = new Map<number, number>(players.filter(p => !p.is_guest).map(p => [p.id, p.consumption_count]));
+  const transportCounts = new Map<number, number>(players.filter(p => !p.is_guest).map(p => [p.id, p.transport_count]));
+
+  const result: Record<number, { emoji: string; name: string }[]> = {};
+
+  for (const match of matches) {
+    const absentIds = new Set(absencesMap[match.id] ?? []);
+    const available = players.filter(p => !p.is_guest && !p.injured && !absentIds.has(p.id));
+    const tasks: { emoji: string; name: string }[] = [];
+
+    if (trackWasbeurt) {
+      const overrideId = match.wasbeurt_player_id ?? null;
+      let player = overrideId ? (available.find(p => p.id === overrideId) ?? null) : null;
+      if (!player) {
+        player = [...available].sort((a, b) => ((washCounts.get(a.id) ?? 0) - (washCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
+      }
+      if (player) {
+        tasks.push({ emoji: '🧺', name: player.name });
+        washCounts.set(player.id, (washCounts.get(player.id) ?? 0) + 1);
+      }
+    }
+
+    if (trackConsumpties) {
+      const overrideId = match.consumpties_player_id ?? null;
+      let player = overrideId ? (available.find(p => p.id === overrideId) ?? null) : null;
+      if (!player) {
+        player = [...available].sort((a, b) => ((consumptionCounts.get(a.id) ?? 0) - (consumptionCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
+      }
+      if (player) {
+        tasks.push({ emoji: '🥤', name: player.name });
+        consumptionCounts.set(player.id, (consumptionCounts.get(player.id) ?? 0) + 1);
+      }
+    }
+
+    if (trackVervoer && match.home_away !== 'Thuis') {
+      const overrideIds = match.transport_player_ids ?? [];
+      const usedIds = new Set<number>();
+      const vervoerPlayers: Player[] = [];
+      const eligibleList = [...available].sort((a, b) => ((transportCounts.get(a.id) ?? 0) - (transportCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name));
+      for (let i = 0; i < vervoerCount; i++) {
+        const overrideId = overrideIds[i] ?? null;
+        if (overrideId) {
+          const op = available.find(p => p.id === overrideId && !usedIds.has(p.id)) ?? null;
+          if (op) { vervoerPlayers.push(op); usedIds.add(op.id); continue; }
+        }
+        const auto = eligibleList.find(p => !usedIds.has(p.id)) ?? null;
+        if (auto) { vervoerPlayers.push(auto); usedIds.add(auto.id); }
+      }
+      if (vervoerPlayers.length > 0) {
+        vervoerPlayers.forEach((p, i) => tasks.push({ emoji: i === 0 ? '🚗' : '🚙', name: p.name }));
+        for (const p of vervoerPlayers) transportCounts.set(p.id, (transportCounts.get(p.id) ?? 0) + 1);
+      }
+    }
+
+    result[match.id] = tasks;
+  }
+
+  return result;
 }
 
 function formatTime(timeStr: string): string {
@@ -295,6 +347,11 @@ export default function UitslagenView({
       });
     }
   };
+
+  const upcomingTasksByMatch = useMemo(
+    () => computeUpcomingTasks(upcomingMatches, players, absencesMap, teamSettings),
+    [upcomingMatches, players, absencesMap, teamSettings]
+  );
 
   // ── Stats ────────────────────────────────────────────────
   const [statsMap, setStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
@@ -537,7 +594,7 @@ export default function UitslagenView({
                           </div>
                         )}
 
-                        <TakenBadges match={match} players={players} teamSettings={teamSettings} />
+                        <TakenBadges tasks={upcomingTasksByMatch[match.id] ?? []} />
                       </div>
 
                       {/* Beheer-knoppen (edit mode) */}
