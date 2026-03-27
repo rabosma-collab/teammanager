@@ -102,7 +102,7 @@ export default function NextMatchCard({
       trackAssemblyTime,
       trackMatchTime,
       trackLocationDetails,
-      appUrl: window.location.origin,
+      appUrl: 'https://tmvoetbal.nl',
     });
 
     if (navigator.share) {

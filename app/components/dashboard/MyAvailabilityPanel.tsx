@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 
@@ -30,77 +30,106 @@ function formatShortDate(dateStr: string): string {
   });
 }
 
-function getAllTasks(
-  match: Match,
-  currentPlayerId: number,
+/**
+ * Berekent taken voor alle wedstrijden sequentieel:
+ * na elke wedstrijd worden de virtuele tellers opgehoogd,
+ * zodat elke volgende wedstrijd de volgende speler in de rij toont.
+ */
+function computeAllMatchTasks(
+  matches: Match[],
   players: Player[],
-  absentIds: Set<number>,
+  currentPlayerId: number,
+  allAbsencesByMatch: Record<number, Set<number>>,
   trackWasbeurt: boolean,
   trackConsumpties: boolean,
   trackVervoer: boolean,
   vervoerCount: number
-): TaskItem[] {
-  const tasks: TaskItem[] = [];
-  const eligible = (sortBy: 'wash_count' | 'consumption_count' | 'transport_count') =>
-    players
-      .filter(p => !p.is_guest && !p.injured && !absentIds.has(p.id))
-      .sort((a, b) => (a[sortBy] - b[sortBy]) || a.name.localeCompare(b.name));
+): Record<number, TaskItem[]> {
+  // Virtuele tellers starten vanuit de huidige waarden
+  const washCounts = new Map<number, number>(
+    players.filter(p => !p.is_guest).map(p => [p.id, p.wash_count])
+  );
+  const consumptionCounts = new Map<number, number>(
+    players.filter(p => !p.is_guest).map(p => [p.id, p.consumption_count])
+  );
+  const transportCounts = new Map<number, number>(
+    players.filter(p => !p.is_guest).map(p => [p.id, p.transport_count])
+  );
 
-  if (trackWasbeurt) {
-    const overrideId = match.wasbeurt_player_id ?? null;
-    const player = overrideId
-      ? players.find(p => p.id === overrideId && !p.is_guest && !p.injured && !absentIds.has(p.id)) ?? eligible('wash_count')[0] ?? null
-      : eligible('wash_count')[0] ?? null;
-    if (player) {
-      tasks.push({ emoji: '🧺', label: 'Wasbeurt', playerName: player.name, isCurrentPlayer: player.id === currentPlayerId });
-    }
-  }
+  const result: Record<number, TaskItem[]> = {};
 
-  if (trackConsumpties) {
-    const overrideId = match.consumpties_player_id ?? null;
-    const player = overrideId
-      ? players.find(p => p.id === overrideId && !p.is_guest && !p.injured && !absentIds.has(p.id)) ?? eligible('consumption_count')[0] ?? null
-      : eligible('consumption_count')[0] ?? null;
-    if (player) {
-      tasks.push({ emoji: '🥤', label: 'Consumpties', playerName: player.name, isCurrentPlayer: player.id === currentPlayerId });
-    }
-  }
+  for (const match of matches) {
+    const absentIds = allAbsencesByMatch[match.id] ?? new Set<number>();
+    const available = players.filter(p => !p.is_guest && !p.injured && !absentIds.has(p.id));
+    const tasks: TaskItem[] = [];
 
-  if (trackVervoer && match.home_away !== 'Thuis') {
-    const overrideIds = match.transport_player_ids ?? [];
-    const usedIds = new Set<number>();
-    const vervoerPlayers: Player[] = [];
-    const eligibleList = eligible('transport_count');
-
-    for (let i = 0; i < vervoerCount; i++) {
-      const overrideId = overrideIds[i] ?? null;
+    if (trackWasbeurt) {
+      const overrideId = match.wasbeurt_player_id ?? null;
+      let player: Player | null = null;
       if (overrideId) {
-        const op = players.find(p => p.id === overrideId && !p.is_guest && !p.injured && !absentIds.has(p.id)) ?? null;
-        if (op && !usedIds.has(op.id)) {
-          vervoerPlayers.push(op);
-          usedIds.add(op.id);
-          continue;
+        player = available.find(p => p.id === overrideId) ?? null;
+      }
+      if (!player) {
+        player = [...available]
+          .sort((a, b) => ((washCounts.get(a.id) ?? 0) - (washCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
+      }
+      if (player) {
+        tasks.push({ emoji: '🧺', label: 'Wasbeurt', playerName: player.name, isCurrentPlayer: player.id === currentPlayerId });
+        washCounts.set(player.id, (washCounts.get(player.id) ?? 0) + 1);
+      }
+    }
+
+    if (trackConsumpties) {
+      const overrideId = match.consumpties_player_id ?? null;
+      let player: Player | null = null;
+      if (overrideId) {
+        player = available.find(p => p.id === overrideId) ?? null;
+      }
+      if (!player) {
+        player = [...available]
+          .sort((a, b) => ((consumptionCounts.get(a.id) ?? 0) - (consumptionCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
+      }
+      if (player) {
+        tasks.push({ emoji: '🥤', label: 'Consumpties', playerName: player.name, isCurrentPlayer: player.id === currentPlayerId });
+        consumptionCounts.set(player.id, (consumptionCounts.get(player.id) ?? 0) + 1);
+      }
+    }
+
+    if (trackVervoer && match.home_away !== 'Thuis') {
+      const overrideIds = match.transport_player_ids ?? [];
+      const usedIds = new Set<number>();
+      const vervoerPlayers: Player[] = [];
+      const eligibleList = [...available].sort(
+        (a, b) => ((transportCounts.get(a.id) ?? 0) - (transportCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name)
+      );
+
+      for (let i = 0; i < vervoerCount; i++) {
+        const overrideId = overrideIds[i] ?? null;
+        if (overrideId) {
+          const op = available.find(p => p.id === overrideId && !usedIds.has(p.id)) ?? null;
+          if (op) { vervoerPlayers.push(op); usedIds.add(op.id); continue; }
+        }
+        const auto = eligibleList.find(p => !usedIds.has(p.id)) ?? null;
+        if (auto) { vervoerPlayers.push(auto); usedIds.add(auto.id); }
+      }
+
+      if (vervoerPlayers.length > 0) {
+        tasks.push({
+          emoji: '🚗',
+          label: 'Vervoer',
+          playerName: vervoerPlayers.map(p => p.name).join(', '),
+          isCurrentPlayer: vervoerPlayers.some(p => p.id === currentPlayerId),
+        });
+        for (const p of vervoerPlayers) {
+          transportCounts.set(p.id, (transportCounts.get(p.id) ?? 0) + 1);
         }
       }
-      const auto = eligibleList.find(p => !usedIds.has(p.id)) ?? null;
-      if (auto) {
-        vervoerPlayers.push(auto);
-        usedIds.add(auto.id);
-      }
     }
 
-    if (vervoerPlayers.length > 0) {
-      const isCurrent = vervoerPlayers.some(p => p.id === currentPlayerId);
-      tasks.push({
-        emoji: '🚗',
-        label: 'Vervoer',
-        playerName: vervoerPlayers.map(p => p.name).join(', '),
-        isCurrentPlayer: isCurrent,
-      });
-    }
+    result[match.id] = tasks;
   }
 
-  return tasks;
+  return result;
 }
 
 const DEFAULT_VISIBLE = 3;
@@ -164,11 +193,26 @@ export default function MyAvailabilityPanel({
     }
   }, [currentPlayerId, onToggleAbsence]);
 
+  // Sequentiële taakberekening voor alle wedstrijden tegelijk
+  const hasTasks = trackWasbeurt || trackConsumpties || trackVervoer;
+  const tasksByMatch = useMemo(() => {
+    if (!hasTasks || players.length === 0) return {};
+    return computeAllMatchTasks(
+      futureMatches,
+      players,
+      currentPlayerId,
+      allAbsencesByMatch,
+      trackWasbeurt,
+      trackConsumpties,
+      trackVervoer,
+      vervoerCount
+    );
+  }, [futureMatches, players, currentPlayerId, allAbsencesByMatch, trackWasbeurt, trackConsumpties, trackVervoer, vervoerCount, hasTasks]);
+
   if (futureMatches.length === 0) return null;
 
   const visibleMatches = expanded ? futureMatches : futureMatches.slice(0, DEFAULT_VISIBLE);
   const hasMore = futureMatches.length > DEFAULT_VISIBLE;
-  const hasTasks = trackWasbeurt || trackConsumpties || trackVervoer;
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
@@ -181,10 +225,7 @@ export default function MyAvailabilityPanel({
           const isAbsent = absencesByMatch[match.id] ?? false;
           const isLoading = loadingMatchId === match.id;
           const isThuis = match.home_away === 'Thuis';
-          const absentIds = allAbsencesByMatch[match.id] ?? new Set<number>();
-          const tasks = players.length > 0 && hasTasks && !isAbsent
-            ? getAllTasks(match, currentPlayerId, players, absentIds, trackWasbeurt, trackConsumpties, trackVervoer, vervoerCount)
-            : [];
+          const tasks = isAbsent ? [] : (tasksByMatch[match.id] ?? []);
 
           return (
             <div
@@ -196,12 +237,10 @@ export default function MyAvailabilityPanel({
               }`}
             >
               <div className="flex items-center gap-3">
-                {/* Status icoon */}
                 <span className="text-base flex-shrink-0">
                   {isAbsent ? '❌' : '✅'}
                 </span>
 
-                {/* Datum + tegenstander */}
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-gray-500 capitalize">{formatShortDate(match.date)}</div>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
@@ -216,7 +255,6 @@ export default function MyAvailabilityPanel({
                   </div>
                 </div>
 
-                {/* Actieknop */}
                 <button
                   onClick={() => handleToggle(match.id)}
                   disabled={isLoading}
@@ -230,7 +268,6 @@ export default function MyAvailabilityPanel({
                 </button>
               </div>
 
-              {/* Taken */}
               {tasks.length > 0 && (
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 ml-8">
                   {tasks.map(task => (
