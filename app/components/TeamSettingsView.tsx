@@ -300,7 +300,18 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
 
         {/* ── Spelvorm ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3">
-          <h2 className="font-bold text-base text-gray-200">Spelvorm</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-base text-gray-200">Spelvorm</h2>
+            <InfoButton>
+              <p className="font-semibold text-white mb-1.5">Wat is de spelvorm?</p>
+              <div className="space-y-1.5 text-gray-300">
+                <div>Bepaalt hoeveel spelers er per ploeg spelen en welke formaties beschikbaar zijn.</div>
+                <div><span className="text-white font-semibold">Periodes</span> — per periode kun je de opstelling en formatie aanpassen. De app stelt wisselstops voor op basis van dit aantal.</div>
+                <div><span className="text-white font-semibold">Wedstrijdduur</span> — de standaard speelduur. Je kunt dit per wedstrijd aanpassen.</div>
+              </div>
+              <p className="mt-1.5 text-yellow-400/80 text-xs">Let op: het wijzigen van de spelvorm reset de standaard formatie.</p>
+            </InfoButton>
+          </div>
           <p className="text-sm text-gray-400">
             Bepaalt het aantal spelers en periodes.
             <span className="text-yellow-500 ml-1">Let op: wijzigen reset de standaard formatie.</span>
@@ -370,7 +381,14 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
 
         {/* ── Standaard formatie ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-3">
-          <h2 className="font-bold text-base text-gray-200">Standaard formatie</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-base text-gray-200">Standaard formatie</h2>
+            <InfoButton>
+              <p className="font-semibold text-white mb-1">Wat is de standaard formatie?</p>
+              <p className="text-gray-300">Kies de formatie die je team het meest speelt. Deze wordt automatisch ingesteld bij het aanmaken van een nieuwe wedstrijd.</p>
+              <p className="mt-1.5 text-gray-400">Je kunt de formatie per wedstrijd aanpassen.</p>
+            </InfoButton>
+          </div>
           <p className="text-sm text-gray-400">Wordt als standaard gebruikt bij nieuwe wedstrijden.</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {Object.entries(availableFormations).map(([key, label]) => (
@@ -391,7 +409,30 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
 
         {/* ── Wedstrijdbeheer ── */}
         <section className="bg-gray-800 rounded-xl p-5 space-y-4">
-          <h2 className="font-bold text-base text-gray-200">Wedstrijdbeheer</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-base text-gray-200">Wedstrijdbeheer</h2>
+            <InfoButton>
+              <p className="font-semibold text-white mb-1.5">Wedstrijdbeheer instellen</p>
+              <div className="space-y-2 text-gray-300">
+                <div>
+                  <div className="text-white font-semibold">Wedstrijdinfo</div>
+                  <div className="space-y-0.5 mt-0.5 text-xs">
+                    <div>🕐 <span className="text-white">Verzameltijd</span> — hoe laat spelers aanwezig moeten zijn</div>
+                    <div>⚽ <span className="text-white">Speeltijd (aanvang)</span> — hoe laat de wedstrijd begint</div>
+                    <div>📍 <span className="text-white">Verzamellocatie</span> — kleedkamernummer of locatie</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-white font-semibold">Wedstrijdtaken</div>
+                  <div className="space-y-0.5 mt-0.5 text-xs">
+                    <div>🧺 <span className="text-white">Wasbeurt</span> — wijs per wedstrijd een speler aan voor de was</div>
+                    <div>🥤 <span className="text-white">Consumpties</span> — wijs een speler aan voor de consumpties</div>
+                    <div>🚗 <span className="text-white">Vervoer</span> — wijs spelers aan die het vervoer regelen</div>
+                  </div>
+                </div>
+              </div>
+            </InfoButton>
+          </div>
 
           {/* Wedstrijdinfo */}
           <div className="space-y-2">
