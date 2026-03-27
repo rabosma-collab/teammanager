@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 
 const FALLBACK_URL = 'https://hyjewtsmytpfojdvdsta.supabase.co';
 const FALLBACK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5amV3dHNteXRwZm9qZHZkc3RhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNzU5ODMsImV4cCI6MjA4NTk1MTk4M30.4CXjyPsTn6n--v_HwnvuCzXk7eP6X6yPlT8R4ll6V5s';

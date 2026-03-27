@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { createBrowserClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 
 function resolveUrl(): string {
   const v = process.env.NEXT_PUBLIC_SUPABASE_URL;
