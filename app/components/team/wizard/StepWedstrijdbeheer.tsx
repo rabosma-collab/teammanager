@@ -20,7 +20,7 @@ interface Props {
 const WEDSTRIJDINFO = [
   { key: 'track_assembly_time'    as keyof WedstrijdState, label: '🕐 Verzameltijd',        description: 'Noteer hoe laat spelers aanwezig moeten zijn' },
   { key: 'track_match_time'       as keyof WedstrijdState, label: '⚽ Speeltijd (aanvang)',  description: 'Noteer hoe laat de wedstrijd begint' },
-  { key: 'track_location_details' as keyof WedstrijdState, label: '📍 Kleedkamer / locatie', description: 'Noteer kleedkamernummer of locatiedetails' },
+  { key: 'track_location_details' as keyof WedstrijdState, label: '📍 Verzamellocatie', description: 'Noteer de verzamellocatie of kleedkamernummer' },
 ];
 
 const WEDSTRIJDTAKEN = [

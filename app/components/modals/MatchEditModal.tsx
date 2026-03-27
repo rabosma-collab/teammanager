@@ -151,7 +151,7 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
 
           {trackLocationDetails && (
             <div>
-              <label className="block text-sm font-bold text-gray-400 mb-1">Kleedkamer / locatie</label>
+              <label className="block text-sm font-bold text-gray-400 mb-1">Verzamellocatie</label>
               <input
                 type="text"
                 value={locationDetails}

@@ -277,7 +277,7 @@ export default function NextMatchCard({
             {trackLocationDetails && match.location_details && (
               <div className="flex items-center gap-1.5 text-xs">
                 <span>📍</span>
-                <span className="text-gray-300">Kleedkamer: <span className="font-bold text-white">{match.location_details}</span></span>
+                <span className="text-gray-300">Verzamellocatie: <span className="font-bold text-white">{match.location_details}</span></span>
               </div>
             )}
           </div>
