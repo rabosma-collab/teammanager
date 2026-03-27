@@ -100,7 +100,7 @@ export default function PersonalCard({
       </div>
       <div className="flex justify-center mb-4">
         {playerCardMode === 'teamsterren' ? (
-          <TeamsterrenCard player={player} gamesPlayed={starData.gamesPlayed} wins={starData.wins} starOverride={player.star_override} size="md" />
+          <TeamsterrenCard player={player} gamesPlayed={starData.gamesPlayed} wins={starData.wins} starOverride={player.star_override} isFlippable size="md" />
         ) : (
           <PlayerCard player={player} size="md" isFlippable backContent="radar-only" />
         )}
