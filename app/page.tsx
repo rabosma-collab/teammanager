@@ -141,7 +141,7 @@ export default function FootballApp() {
   // ---- HOOKS ----
   const {
     players, fetchPlayers,
-    toggleInjury, addGuestPlayer, removeGuestPlayer, updateStat,
+    toggleInjury, guestPool, fetchGuestPool, addToPool, removeFromPool, addGuestPlayer, removeGuestPlayer, updateStat,
     addPlayer, updatePlayer, deletePlayer
   } = usePlayers();
 
@@ -794,6 +794,31 @@ export default function FootballApp() {
         await updateMatchReport(selectedMatch.id, params.matchReport);
       }
 
+      // 5. Taaktellers ophogen (wasbeurt, consumpties, vervoer)
+      const trackWas  = teamSettings?.track_wasbeurt   ?? true;
+      const trackCons = teamSettings?.track_consumpties ?? true;
+      const trackVerv = (teamSettings?.track_vervoer   ?? true) && selectedMatch.home_away !== 'Thuis';
+
+      if (trackWas && wasbeurtDisplayPlayer && !wasbeurtDisplayPlayer.is_guest) {
+        await supabase.from('players')
+          .update({ wash_count: wasbeurtDisplayPlayer.wash_count + 1 })
+          .eq('id', wasbeurtDisplayPlayer.id);
+      }
+      if (trackCons && consumptiesDisplayPlayer && !consumptiesDisplayPlayer.is_guest) {
+        await supabase.from('players')
+          .update({ consumption_count: consumptiesDisplayPlayer.consumption_count + 1 })
+          .eq('id', consumptiesDisplayPlayer.id);
+      }
+      if (trackVerv) {
+        for (const p of vervoerDisplayPlayers) {
+          if (p && !p.is_guest) {
+            await supabase.from('players')
+              .update({ transport_count: p.transport_count + 1 })
+              .eq('id', p.id);
+          }
+        }
+      }
+
       // Update lokale state
       const updatedMatchFields = {
         match_status: 'afgerond' as const,
@@ -1000,7 +1025,7 @@ export default function FootballApp() {
       )}
 
       {showGuestModal && isManager && (
-        <GuestPlayerModal onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
+        <GuestPlayerModal guestPool={guestPool} onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
       )}
 
       {showSelectionModal && (
@@ -1030,7 +1055,7 @@ export default function FootballApp() {
               toast.error('❌ Kon gastspeler niet verwijderen');
             }
           }}
-          onAddGuest={() => { setShowSelectionModal(false); setShowGuestModal(true); }}
+          onAddGuest={() => { setShowSelectionModal(false); fetchGuestPool(); setShowGuestModal(true); }}
           onClose={() => setShowSelectionModal(false)}
         />
       )}
@@ -1230,6 +1255,10 @@ export default function FootballApp() {
             onUpdatePlayer={updatePlayer}
             onDeletePlayer={deletePlayer}
             onRefresh={() => selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers()}
+            guestPool={guestPool}
+            onAddToPool={addToPool}
+            onRemoveFromPool={removeFromPool}
+            onRefreshPool={fetchGuestPool}
           />
         </div>
       ) : view === 'invites' && isManager ? (

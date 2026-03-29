@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { positionOrder, positionEmojis } from '../../lib/constants';
 import { useToast } from '../../contexts/ToastContext';
 import DraggableModal from './DraggableModal';
+import type { GuestPoolEntry } from '../../hooks/usePlayers';
 
 interface GuestPlayerModalProps {
+  guestPool: GuestPoolEntry[];
   onAdd: (name: string, position: string) => void;
   onClose: () => void;
 }
 
-export default function GuestPlayerModal({ onAdd, onClose }: GuestPlayerModalProps) {
+export default function GuestPlayerModal({ guestPool, onAdd, onClose }: GuestPlayerModalProps) {
   const toast = useToast();
   const [name, setName] = useState('');
   const [position, setPosition] = useState('Verdediger');
@@ -21,6 +23,10 @@ export default function GuestPlayerModal({ onAdd, onClose }: GuestPlayerModalPro
     onAdd(name, position);
   };
 
+  const handlePoolSelect = (entry: GuestPoolEntry) => {
+    setName(entry.name);
+  };
+
   return (
     <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-md">
       <div className="p-6">
@@ -28,6 +34,28 @@ export default function GuestPlayerModal({ onAdd, onClose }: GuestPlayerModalPro
           <h2 className="text-xl font-bold">👤 Gastspeler toevoegen</h2>
           <button onClick={onClose} className="text-2xl hover:text-red-500">✕</button>
         </div>
+
+        {guestPool.length > 0 && (
+          <div className="mb-4">
+            <label className="block text-sm font-bold mb-2 text-gray-300">Eerder meegedaan</label>
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+              {guestPool.map(entry => (
+                <button
+                  key={entry.id}
+                  onClick={() => handlePoolSelect(entry)}
+                  className={`flex items-center justify-between px-3 py-2 rounded text-left text-sm transition-colors ${
+                    name === entry.name
+                      ? 'bg-purple-700 text-white'
+                      : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                  }`}
+                >
+                  <span>{entry.name}</span>
+                  <span className="text-xs text-gray-400 ml-2">{entry.times_played}×</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -38,7 +66,7 @@ export default function GuestPlayerModal({ onAdd, onClose }: GuestPlayerModalPro
               onChange={(e) => setName(e.target.value)}
               placeholder="Voer naam in..."
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
-              autoFocus
+              autoFocus={guestPool.length === 0}
             />
           </div>
 

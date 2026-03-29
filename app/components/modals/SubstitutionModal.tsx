@@ -65,7 +65,15 @@ export default function SubstitutionModal({
     ];
 
     const outFromEarlierPlayers = earlierSubs
-      .map(s => players.find(p => p.id === s.player_out_id && !p.is_guest))
+      .map(s => {
+        // Check if a guest player with this ID was in the starting lineup (field or bench).
+        // This correctly handles guest/regular ID collisions: a guest on the field takes precedence.
+        const guestStarter =
+          fieldOccupants.find((p): p is Player => p !== null && !!p.is_guest && p.id === s.player_out_id) ??
+          benchPlayers.find(p => p.is_guest && p.id === s.player_out_id);
+        if (guestStarter) return guestStarter;
+        return players.find(p => p.id === s.player_out_id && !p.is_guest);
+      })
       .filter((p): p is Player => p !== undefined);
 
     // availableIn = bench players who haven't come in yet + players who went out earlier

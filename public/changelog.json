@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-03-29",
+    "title": "Gastspeler pool",
+    "items": [
+      "Gastspelers die eerder hebben meegedaan verschijnen automatisch als snelkeuze bij het toevoegen van een nieuwe gastspeler",
+      "Klik op een naam uit de lijst om het naamveld voor te vullen — de positie kies je nog gewoon zelf",
+      "Het aantal keer dat een gastspeler heeft meegedaan wordt bijgehouden en getoond",
+      "Managers kunnen de pool beheren via Beheer → Spelers: namen toevoegen of verwijderen"
+    ]
+  },
+  {
+    "date": "2026-03-29",
     "title": "Vloeiendere app-start",
     "items": [
       "De app opent nu zonder flitsende schermen: loading-fasen zijn samengevoegd tot één soepele overgang",

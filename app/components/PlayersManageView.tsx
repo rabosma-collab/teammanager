@@ -8,6 +8,7 @@ import PlayerEditModal, { type PlayerFormData } from './modals/PlayerEditModal';
 import InvitePlayerModal from './modals/InvitePlayerModal';
 import InviteStaffModal from './modals/InviteStaffModal';
 import ImportPlayersModal from './modals/ImportPlayersModal';
+import type { GuestPoolEntry } from '../hooks/usePlayers';
 
 interface PlayerAccount {
   userId: string;
@@ -38,6 +39,10 @@ interface PlayersManageViewProps {
   onUpdatePlayer: (id: number, data: PlayerFormData) => Promise<boolean>;
   onDeletePlayer: (id: number) => Promise<boolean>;
   onRefresh: () => void;
+  guestPool: GuestPoolEntry[];
+  onAddToPool: (name: string) => Promise<boolean>;
+  onRemoveFromPool: (id: number) => Promise<boolean>;
+  onRefreshPool: () => void;
 }
 
 export default function PlayersManageView({
@@ -45,7 +50,11 @@ export default function PlayersManageView({
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
-  onRefresh
+  onRefresh,
+  guestPool,
+  onAddToPool,
+  onRemoveFromPool,
+  onRefreshPool,
 }: PlayersManageViewProps) {
   const { currentTeam } = useTeamContext();
   const toast = useToast();
@@ -63,6 +72,9 @@ export default function PlayersManageView({
   const [togglingStaffId, setTogglingStaffId] = useState<string | null>(null);
   const [removingStaffId, setRemovingStaffId] = useState<string | null>(null);
   const [revokingStaffToken, setRevokingStaffToken] = useState<string | null>(null);
+  const [newPoolName, setNewPoolName] = useState('');
+  const [addingToPool, setAddingToPool] = useState(false);
+  const [removingPoolId, setRemovingPoolId] = useState<number | null>(null);
 
   const regularPlayers = players.filter(p => !p.is_guest);
 
@@ -145,7 +157,36 @@ export default function PlayersManageView({
 
   useEffect(() => {
     fetchLinkStatus();
-  }, [fetchLinkStatus]);
+    onRefreshPool();
+  }, [fetchLinkStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddToPool = async () => {
+    if (!newPoolName.trim()) {
+      toast.warning('⚠️ Vul een naam in');
+      return;
+    }
+    if (guestPool.some(e => e.name.toLowerCase() === newPoolName.trim().toLowerCase())) {
+      toast.warning('⚠️ Deze naam staat al in de pool');
+      return;
+    }
+    setAddingToPool(true);
+    const success = await onAddToPool(newPoolName);
+    if (success) {
+      setNewPoolName('');
+      toast.success('✅ Toegevoegd aan pool');
+    } else {
+      toast.error('❌ Kon niet toevoegen aan pool');
+    }
+    setAddingToPool(false);
+  };
+
+  const handleRemoveFromPool = async (entry: GuestPoolEntry) => {
+    if (!confirm(`"${entry.name}" verwijderen uit de pool?`)) return;
+    setRemovingPoolId(entry.id);
+    const success = await onRemoveFromPool(entry.id);
+    if (!success) toast.error('❌ Kon niet verwijderen uit pool');
+    setRemovingPoolId(null);
+  };
 
   const handleSave = async (data: PlayerFormData) => {
     let success: boolean;
@@ -607,6 +648,62 @@ export default function PlayersManageView({
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Gastspeler pool ── */}
+      <div className="mt-10">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl sm:text-2xl font-bold">👤 Gastspeler pool</h2>
+        </div>
+        <p className="text-sm text-gray-400 mb-3">
+          Gastspelers in de pool verschijnen als snelkeuze bij het toevoegen van een gastspeler aan een wedstrijd.
+        </p>
+
+        {/* Nieuw toevoegen */}
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={newPoolName}
+            onChange={e => setNewPoolName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAddToPool()}
+            placeholder="Naam gastspeler..."
+            className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+          />
+          <button
+            onClick={handleAddToPool}
+            disabled={addingToPool}
+            className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded font-bold text-sm"
+          >
+            ➕
+          </button>
+        </div>
+
+        {guestPool.length === 0 ? (
+          <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-500 text-sm border border-gray-700">
+            Nog geen gastspelers in de pool. Ze worden automatisch toegevoegd zodra je een gastspeler aan een wedstrijd toevoegt.
+          </div>
+        ) : (
+          <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+            {guestPool.map(entry => (
+              <div
+                key={entry.id}
+                className="flex items-center gap-3 p-3 sm:p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50"
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="font-bold text-sm sm:text-base">{entry.name}</span>
+                  <span className="text-xs text-gray-400 ml-2">{entry.times_played}× meegedaan</span>
+                </div>
+                <button
+                  onClick={() => handleRemoveFromPool(entry)}
+                  disabled={removingPoolId === entry.id}
+                  className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
+                >
+                  🗑️
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
