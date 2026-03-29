@@ -203,8 +203,11 @@ export function useStatCredits() {
     actorName?: string,
     subjectName?: string,
     prevStats?: Record<string, number>
-  ): Promise<boolean> => {
-    if (!currentTeam || balance === null || balance < totalCost || totalCost <= 0) return false;
+  ): Promise<{ success: boolean; errorMessage?: string }> => {
+    if (!currentTeam) return { success: false, errorMessage: 'Geen actief team gevonden.' };
+    if (balance === null) return { success: false, errorMessage: 'Creditbalans niet geladen. Ververs de pagina.' };
+    if (balance < totalCost) return { success: false, errorMessage: `Niet genoeg credits (nodig: ${totalCost}, beschikbaar: ${balance}).` };
+    if (totalCost <= 0) return { success: false, errorMessage: 'Ongeldige kosten.' };
 
     try {
       const newBalance = balance - totalCost;
@@ -245,9 +248,13 @@ export function useStatCredits() {
       }
 
       setBalance(newBalance);
-      return true;
-    } catch {
-      return false;
+      return { success: true };
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message :
+        (err !== null && typeof err === 'object' && 'message' in err) ? String((err as { message: unknown }).message) :
+        String(err);
+      return { success: false, errorMessage: msg };
     }
   }, [currentTeam, balance]);
 

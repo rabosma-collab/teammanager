@@ -513,15 +513,15 @@ export default function FootballApp() {
     actorName?: string,
     subjectName?: string,
     prevStats?: Record<string, number>
-  ): Promise<boolean> => {
-    if (!teamPlayerId) return false;
-    const success = await spendCreditsForStats(teamPlayerId, targetPlayerId, finalStats, totalCost, actorName, subjectName, prevStats);
-    if (success) {
+  ): Promise<{ success: boolean; errorMessage?: string }> => {
+    if (!teamPlayerId) return { success: false, errorMessage: 'Je bent niet gekoppeld aan een speler.' };
+    const result = await spendCreditsForStats(teamPlayerId, targetPlayerId, finalStats, totalCost, actorName, subjectName, prevStats);
+    if (result.success) {
       if (selectedMatch) fetchPlayers(selectedMatch.id);
       else fetchPlayers();
       fetchActivities();
     }
-    return success;
+    return result;
   }, [teamPlayerId, spendCreditsForStats, fetchPlayers, selectedMatch, fetchActivities]);
 
   const handleLogout = async () => {

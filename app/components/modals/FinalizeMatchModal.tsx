@@ -121,6 +121,9 @@ export default function FinalizeMatchModal({
     [tally]
   );
 
+  // Thuis/uit: bepaal volgorde uitslag
+  const isThuis = match.home_away === 'Thuis';
+
   // Berekend overzicht van stats per speler voor bevestig-stap
   const computedStats = useMemo(() => {
     const map = new Map<number, { player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>();
@@ -244,37 +247,57 @@ export default function FinalizeMatchModal({
               <div>
                 <div className="text-sm font-bold mb-2">Uitslag</div>
                 <div className="flex items-center gap-3">
+                  {/* Linker ploeg: eigen bij thuis, tegenstander bij uit */}
                   <div className="flex-1 text-center">
-                    <div className="text-xs text-gray-400 mb-2">{teamName}</div>
+                    <div className="text-xs text-gray-400 mb-2">
+                      {isThuis ? teamName : match.opponent}
+                      <span className="ml-1 text-gray-600">({isThuis ? 'thuis' : 'uit'})</span>
+                    </div>
                     <div className="flex items-center justify-center gap-3">
                       <button
-                        onClick={() => setGoalsFor(v => v === null || v === 0 ? null : v - 1)}
+                        onClick={() => isThuis
+                          ? setGoalsFor(v => v === null || v === 0 ? null : v - 1)
+                          : setGoalsAgainst(v => v === null || v === 0 ? null : v - 1)
+                        }
                         className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-2xl font-bold transition flex items-center justify-center"
-                        disabled={goalsFor === null}
+                        disabled={isThuis ? goalsFor === null : goalsAgainst === null}
                       >−</button>
                       <span className="text-4xl font-black w-10 text-center tabular-nums">
-                        {goalsFor ?? '–'}
+                        {(isThuis ? goalsFor : goalsAgainst) ?? '–'}
                       </span>
                       <button
-                        onClick={() => setGoalsFor(v => (v ?? -1) + 1)}
+                        onClick={() => isThuis
+                          ? setGoalsFor(v => (v ?? -1) + 1)
+                          : setGoalsAgainst(v => (v ?? -1) + 1)
+                        }
                         className="w-11 h-11 rounded-full bg-green-600 hover:bg-green-700 text-white text-2xl font-bold transition flex items-center justify-center"
                       >+</button>
                     </div>
                   </div>
                   <div className="text-gray-400 font-black text-xl">–</div>
+                  {/* Rechter ploeg: tegenstander bij thuis, eigen bij uit */}
                   <div className="flex-1 text-center">
-                    <div className="text-xs text-gray-400 mb-2">Tegenstander</div>
+                    <div className="text-xs text-gray-400 mb-2">
+                      {isThuis ? match.opponent : teamName}
+                      <span className="ml-1 text-gray-600">({isThuis ? 'uit' : 'thuis'})</span>
+                    </div>
                     <div className="flex items-center justify-center gap-3">
                       <button
-                        onClick={() => setGoalsAgainst(v => v === null || v === 0 ? null : v - 1)}
+                        onClick={() => isThuis
+                          ? setGoalsAgainst(v => v === null || v === 0 ? null : v - 1)
+                          : setGoalsFor(v => v === null || v === 0 ? null : v - 1)
+                        }
                         className="w-11 h-11 rounded-full bg-red-600 hover:bg-red-700 disabled:opacity-30 text-white text-2xl font-bold transition flex items-center justify-center"
-                        disabled={goalsAgainst === null}
+                        disabled={isThuis ? goalsAgainst === null : goalsFor === null}
                       >−</button>
                       <span className="text-4xl font-black w-10 text-center tabular-nums">
-                        {goalsAgainst ?? '–'}
+                        {(isThuis ? goalsAgainst : goalsFor) ?? '–'}
                       </span>
                       <button
-                        onClick={() => setGoalsAgainst(v => (v ?? -1) + 1)}
+                        onClick={() => isThuis
+                          ? setGoalsAgainst(v => (v ?? -1) + 1)
+                          : setGoalsFor(v => (v ?? -1) + 1)
+                        }
                         className="w-11 h-11 rounded-full bg-green-600 hover:bg-green-700 text-white text-2xl font-bold transition flex items-center justify-center"
                       >+</button>
                     </div>
@@ -292,44 +315,46 @@ export default function FinalizeMatchModal({
 
           {/* ─── STAP 2: DOELPUNTEN & ASSISTS (tally) ─── */}
           {currentStep === 'doelpunten' && (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-1 pt-1">
+              {/* Legenda */}
+              <div className="flex items-center gap-2 px-3 pb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+                <span className="flex-1">Speler</span>
+                <span className="w-20 text-center text-green-600">⚽ Goal</span>
+                {trackAssists && <span className="w-20 text-center text-blue-500">A Assist</span>}
+                <span className="w-20 text-center text-orange-500">EG Eigen</span>
+              </div>
               {selectablePlayers.map(player => {
                 const t = tally[player.id] ?? { goals: 0, assists: 0, own_goals: 0 };
                 const hasAny = t.goals > 0 || t.assists > 0 || t.own_goals > 0;
                 return (
                   <div
                     key={player.id}
-                    className={`px-3 py-2.5 rounded-lg transition ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition ${
                       hasAny ? 'bg-gray-700/70' : 'bg-gray-700/20'
                     }`}
                   >
-                    <span className={`block text-sm mb-2 ${hasAny ? 'font-bold text-white' : 'text-gray-400'}`}>
+                    <span className={`flex-1 text-sm truncate ${hasAny ? 'font-bold text-white' : 'text-gray-400'}`}>
                       {player.name}
                     </span>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 flex-1">
-                        <span className="text-xs text-gray-500 w-8">⚽</span>
+                    <div className="w-20 flex justify-center">
+                      <TallyCounter
+                        value={t.goals}
+                        onAdjust={d => adjustTally(player.id, 'goals', d)}
+                      />
+                    </div>
+                    {trackAssists && (
+                      <div className="w-20 flex justify-center">
                         <TallyCounter
-                          value={t.goals}
-                          onAdjust={d => adjustTally(player.id, 'goals', d)}
+                          value={t.assists}
+                          onAdjust={d => adjustTally(player.id, 'assists', d)}
                         />
                       </div>
-                      {trackAssists && (
-                        <div className="flex items-center gap-1.5 flex-1">
-                          <span className="text-xs text-gray-500 w-8">🅰️</span>
-                          <TallyCounter
-                            value={t.assists}
-                            onAdjust={d => adjustTally(player.id, 'assists', d)}
-                          />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1.5 flex-1">
-                        <span className="text-xs text-gray-500 w-8">🥅</span>
-                        <TallyCounter
-                          value={t.own_goals}
-                          onAdjust={d => adjustTally(player.id, 'own_goals', d)}
-                        />
-                      </div>
+                    )}
+                    <div className="w-20 flex justify-center">
+                      <TallyCounter
+                        value={t.own_goals}
+                        onAdjust={d => adjustTally(player.id, 'own_goals', d)}
+                      />
                     </div>
                   </div>
                 );
@@ -426,17 +451,32 @@ export default function FinalizeMatchModal({
             <div className="space-y-4 pt-1">
               {/* Score samenvatting */}
               <div className="p-3 bg-gray-700/50 rounded-lg text-center">
-                <div className="text-xs text-gray-400 mb-1">{match.opponent}</div>
                 {goalsFor !== null && goalsAgainst !== null ? (
-                  <div className="text-3xl font-black">
-                    <span className={goalsFor > goalsAgainst ? 'text-green-400' : goalsFor < goalsAgainst ? 'text-red-400' : 'text-yellow-400'}>
-                      {goalsFor}
-                    </span>
-                    <span className="text-gray-500 mx-2">–</span>
-                    <span className={goalsAgainst > goalsFor ? 'text-red-400' : goalsFor > goalsAgainst ? 'text-green-400' : 'text-yellow-400'}>
-                      {goalsAgainst}
-                    </span>
-                  </div>
+                  <>
+                    <div className="flex justify-between text-xs text-gray-400 mb-1 px-2">
+                      <span>{isThuis ? teamName : match.opponent}</span>
+                      <span>{isThuis ? match.opponent : teamName}</span>
+                    </div>
+                    <div className="text-3xl font-black">
+                      {(() => {
+                        const leftGoals  = isThuis ? goalsFor : goalsAgainst;
+                        const rightGoals = isThuis ? goalsAgainst : goalsFor;
+                        const win  = goalsFor > goalsAgainst;
+                        const lose = goalsFor < goalsAgainst;
+                        return (
+                          <>
+                            <span className={isThuis ? (win ? 'text-green-400' : lose ? 'text-red-400' : 'text-yellow-400') : (lose ? 'text-red-400' : win ? 'text-green-400' : 'text-yellow-400')}>
+                              {leftGoals}
+                            </span>
+                            <span className="text-gray-500 mx-2">–</span>
+                            <span className={isThuis ? (lose ? 'text-red-400' : win ? 'text-green-400' : 'text-yellow-400') : (win ? 'text-green-400' : lose ? 'text-red-400' : 'text-yellow-400')}>
+                              {rightGoals}
+                            </span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </>
                 ) : (
                   <div className="text-gray-500 text-sm">Geen uitslag ingevuld</div>
                 )}

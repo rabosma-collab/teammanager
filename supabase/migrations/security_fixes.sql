@@ -84,6 +84,8 @@ $$;
 -- ============================================================
 
 DROP POLICY IF EXISTS "players_update" ON players;
+DROP POLICY IF EXISTS "players_update_manager" ON players;
+DROP POLICY IF EXISTS "players_update_self" ON players;
 
 CREATE POLICY "players_update_manager"
   ON players FOR UPDATE

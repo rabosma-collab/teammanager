@@ -36,7 +36,7 @@ interface PlayerCardsViewProps {
   onUpdateStat: (id: number, field: string, value: string) => void;
   currentPlayerId?: number | null;
   creditBalance?: number | null;
-  onSaveStatDraft?: (targetPlayerId: number, finalStats: Record<string, number>, totalCost: number, actorName?: string, subjectName?: string, prevStats?: Record<string, number>) => Promise<boolean>;
+  onSaveStatDraft?: (targetPlayerId: number, finalStats: Record<string, number>, totalCost: number, actorName?: string, subjectName?: string, prevStats?: Record<string, number>) => Promise<{ success: boolean; errorMessage?: string }>;
   spdwWinnerPlayerIds?: number[];
 }
 
@@ -82,6 +82,7 @@ export default function PlayerCardsView({
   const [originalStats, setOriginalStats] = useState<Record<string, number> | null>(null);
   const [draftStats, setDraftStats] = useState<Record<string, number> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Teamsterren: gamesPlayed + wins per player (afgeronde wedstrijden)
   const [starData, setStarData] = useState<Record<number, { gamesPlayed: number; wins: number; draws: number }>>({});
@@ -156,6 +157,7 @@ export default function PlayerCardsView({
     }
     setOriginalStats(stats);
     setDraftStats({ ...stats });
+    setSaveError(null);
     setCreditEditingId(player.id);
   };
 
@@ -163,6 +165,7 @@ export default function PlayerCardsView({
     setCreditEditingId(null);
     setOriginalStats(null);
     setDraftStats(null);
+    setSaveError(null);
   };
 
   const handleSaveDraft = async (player: Player) => {
@@ -176,8 +179,9 @@ export default function PlayerCardsView({
 
     const actorPlayer = players.find(p => p.id === currentPlayerId);
     setIsSaving(true);
+    setSaveError(null);
     try {
-      const success = await onSaveStatDraft(
+      const result = await onSaveStatDraft(
         player.id,
         draftStats,
         cost,
@@ -185,12 +189,14 @@ export default function PlayerCardsView({
         player.name,
         originalStats
       );
-      if (success) {
+      if (result.success) {
         closeCreditPanel();
         // Trigger upgrade glow
         setJustUpgradedId(player.id);
         if (upgradeTimerRef.current) clearTimeout(upgradeTimerRef.current);
         upgradeTimerRef.current = setTimeout(() => setJustUpgradedId(null), 2200);
+      } else {
+        setSaveError(result.errorMessage ?? 'Onbekende fout bij opslaan.');
       }
     } finally {
       setIsSaving(false);
@@ -267,6 +273,9 @@ export default function PlayerCardsView({
           )}
         </div>
 
+        {saveError && (
+          <div className="text-xs text-red-400 text-center mb-1 leading-tight">{saveError}</div>
+        )}
         <button
           onClick={() => handleSaveDraft(player)}
           disabled={!canSave}

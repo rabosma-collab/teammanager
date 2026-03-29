@@ -309,9 +309,32 @@ export default function DashboardView({
           (matchVotes[vote.match_id][vote.voted_for_player_id] || 0) + 1;
       }
 
-      // Tel wedstrijden waarbij currentPlayerId de meeste stemmen had
+      const matchIds = Object.keys(matchVotes).map(Number);
+      if (matchIds.length === 0) { setPotwWins(0); setPotwReady(true); return; }
+
+      // Haal wedstrijddatums op om te bepalen of de stemperiode al voorbij is
+      const { data: matchData } = await supabase
+        .from('matches')
+        .select('id, date')
+        .in('id', matchIds);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Bouw set van match_ids waarvan de stemperiode is afgesloten (datum + 4 dagen < vandaag)
+      const closedMatchIds = new Set<number>();
+      for (const m of (matchData || [])) {
+        const matchDate = new Date(m.date);
+        matchDate.setHours(0, 0, 0, 0);
+        const deadline = new Date(matchDate);
+        deadline.setDate(deadline.getDate() + 4);
+        if (today > deadline) closedMatchIds.add(m.id);
+      }
+
+      // Tel alleen wins van afgesloten stemronden (niet lopende)
       let wins = 0;
-      for (const votes of Object.values(matchVotes)) {
+      for (const [matchIdStr, votes] of Object.entries(matchVotes)) {
+        if (!closedMatchIds.has(parseInt(matchIdStr))) continue;
         const values = Object.values(votes);
         if (values.length === 0) continue;
         const maxVotes = Math.max(...values);
