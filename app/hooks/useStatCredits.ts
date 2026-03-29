@@ -24,6 +24,11 @@ export function useStatCredits() {
 
     if (!error && data) return data.balance;
 
+    // Alleen een nieuwe rij aanmaken als de rij écht niet bestaat (PGRST116).
+    // Bij andere fouten (netwerk, RLS) terugvallen op 0 om te voorkomen dat
+    // INITIAL_BALANCE wordt geretourneerd terwijl de rij wél bestaat.
+    if (error?.code !== 'PGRST116') return 0;
+
     // No row yet — create with initial balance
     const { error: insertError } = await supabase
       .from('stat_credits')
