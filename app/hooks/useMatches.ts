@@ -17,7 +17,8 @@ export function useMatches() {
     setMatches([]);
     setSelectedMatch(null);
     setMatchAbsences([]);
-    setLoading(true);
+    // Geen team = niet aan het laden; mét team = wacht op fetchMatches
+    setLoading(!!currentTeam?.id);
   }, [currentTeam?.id]);
 
   const fetchMatches = useCallback(async (seasonId?: number | null) => {

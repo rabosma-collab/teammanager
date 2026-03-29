@@ -919,9 +919,11 @@ export default function FootballApp() {
   }, [selectedMatch, fetchSubstitutions]);
 
   // ---- LOADING ----
-  if (authChecking || teamLoading) {
+  // Één gecombineerde loading-gate voorkomt dat React twee identieke schermen
+  // afwisselend mount/unmount (authChecking → teamLoading → matchLoading).
+  if (authChecking || teamLoading || loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+      <div className="flex items-center justify-center h-screen bg-gray-900 text-white screen-fade-in">
         <div className="text-center">
           <img src="/logo-full.png" alt="Team Manager" className="h-16 mb-4 mx-auto" />
           <div>Laden...</div>
@@ -944,20 +946,9 @@ export default function FootballApp() {
     return <WelcomeScreen onLogout={handleLogout} onNavigateToNew={() => router.push('/team/new')} />;
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
-        <div className="text-center">
-          <img src="/logo-full.png" alt="Team Manager" className="h-16 mb-4 mx-auto" />
-          <div>Laden...</div>
-        </div>
-      </div>
-    );
-  }
-
   // ---- RENDER ----
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
+    <div className="flex flex-col h-screen bg-gray-900 text-white screen-fade-in">
       <Navbar
         view={view}
         setView={handleSetView}
@@ -1217,6 +1208,7 @@ export default function FootballApp() {
       )}
 
       {/* === VIEWS === */}
+      <div key={view} className="flex-1 overflow-hidden flex flex-col screen-fade-in">
       {view === 'instructions' && isManager ? (
         <InstructionsView
           gameFormat={gameFormat}
@@ -1767,6 +1759,7 @@ export default function FootballApp() {
           <StatsView players={players} isAdmin={isManager} onUpdateStat={updateStat} teamSettings={teamSettings} />
         </div>
       )}
+      </div>{/* end key={view} views wrapper */}
 
 
     </div>

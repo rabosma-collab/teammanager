@@ -35,6 +35,15 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
+/* Animation for screen / view transitions */
+@keyframes screenFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.screen-fade-in {
+  animation: screenFadeIn 0.25s ease-out forwards;
+}
+
 /* Prevent text selection on all buttons and interactive elements */
 button,
 [role="button"] {

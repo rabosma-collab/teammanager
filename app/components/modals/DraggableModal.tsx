@@ -83,16 +83,16 @@ export default function DraggableModal({ onClose, children, className = '' }: Dr
       {/* Sleepbare modal-container */}
       <div
         ref={modalRef}
-        className={`fixed z-50 bg-gray-800 rounded-xl shadow-2xl overflow-hidden ${className}`}
+        className={`fixed z-50 bg-gray-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(90dvh-2rem)] ${className}`}
         style={style}
       >
         {/* Drag handle */}
         <div
-          className="flex items-center justify-between px-3 py-1.5 bg-gray-700/60 border-b border-gray-700 cursor-grab active:cursor-grabbing select-none touch-none"
+          className="flex-shrink-0 flex items-center justify-between px-3 py-1.5 bg-gray-700/60 border-b border-gray-700 cursor-grab active:cursor-grabbing select-none touch-none"
           onMouseDown={(e) => { handleDragStart(e.clientX, e.clientY); e.preventDefault(); }}
           onTouchStart={(e) => { const t = e.touches[0]; handleDragStart(t.clientX, t.clientY); }}
         >
-          <span className="text-gray-500 text-base leading-none tracking-widest">⠿ ⠿</span>
+          <span className="text-gray-500 text-base leading-none">⠿</span>
           {onClose && (
             <button
               type="button"
@@ -104,7 +104,9 @@ export default function DraggableModal({ onClose, children, className = '' }: Dr
           )}
         </div>
 
-        {children}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {children}
+        </div>
       </div>
     </>
   );
