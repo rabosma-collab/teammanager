@@ -794,6 +794,31 @@ export default function FootballApp() {
         await updateMatchReport(selectedMatch.id, params.matchReport);
       }
 
+      // 5. Taaktellers ophogen (wasbeurt, consumpties, vervoer)
+      const trackWas  = teamSettings?.track_wasbeurt   ?? true;
+      const trackCons = teamSettings?.track_consumpties ?? true;
+      const trackVerv = (teamSettings?.track_vervoer   ?? true) && selectedMatch.home_away !== 'Thuis';
+
+      if (trackWas && wasbeurtDisplayPlayer && !wasbeurtDisplayPlayer.is_guest) {
+        await supabase.from('players')
+          .update({ wash_count: wasbeurtDisplayPlayer.wash_count + 1 })
+          .eq('id', wasbeurtDisplayPlayer.id);
+      }
+      if (trackCons && consumptiesDisplayPlayer && !consumptiesDisplayPlayer.is_guest) {
+        await supabase.from('players')
+          .update({ consumption_count: consumptiesDisplayPlayer.consumption_count + 1 })
+          .eq('id', consumptiesDisplayPlayer.id);
+      }
+      if (trackVerv) {
+        for (const p of vervoerDisplayPlayers) {
+          if (p && !p.is_guest) {
+            await supabase.from('players')
+              .update({ transport_count: p.transport_count + 1 })
+              .eq('id', p.id);
+          }
+        }
+      }
+
       // Update lokale state
       const updatedMatchFields = {
         match_status: 'afgerond' as const,
