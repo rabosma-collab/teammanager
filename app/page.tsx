@@ -1579,10 +1579,10 @@ export default function FootballApp() {
               )}
 
               {activelyEditing && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 w-full">
                   <button
                     onClick={handleLoadPreviousLineup}
-                    className="px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm"
+                    className="flex-1 px-3 py-2 rounded font-bold bg-gray-700 hover:bg-gray-600 text-sm"
                   >
                     Kopieer opstelling vorige wedstrijd
                   </button>
