@@ -141,7 +141,7 @@ export default function FootballApp() {
   // ---- HOOKS ----
   const {
     players, fetchPlayers,
-    toggleInjury, addGuestPlayer, removeGuestPlayer, updateStat,
+    toggleInjury, guestPool, fetchGuestPool, addToPool, removeFromPool, addGuestPlayer, removeGuestPlayer, updateStat,
     addPlayer, updatePlayer, deletePlayer
   } = usePlayers();
 
@@ -1025,7 +1025,7 @@ export default function FootballApp() {
       )}
 
       {showGuestModal && isManager && (
-        <GuestPlayerModal onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
+        <GuestPlayerModal guestPool={guestPool} onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
       )}
 
       {showSelectionModal && (
@@ -1055,7 +1055,7 @@ export default function FootballApp() {
               toast.error('❌ Kon gastspeler niet verwijderen');
             }
           }}
-          onAddGuest={() => { setShowSelectionModal(false); setShowGuestModal(true); }}
+          onAddGuest={() => { setShowSelectionModal(false); fetchGuestPool(); setShowGuestModal(true); }}
           onClose={() => setShowSelectionModal(false)}
         />
       )}
@@ -1255,6 +1255,10 @@ export default function FootballApp() {
             onUpdatePlayer={updatePlayer}
             onDeletePlayer={deletePlayer}
             onRefresh={() => selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers()}
+            guestPool={guestPool}
+            onAddToPool={addToPool}
+            onRemoveFromPool={removeFromPool}
+            onRefreshPool={fetchGuestPool}
           />
         </div>
       ) : view === 'invites' && isManager ? (

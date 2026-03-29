@@ -6,15 +6,43 @@ import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
 import { logActivity } from '../lib/logActivity';
 
+export interface GuestPoolEntry {
+  id: number;
+  name: string;
+  times_played: number;
+  last_used: string;
+}
+
 export function usePlayers() {
   const { currentTeam } = useTeamContext();
   const toast = useToast();
   const [players, setPlayers] = useState<Player[]>([]);
+  const [guestPool, setGuestPool] = useState<GuestPoolEntry[]>([]);
   const fetchIdRef = useRef(0);
 
   useEffect(() => {
     setPlayers([]);
+    setGuestPool([]);
   }, [currentTeam?.id]);
+
+  const fetchGuestPool = useCallback(async (): Promise<GuestPoolEntry[]> => {
+    if (!currentTeam) return [];
+    try {
+      const { data, error } = await supabase
+        .from('guest_player_pool')
+        .select('id, name, times_played, last_used')
+        .eq('team_id', currentTeam.id)
+        .order('last_used', { ascending: false });
+
+      if (error) throw error;
+      const pool = (data as GuestPoolEntry[]) || [];
+      setGuestPool(pool);
+      return pool;
+    } catch (error) {
+      console.error('Error fetching guest pool:', error);
+      return [];
+    }
+  }, [currentTeam]);
 
   const fetchPlayers = useCallback(async (matchId?: number) => {
     if (!currentTeam) return [];
@@ -179,6 +207,41 @@ export function usePlayers() {
         .select();
 
       if (error) throw error;
+
+      // Upsert in pool: nieuw toevoegen of times_played verhogen via RPC
+      const now = new Date().toISOString();
+      const { data: existingPool } = await supabase
+        .from('guest_player_pool')
+        .select('id, times_played')
+        .eq('team_id', currentTeam.id)
+        .eq('name', trimmedName)
+        .maybeSingle();
+
+      if (existingPool) {
+        await supabase
+          .from('guest_player_pool')
+          .update({ times_played: existingPool.times_played + 1, last_used: now })
+          .eq('id', existingPool.id);
+      } else {
+        await supabase
+          .from('guest_player_pool')
+          .insert({ team_id: currentTeam.id, name: trimmedName, times_played: 1, last_used: now });
+      }
+
+      // Lokale pool bijwerken
+      setGuestPool(prev => {
+        const existing = prev.find(e => e.name.toLowerCase() === trimmedName.toLowerCase());
+        if (existing) {
+          return prev
+            .map(e => e.name.toLowerCase() === trimmedName.toLowerCase()
+              ? { ...e, times_played: e.times_played + 1, last_used: now }
+              : e
+            )
+            .sort((a, b) => b.last_used.localeCompare(a.last_used));
+        }
+        return [{ id: existingPool?.id ?? 0, name: trimmedName, times_played: 1, last_used: now }, ...prev];
+      });
+
       return true;
     } catch (error) {
       console.error('Error adding guest player:', error);
@@ -320,11 +383,58 @@ export function usePlayers() {
     }
   }, [currentTeam]);
 
+  const addToPool = useCallback(async (name: string): Promise<boolean> => {
+    if (!currentTeam) return false;
+    const trimmedName = name.trim();
+    if (!trimmedName) return false;
+
+    try {
+      const { error } = await supabase
+        .from('guest_player_pool')
+        .insert({ team_id: currentTeam.id, name: trimmedName, times_played: 0, last_used: new Date().toISOString() });
+
+      if (error) throw error;
+
+      setGuestPool(prev => [
+        { id: 0, name: trimmedName, times_played: 0, last_used: new Date().toISOString() },
+        ...prev,
+      ]);
+      return true;
+    } catch (error) {
+      console.error('Error adding to guest pool:', error);
+      return false;
+    }
+  }, [currentTeam]);
+
+  const removeFromPool = useCallback(async (poolId: number): Promise<boolean> => {
+    if (!currentTeam) return false;
+
+    try {
+      const { error } = await supabase
+        .from('guest_player_pool')
+        .delete()
+        .eq('id', poolId)
+        .eq('team_id', currentTeam.id);
+
+      if (error) throw error;
+
+      setGuestPool(prev => prev.filter(e => e.id !== poolId));
+      return true;
+    } catch (error) {
+      console.error('Error removing from guest pool:', error);
+      return false;
+    }
+  }, [currentTeam]);
+
   return {
     players,
     fetchPlayers,
     getGroupedPlayers,
     toggleInjury,
+    guestPool,
+    fetchGuestPool,
+    addToPool,
+    removeFromPool,
     addGuestPlayer,
     removeGuestPlayer,
     updateStat,
