@@ -69,7 +69,7 @@ export default function SubstitutionModal({
         // Check if a guest player with this ID was in the starting lineup (field or bench).
         // This correctly handles guest/regular ID collisions: a guest on the field takes precedence.
         const guestStarter =
-          fieldOccupants.find((p): p is Player => p !== null && p.is_guest && p.id === s.player_out_id) ??
+          fieldOccupants.find((p): p is Player => p !== null && !!p.is_guest && p.id === s.player_out_id) ??
           benchPlayers.find(p => p.is_guest && p.id === s.player_out_id);
         if (guestStarter) return guestStarter;
         return players.find(p => p.id === s.player_out_id && !p.is_guest);
