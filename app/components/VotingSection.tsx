@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Player, VotingMatch } from '../lib/types';
 import { useToast } from '../contexts/ToastContext';
 import InfoButton from './InfoButton';
+import { displayScore } from '../lib/constants';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -9,8 +10,9 @@ function buildShareText(vm: VotingMatch): string {
   const { match, votes, daysRemaining } = vm;
   const isClosed = daysRemaining === 0;
   const prefix = match.home_away === 'Thuis' ? 'Thuis vs' : 'Uit bij';
-  const scoreStr = match.goals_for != null && match.goals_against != null
-    ? ` (${match.goals_for}–${match.goals_against})`
+  const { left: sl, right: sr } = displayScore(match.goals_for, match.goals_against, match.home_away);
+  const scoreStr = sl != null && sr != null
+    ? ` (${sl}–${sr})`
     : '';
   const dateStr = new Date(match.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
   const topVotes = votes.filter(v => v.vote_count > 0).sort((a, b) => b.vote_count - a.vote_count);
@@ -155,11 +157,14 @@ export default function VotingSection({
                 <div>
                   <div className="font-bold text-base sm:text-lg text-white flex items-center gap-2">
                     {vm.match.home_away === 'Thuis' ? 'Thuis' : 'Uit'} vs {vm.match.opponent}
-                    {vm.match.goals_for != null && vm.match.goals_against != null && (
-                      <span className="text-yellow-400 font-black text-base">
-                        {vm.match.goals_for} – {vm.match.goals_against}
-                      </span>
-                    )}
+                    {vm.match.goals_for != null && vm.match.goals_against != null && (() => {
+                      const { left, right } = displayScore(vm.match.goals_for, vm.match.goals_against, vm.match.home_away);
+                      return (
+                        <span className="text-yellow-400 font-black text-base">
+                          {left} – {right}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {new Date(vm.match.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}

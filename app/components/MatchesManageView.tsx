@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { formationLabels } from '../lib/constants';
+import { formationLabels, displayScore } from '../lib/constants';
 import type { Match } from '../lib/types';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import { useToast } from '../contexts/ToastContext';
@@ -384,12 +384,15 @@ export default function MatchesManageView({
                         🚫 Geannuleerd
                       </span>
                     )}
-                    {(isFinalized || isCancelled) && match.goals_for != null && match.goals_against != null && (
-                      <span className="ml-2 text-sm font-black text-yellow-400">
-                        {match.goals_for} – {match.goals_against}
-                        {isCancelled && <span className="ml-1 text-xs font-normal text-orange-400">(W.O.)</span>}
-                      </span>
-                    )}
+                    {(isFinalized || isCancelled) && match.goals_for != null && match.goals_against != null && (() => {
+                      const { left, right } = displayScore(match.goals_for, match.goals_against, match.home_away);
+                      return (
+                        <span className="ml-2 text-sm font-black text-yellow-400">
+                          {left} – {right}
+                          {isCancelled && <span className="ml-1 text-xs font-normal text-orange-400">(W.O.)</span>}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
                     <span>📅 {matchDate.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</span>

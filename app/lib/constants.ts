@@ -22,6 +22,22 @@ export function computeSubMomentMinutes(n: number, matchDuration: number): numbe
   );
 }
 
+/**
+ * Geeft de uitslag terug in de juiste weergavevolgorde.
+ * Thuiswedstrijd: eigen team links, tegenstander rechts.
+ * Uitwedstrijd: tegenstander links (thuisploeg), eigen team rechts.
+ */
+export function displayScore(
+  goalsFor: number | null | undefined,
+  goalsAgainst: number | null | undefined,
+  homeAway: string
+): { left: number | null; right: number | null } {
+  const gf = goalsFor ?? null;
+  const ga = goalsAgainst ?? null;
+  if (homeAway === 'Thuis') return { left: gf, right: ga };
+  return { left: ga, right: gf };
+}
+
 export const DEFAULT_FORMATIONS: Record<string, string> = {
   '4v4':   '2-2',
   '5v5':   '2-2',

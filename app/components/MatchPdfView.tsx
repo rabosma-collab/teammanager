@@ -2,7 +2,7 @@
 
 import React, { forwardRef } from 'react';
 import type { Match, Player, Substitution, PositionInstruction, SubstitutionScheme } from '../lib/types';
-import { formationLabels, positionEmojis, getPositionCategory } from '../lib/constants';
+import { formationLabels, positionEmojis, getPositionCategory, displayScore } from '../lib/constants';
 
 interface MatchPdfViewProps {
   match: Match;
@@ -109,11 +109,14 @@ const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function Matc
         <div style={{ fontSize: '14px', color: '#9ca3af' }}>
           {formatDate(match.date)} · {match.home_away} · {formationLabels[gameFormat]?.[match.formation] ?? match.formation}
         </div>
-        {match.goals_for != null && match.goals_against != null && (
-          <div style={{ fontSize: '22px', fontWeight: 900, color: '#facc15', marginTop: '6px' }}>
-            {match.goals_for} – {match.goals_against}
-          </div>
-        )}
+        {match.goals_for != null && match.goals_against != null && (() => {
+          const { left, right } = displayScore(match.goals_for, match.goals_against, match.home_away);
+          return (
+            <div style={{ fontSize: '22px', fontWeight: 900, color: '#facc15', marginTop: '6px' }}>
+              {left} – {right}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Opstelling */}

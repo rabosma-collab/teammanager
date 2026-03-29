@@ -8,6 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import ImportMatchesModal from './modals/ImportMatchesModal';
+import { displayScore } from '../lib/constants';
 
 interface UitslagenViewProps {
   matches: Match[];
@@ -699,18 +700,24 @@ export default function UitslagenView({
                         )}
                       </div>
                     </div>
-                    {trackResults && match.goals_for != null && match.goals_against != null ? (
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <ResultBadge result={result} />
-                        <span className="font-black text-base">
-                          <span className={result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400'}>
-                            {match.goals_for}
+                    {trackResults && match.goals_for != null && match.goals_against != null ? (() => {
+                      const { left, right } = displayScore(match.goals_for, match.goals_against, match.home_away);
+                      const isHome = match.home_away === 'Thuis';
+                      return (
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <ResultBadge result={result} />
+                          <span className="font-black text-base">
+                            <span className={isHome ? (result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400') : 'text-white'}>
+                              {left}
+                            </span>
+                            <span className="text-gray-500 mx-1">–</span>
+                            <span className={!isHome ? (result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400') : 'text-white'}>
+                              {right}
+                            </span>
                           </span>
-                          <span className="text-gray-500 mx-1">–</span>
-                          <span>{match.goals_against}</span>
-                        </span>
-                      </div>
-                    ) : (
+                        </div>
+                      );
+                    })() : (
                       <span className="text-xs text-gray-600">geen uitslag</span>
                     )}
                     <span className="text-gray-500 text-xs ml-1">{isExpanded ? '▲' : '▼'}</span>
