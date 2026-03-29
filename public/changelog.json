@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-03-29",
+    "title": "Vloeiendere app-start",
+    "items": [
+      "De app opent nu zonder flitsende schermen: loading-fasen zijn samengevoegd tot één soepele overgang",
+      "Elk scherm en elke navigatie fadet zacht in voor een professionelere uitstraling"
+    ]
+  },
+  {
+    "date": "2026-03-29",
     "title": "Wedstrijd afsluiten verbeterd",
     "items": [
       "De uitslag volgt nu automatisch de juiste volgorde: bij een thuiswedstrijd staat de eigen ploeg links, bij een uitwedstrijd rechts",
@@ -10,10 +18,11 @@
   },
   {
     "date": "2026-03-29",
-    "title": "Beschikbaarheid delen",
+    "title": "Beschikbaarheid & SVDW delen",
     "items": [
-      "Managers kunnen de selectie-aanwezigheid nu eenvoudig delen via een subtiele deelknop (📤) in het beschikbaarheidspaneel op de homepage",
-      "Het gedeelde bericht vermeldt de tegenstander, datum en een oproep om de status te controleren en zich indien nodig af te melden via de app of tmvoetbal.nl"
+      "Managers kunnen de selectie-aanwezigheid delen via een subtiele deelknop (📤) in het beschikbaarheidspaneel — het bericht vermeldt tegenstander, datum en een oproep om status te controleren",
+      "Bij een open SVDW-stemronde kun je de stemming delen inclusief voorlopige stand en oproep om te stemmen",
+      "Bij een gesloten stemronde deel je de einduitslag met winnaar en top 3"
     ]
   },
   {

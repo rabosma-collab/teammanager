@@ -3,6 +3,49 @@ import type { Player, VotingMatch } from '../lib/types';
 import { useToast } from '../contexts/ToastContext';
 import InfoButton from './InfoButton';
 
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+function buildShareText(vm: VotingMatch): string {
+  const { match, votes, daysRemaining } = vm;
+  const isClosed = daysRemaining === 0;
+  const prefix = match.home_away === 'Thuis' ? 'Thuis vs' : 'Uit bij';
+  const scoreStr = match.goals_for != null && match.goals_against != null
+    ? ` (${match.goals_for}–${match.goals_against})`
+    : '';
+  const dateStr = new Date(match.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+  const topVotes = votes.filter(v => v.vote_count > 0).sort((a, b) => b.vote_count - a.vote_count);
+
+  if (isClosed) {
+    const winner = topVotes[0];
+    const rest = topVotes.slice(1, 3);
+    const winnerLine = winner
+      ? `🏆 Winnaar: ${winner.player_name} (${winner.vote_count} ${winner.vote_count === 1 ? 'stem' : 'stemmen'})`
+      : '🏆 Geen stemmen uitgebracht';
+    const restLines = rest.map((v, i) => `${MEDALS[i + 1]} ${v.player_name} — ${v.vote_count} ${v.vote_count === 1 ? 'stem' : 'stemmen'}`).join('\n');
+    return [
+      `🏆 Speler van de Week — ${prefix} ${match.opponent}${scoreStr}`,
+      `📅 ${dateStr}`,
+      '',
+      winnerLine,
+      restLines ? `\n${restLines}` : '',
+      '',
+      'Bekijk de volledige stand via de app of op tmvoetbal.nl',
+    ].filter(l => l !== undefined).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  } else {
+    const standLines = topVotes.slice(0, 3).map((v, i) => `${MEDALS[i]} ${v.player_name} — ${v.vote_count} ${v.vote_count === 1 ? 'stem' : 'stemmen'}`).join('\n');
+    const dagLabel = daysRemaining === 1 ? 'dag' : 'dagen';
+    return [
+      `🏆 Stem op de Speler van de Week!`,
+      `⚽ ${prefix} ${match.opponent}${scoreStr} · ${dateStr}`,
+      '',
+      `Nog ${daysRemaining} ${dagLabel} om je stem uit te brengen. Wie verdiende de meeste credits?`,
+      topVotes.length > 0 ? `\n📊 Voorlopige stand:\n${standLines}` : '',
+      '',
+      'Stem via de app of op tmvoetbal.nl',
+    ].filter(l => l !== undefined).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+}
+
 const POINTS_BY_RANK = [5, 3, 2];
 
 function getDenseRank(voteCount: number, allEntries: { vote_count: number }[]): number {
@@ -34,6 +77,22 @@ export default function VotingSection({
 }: VotingSectionProps) {
   const toast = useToast();
   const [selectedVotes, setSelectedVotes] = useState<Record<number, number>>({});
+  const [shareToasts, setShareToasts] = useState<Record<number, string | null>>({});
+
+  const handleShare = async (vm: VotingMatch) => {
+    const text = buildShareText(vm);
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+      } catch {
+        // gebruiker heeft geannuleerd
+      }
+    } else {
+      await navigator.clipboard.writeText(text);
+      setShareToasts(prev => ({ ...prev, [vm.match.id]: 'Gekopieerd naar klembord!' }));
+      setTimeout(() => setShareToasts(prev => ({ ...prev, [vm.match.id]: null })), 2500);
+    }
+  };
 
   if (votingMatches.length === 0 && !isLoading) return null;
 
@@ -106,16 +165,31 @@ export default function VotingSection({
                     {new Date(vm.match.date).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </div>
                 </div>
-                {isClosed ? (
-                  <span className="text-xs px-2 py-1 rounded bg-gray-700/60 border border-gray-600 text-gray-400 whitespace-nowrap">
-                    Stemming gesloten
-                  </span>
-                ) : (
-                  <span className="text-xs px-2 py-1 rounded bg-yellow-900/50 border border-yellow-700/50 text-yellow-400 whitespace-nowrap">
-                    Nog {vm.daysRemaining} {vm.daysRemaining === 1 ? 'dag' : 'dagen'}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {isClosed ? (
+                    <span className="text-xs px-2 py-1 rounded bg-gray-700/60 border border-gray-600 text-gray-400 whitespace-nowrap">
+                      Stemming gesloten
+                    </span>
+                  ) : (
+                    <span className="text-xs px-2 py-1 rounded bg-yellow-900/50 border border-yellow-700/50 text-yellow-400 whitespace-nowrap">
+                      Nog {vm.daysRemaining} {vm.daysRemaining === 1 ? 'dag' : 'dagen'}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handleShare(vm)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-700 transition touch-manipulation active:scale-95"
+                    title={isClosed ? 'Deel uitslag' : 'Deel stemming'}
+                  >
+                    <span>📤</span>
+                    <span className="hidden sm:inline">{isClosed ? 'Uitslag' : 'Delen'}</span>
+                  </button>
+                </div>
               </div>
+              {shareToasts[vm.match.id] && (
+                <div className="mb-2 text-center text-xs text-green-400 font-semibold animate-pulse">
+                  ✅ {shareToasts[vm.match.id]}
+                </div>
+              )}
 
               {/* Stemming gesloten — winnaar announcement */}
               {isClosed && (
