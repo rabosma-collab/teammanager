@@ -1,5 +1,30 @@
 [
   {
+    "date": "2026-03-29",
+    "title": "Wedstrijd afsluiten verbeterd",
+    "items": [
+      "De uitslag volgt nu automatisch de juiste volgorde: bij een thuiswedstrijd staat de eigen ploeg links, bij een uitwedstrijd rechts",
+      "De doelpunten-stap is compacter: alle tellers staan nu op één rij per speler, zodat je minder hoeft te scrollen op mobiel",
+      "De labels 'Goal', 'Assist' en 'EG' vervangen de onduidelijke emoji-iconen"
+    ]
+  },
+  {
+    "date": "2026-03-29",
+    "title": "Beschikbaarheid delen",
+    "items": [
+      "Managers kunnen de selectie-aanwezigheid nu eenvoudig delen via een subtiele deelknop (📤) in het beschikbaarheidspaneel op de homepage",
+      "Het gedeelde bericht vermeldt de tegenstander, datum en een oproep om de status te controleren en zich indien nodig af te melden via de app of tmvoetbal.nl"
+    ]
+  },
+  {
+    "date": "2026-03-29",
+    "title": "Bugfix: SVDW-teller gecorrigeerd",
+    "items": [
+      "De SVDW-teller op je profielkaart toont nu alleen het aantal keer dat je daadwerkelijk Speler van de Week bent geworden (meeste stemmen na een afgesloten stemronde)",
+      "Stemmen tijdens een lopende stemronde tellen pas mee als de stemperiode voorbij is"
+    ]
+  },
+  {
     "date": "2026-03-27",
     "title": "Teamsterren verbeterd",
     "items": [

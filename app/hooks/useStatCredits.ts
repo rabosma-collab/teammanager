@@ -250,7 +250,10 @@ export function useStatCredits() {
       setBalance(newBalance);
       return { success: true };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg =
+        err instanceof Error ? err.message :
+        (err !== null && typeof err === 'object' && 'message' in err) ? String((err as { message: unknown }).message) :
+        String(err);
       return { success: false, errorMessage: msg };
     }
   }, [currentTeam, balance]);

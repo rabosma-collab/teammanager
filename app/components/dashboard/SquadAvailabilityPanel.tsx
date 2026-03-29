@@ -5,6 +5,14 @@ import type { Match, Player } from '../../lib/types';
 import { positionEmojis, positionOrder } from '../../lib/constants';
 import InfoButton from '../InfoButton';
 
+function formatShareDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('nl-NL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
 interface PlayerRowProps {
   player: Player;
   isAbsent: boolean;
@@ -44,6 +52,23 @@ export default function SquadAvailabilityPanel({
   onNavigateToWedstrijd,
 }: SquadAvailabilityPanelProps) {
   const [expanded, setExpanded] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
+
+  const handleShareAvailability = async () => {
+    const dateStr = formatShareDate(match.date);
+    const text = `Dit is de beschikbaarheid voor aankomende wedstrijd tegen ${match.opponent} op ${dateStr}. Controleer je status. Als de status niet klopt, meld je dan af via de app of via tmvoetbal.nl`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+      } catch {
+        // gebruiker heeft geannuleerd
+      }
+    } else {
+      await navigator.clipboard.writeText(text);
+      setShareToast('Gekopieerd naar klembord!');
+      setTimeout(() => setShareToast(null), 2500);
+    }
+  };
 
   const regularPlayers = players.filter(p => !p.is_guest);
 
@@ -76,10 +101,27 @@ export default function SquadAvailabilityPanel({
             </div>
           </InfoButton>
         </div>
-        <span className="text-xs text-gray-500">
-          {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">
+            {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+          </span>
+          {isManager && (
+            <button
+              onClick={handleShareAvailability}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-700 transition touch-manipulation active:scale-95"
+              title="Deel beschikbaarheid"
+            >
+              <span>📤</span>
+              <span className="hidden sm:inline">Delen</span>
+            </button>
+          )}
+        </div>
       </div>
+      {shareToast && (
+        <div className="mb-2 text-center text-xs text-green-400 font-semibold animate-pulse">
+          ✅ {shareToast}
+        </div>
+      )}
 
       {/* Totalen */}
       <div className="grid grid-cols-3 gap-2">
