@@ -40,6 +40,18 @@ const STAT_LABELS: Record<string, string> = {
   played_min: '⏱️ Ges. min',
 };
 
+const STAT_LABELS_SHORT: Record<string, string> = {
+  goals: '⚽ Goals',
+  assists: '🅰️ Assists',
+  wash_count: '🧼 Was',
+  consumption_count: '🥤 Cons.',
+  transport_count: '🚗 Verv.',
+  yellow_cards: '🟨 Geel',
+  red_cards: '🟥 Rood',
+  min: '🔄 Wissel',
+  played_min: '⏱️ Min',
+};
+
 interface EditingCell {
   playerId: number;
   playerName: string;
@@ -53,6 +65,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
   const [filterPosition, setFilterPosition] = useState<PositionFilter>('all');
   const [isEditing, setIsEditing] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [mobileStatField, setMobileStatField] = useState<string | null>(null);
 
   const regularPlayers = useMemo(
     () => players.filter(p => !p.is_guest && (filterPosition === 'all' || p.position === filterPosition)),
@@ -74,7 +87,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
           cmp = (a.injured ? 1 : 0) - (b.injured ? 1 : 0);
           break;
         default:
-          cmp = a[sortKey] - b[sortKey];
+          cmp = (a[sortKey] ?? 0) - (b[sortKey] ?? 0);
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -149,52 +162,141 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
     ...(trackPlayedMinutes  ? [{ key: 'played_min'        as SortKey, label: 'Ges. min'   }] : []),
   ];
 
+  // Mobile: active stat (default to first available)
+  const activeMobileStat = mobileStatField ?? statFields[0] ?? null;
+
+  const mobileSortedPlayers = useMemo(() => {
+    if (!activeMobileStat) return regularPlayers;
+    return [...regularPlayers].sort((a, b) => {
+      const diff = ((b as unknown as Record<string, number>)[activeMobileStat] ?? 0) - ((a as unknown as Record<string, number>)[activeMobileStat] ?? 0);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    });
+  }, [regularPlayers, activeMobileStat]);
+
+  const sharedHeader = (
+    <div className="flex items-center justify-between mb-4 sm:mb-6">
+      <h2 className="text-2xl sm:text-3xl font-bold">📊 Ranglijst</h2>
+      {isAdmin && (
+        <button
+          onClick={toggleEditMode}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition ${
+            isEditing
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+          }`}
+        >
+          {isEditing ? '✓ Klaar' : '✏️ Bewerken'}
+        </button>
+      )}
+    </div>
+  );
+
+  const positionFilterBar = (
+    <div className="flex flex-wrap gap-2 mb-4">
+      {POSITION_FILTERS.map(f => (
+        <button
+          key={f.value}
+          onClick={() => setFilterPosition(f.value)}
+          className={`px-3 py-1.5 rounded-full text-sm font-bold transition ${
+            filterPosition === f.value
+              ? 'bg-yellow-500 text-black'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          {f.label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="p-4 sm:p-8">
-      <div className="flex items-center justify-between mb-4 sm:mb-6">
-        <h2 className="text-2xl sm:text-3xl font-bold">📊 Ranglijst</h2>
-        {isAdmin && (
-          <button
-            onClick={toggleEditMode}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition ${
-              isEditing
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-            }`}
-          >
-            {isEditing ? '✓ Klaar' : '✏️ Bewerken'}
-          </button>
+      {sharedHeader}
+      {positionFilterBar}
+
+      {/* ── Mobiel: leaderboard ── */}
+      <div className="md:hidden">
+        {/* Stat-selector pills */}
+        {statFields.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {statFields.map(f => (
+              <button
+                key={f}
+                onClick={() => setMobileStatField(f)}
+                className={`px-3 py-1.5 rounded-full text-sm font-bold transition ${
+                  activeMobileStat === f
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {STAT_LABELS_SHORT[f] ?? f}
+              </button>
+            ))}
+          </div>
         )}
+
+        {/* Leaderboard lijst */}
+        <div className="bg-gray-800 rounded-lg overflow-hidden">
+          {mobileSortedPlayers.map((player, index) => {
+            const statValue = activeMobileStat ? ((player as unknown as Record<string, number>)[activeMobileStat] ?? 0) : 0;
+            return (
+              <div
+                key={player.id}
+                className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0"
+              >
+                {/* Rang */}
+                <span className="text-gray-500 text-sm font-bold w-6 text-right shrink-0">
+                  {index + 1}
+                </span>
+
+                {/* Naam + positie */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-white truncate">{player.name}</span>
+                    {player.injured && <span className="text-red-500 text-xs">🏥</span>}
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    {positionEmojis[player.position]} {player.position}
+                  </span>
+                </div>
+
+                {/* Stat waarde */}
+                {activeMobileStat && (
+                  isEditing ? (
+                    <button
+                      onClick={() => handleCellClick(player.id, player.name, activeMobileStat, statValue)}
+                      className="min-w-[2.5rem] px-2 py-1 bg-gray-700 border border-blue-500/60 rounded text-white text-sm font-bold hover:bg-blue-600/30 hover:border-blue-400 transition"
+                    >
+                      {statValue}
+                    </button>
+                  ) : (
+                    <span className="text-xl font-black text-white tabular-nums w-8 text-right shrink-0">
+                      {statValue}
+                    </span>
+                  )
+                )}
+              </div>
+            );
+          })}
+
+          {mobileSortedPlayers.length === 0 && (
+            <p className="text-gray-500 text-sm text-center py-8">Geen spelers gevonden</p>
+          )}
+        </div>
       </div>
 
-      {/* Positie-filter */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {POSITION_FILTERS.map(f => (
-          <button
-            key={f.value}
-            onClick={() => setFilterPosition(f.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-bold transition ${
-              filterPosition === f.value
-                ? 'bg-yellow-500 text-black'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="overflow-x-auto pb-1">
+      {/* ── Desktop: tabel ── */}
+      <div className="hidden md:block overflow-x-auto pb-1">
         <div className="bg-gray-800 rounded-lg overflow-hidden min-w-max pr-4">
           <table className="w-full">
-            <thead className="bg-gray-700">
+            <thead className="bg-gray-700 sticky top-0 z-10">
               <tr className="text-left">
-                {columns.map(col => (
+                {columns.map((col, i) => (
                   <th
                     key={col.key}
                     className={`p-2 sm:p-4 text-sm sm:text-base select-none transition-colors ${
                       !isEditing ? 'cursor-pointer hover:bg-gray-600' : 'cursor-default'
-                    }`}
+                    } ${i === 0 ? 'sticky left-0 bg-gray-700 z-20' : ''}`}
                     onClick={() => handleSort(col.key)}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -208,7 +310,9 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
             <tbody>
               {sortedPlayers.map(player => (
                 <tr key={player.id} className="border-t border-gray-700 hover:bg-gray-700/50">
-                  <td className="p-2 sm:p-4 font-bold text-sm sm:text-base">{player.name}</td>
+                  <td className="p-2 sm:p-4 font-bold text-sm sm:text-base sticky left-0 bg-gray-800 z-10">
+                    {player.name}
+                  </td>
                   <td className="p-2 sm:p-4">
                     <span className="text-xs">{positionEmojis[player.position]} {player.position}</span>
                   </td>
@@ -236,7 +340,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
         </div>
       </div>
 
-      {/* Overlay */}
+      {/* Overlay (gedeeld mobiel + desktop) */}
       {editingCell && (
         <StatEditOverlay
           playerName={editingCell.playerName}
@@ -301,13 +405,11 @@ function StatEditOverlay({ playerName, field, value, onStep, onClose }: {
         className="bg-gray-800 rounded-2xl p-6 w-full max-w-xs shadow-2xl border border-gray-700"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="text-center mb-1">
           <p className="text-gray-400 text-sm">{playerName}</p>
           <p className="font-bold text-white">{STAT_LABELS[field] ?? field}</p>
         </div>
 
-        {/* Value + controls */}
         <div className="flex items-center justify-center gap-6 my-6">
           <button
             onClick={() => onStep(-1)}
@@ -329,7 +431,6 @@ function StatEditOverlay({ playerName, field, value, onStep, onClose }: {
           </button>
         </div>
 
-        {/* Close */}
         <button
           onClick={onClose}
           className="w-full py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-bold transition"
