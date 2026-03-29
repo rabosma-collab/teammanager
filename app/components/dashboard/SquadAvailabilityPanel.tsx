@@ -56,7 +56,27 @@ export default function SquadAvailabilityPanel({
 
   const handleShareAvailability = async () => {
     const dateStr = formatShareDate(match.date);
-    const text = `Dit is de beschikbaarheid voor aankomende wedstrijd tegen ${match.opponent} op ${dateStr}. Controleer je status. Als de status niet klopt, meld je dan af via de app of via tmvoetbal.nl`;
+    const regularPlayers = players.filter(p => !p.is_guest);
+
+    const available = regularPlayers.filter(p => !p.injured && !matchAbsences.includes(p.id));
+    const absent = regularPlayers.filter(p => !p.injured && matchAbsences.includes(p.id));
+    const injured = regularPlayers.filter(p => p.injured);
+
+    const lines: string[] = [
+      `📋 Beschikbaarheid — ${match.opponent} · ${dateStr}`,
+      '',
+      `✅ Beschikbaar (${available.length}):`,
+      ...available.map(p => `  ${p.name}`),
+    ];
+    if (absent.length > 0) {
+      lines.push('', `❌ Afwezig (${absent.length}):`, ...absent.map(p => `  ${p.name}`));
+    }
+    if (injured.length > 0) {
+      lines.push('', `🏥 Geblesseerd (${injured.length}):`, ...injured.map(p => `  ${p.name}`));
+    }
+    lines.push('', 'Klopt jouw status niet? Meld je af via de app of op tmvoetbal.nl');
+
+    const text = lines.join('\n');
     if (navigator.share) {
       try {
         await navigator.share({ text });
