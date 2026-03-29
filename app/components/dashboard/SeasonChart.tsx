@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import type { Match } from '../../lib/types';
+import { displayScore } from '../../lib/constants';
 
 interface SeasonChartProps {
   matches: Match[];
@@ -158,7 +159,7 @@ export default function SeasonChart({ matches, onNavigateToUitslagen }: SeasonCh
               <div
                 key={i}
                 className={`flex-1 h-4 rounded-sm flex items-center justify-center text-[9px] font-black ${cfg ? cfg.bg : 'bg-gray-700'}`}
-                title={`${d.match.opponent} ${d.match.goals_for}–${d.match.goals_against}`}
+                title={(() => { const { left, right } = displayScore(d.match.goals_for, d.match.goals_against, d.match.home_away); return `${d.match.opponent} ${left}–${right}`; })()}
               >
                 {cfg?.label ?? '?'}
               </div>

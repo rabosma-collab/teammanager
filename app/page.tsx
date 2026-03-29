@@ -921,7 +921,9 @@ export default function FootballApp() {
   // ---- LOADING ----
   // Één gecombineerde loading-gate voorkomt dat React twee identieke schermen
   // afwisselend mount/unmount (authChecking → teamLoading → matchLoading).
-  if (authChecking || teamLoading || loading) {
+  // Alleen `loading` meenemen als er een team is — anders blijft het scherm hangen
+  // voor gebruikers zonder team (fetchMatches wordt dan nooit aangeroepen).
+  if (authChecking || teamLoading || (!!currentTeam && loading)) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-900 text-white screen-fade-in">
         <div className="text-center">

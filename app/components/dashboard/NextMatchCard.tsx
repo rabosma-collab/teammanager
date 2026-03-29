@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import type { Match, Player, Substitution } from '../../lib/types';
-import { formationLabels } from '../../lib/constants';
+import { formationLabels, displayScore } from '../../lib/constants';
 import LineupStatusBadge from './LineupStatusBadge';
 import { generateWhatsAppText } from '../../utils/generateWhatsAppText';
 
@@ -254,11 +254,14 @@ export default function NextMatchCard({
             </span>
           )}
         </div>
-        {isFinalized && match.goals_for != null && match.goals_against != null && (
-          <div className="font-display font-bold text-4xl text-yellow-400 mt-1 leading-none">
-            {match.goals_for} – {match.goals_against}
-          </div>
-        )}
+        {isFinalized && match.goals_for != null && match.goals_against != null && (() => {
+          const { left, right } = displayScore(match.goals_for, match.goals_against, match.home_away);
+          return (
+            <div className="font-display font-bold text-4xl text-yellow-400 mt-1 leading-none">
+              {left} – {right}
+            </div>
+          );
+        })()}
         <div className="text-xs text-gray-500 mt-1">{formationLabel}</div>
         {(trackAssemblyTime && match.assembly_time) || (trackMatchTime && match.match_time) || (trackLocationDetails && match.location_details) ? (
           <div className="mt-2 space-y-1">

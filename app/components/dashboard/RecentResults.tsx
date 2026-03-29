@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import type { Match, MatchPlayerStats } from '../../lib/types';
+import { displayScore } from '../../lib/constants';
 
 const REPORT_PREVIEW_LENGTH = 120;
 
@@ -92,15 +93,21 @@ export default function RecentResults({ matches, statsMap, onNavigateToUitslagen
                 </div>
 
                 {/* Score */}
-                {match.goals_for != null && match.goals_against != null ? (
-                  <div className="text-sm font-black flex-shrink-0">
-                    <span className={result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400'}>
-                      {match.goals_for}
-                    </span>
-                    <span className="text-gray-500 mx-0.5">–</span>
-                    <span>{match.goals_against}</span>
-                  </div>
-                ) : (
+                {match.goals_for != null && match.goals_against != null ? (() => {
+                  const { left, right } = displayScore(match.goals_for, match.goals_against, match.home_away);
+                  const isLeft = match.home_away === 'Thuis';
+                  return (
+                    <div className="text-sm font-black flex-shrink-0">
+                      <span className={isLeft ? (result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400') : 'text-white'}>
+                        {left}
+                      </span>
+                      <span className="text-gray-500 mx-0.5">–</span>
+                      <span className={!isLeft ? (result === 'W' ? 'text-green-400' : result === 'V' ? 'text-red-400' : 'text-yellow-400') : 'text-white'}>
+                        {right}
+                      </span>
+                    </div>
+                  );
+                })() : (
                   <span className="text-xs text-gray-600">–</span>
                 )}
 
