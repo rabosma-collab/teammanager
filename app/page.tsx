@@ -1235,7 +1235,7 @@ export default function FootballApp() {
       )}
 
       {/* === VIEWS === */}
-      <div key={view} className="flex-1 overflow-hidden flex flex-col screen-fade-in pb-16 sm:pb-0">
+      <div key={view} className="flex-1 overflow-hidden flex flex-col screen-fade-in">
       {view === 'instructions' && isManager ? (
         <InstructionsView
           gameFormat={gameFormat}

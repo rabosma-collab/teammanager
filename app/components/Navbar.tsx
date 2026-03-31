@@ -390,71 +390,67 @@ export default function Navbar({
 
     {/* ============================================================
         MOBIELE TOP BAR — alleen zichtbaar op mobiel (sm:hidden)
+        Rij 1: teamnaam + bel + avatar
+        Rij 2: scrollbare navigatietabs
     ============================================================ */}
-    <div className="sm:hidden flex items-center justify-between bg-gray-900 border-b border-gray-800 px-3 min-h-[48px] select-none">
+    <div className="sm:hidden bg-gray-900 border-b border-gray-800 select-none">
 
-      {/* Team-switcher trigger */}
-      <button
-        onClick={() => setShowMobileTeamSwitcher(v => !v)}
-        className="flex items-center gap-2 py-2 text-sm font-semibold text-gray-200 active:opacity-70 transition-opacity"
-      >
-        <span
-          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: currentTeam?.color || '#f59e0b' }}
-        />
-        <span className="max-w-[160px] truncate">{currentTeam?.name ?? 'Geen team'}</span>
-        <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {/* Rechts: bel + avatar */}
-      <div className="flex items-center gap-1">
+      {/* Rij 1: team-switcher + bel + avatar */}
+      <div className="flex items-center justify-between px-3 min-h-[48px]">
         <button
-          onClick={onBellClick}
-          className="relative p-2 rounded transition-colors active:bg-gray-800"
-          title="Activiteit"
+          onClick={() => setShowMobileTeamSwitcher(v => !v)}
+          className="flex items-center gap-2 py-2 text-sm font-semibold text-gray-200 active:opacity-70 transition-opacity"
         >
-          <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          <span
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: currentTeam?.color || '#f59e0b' }}
+          />
+          <span className="max-w-[160px] truncate">{currentTeam?.name ?? 'Geen team'}</span>
+          <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center bg-blue-500 text-white text-[10px] font-bold rounded-full px-0.5 pointer-events-none">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
         </button>
 
-        <button
-          onClick={() => setShowProfile(true)}
-          className="w-8 h-8 rounded-full overflow-hidden border-2 border-gray-600 active:border-yellow-500 transition-colors flex-shrink-0 focus:outline-none"
-          title="Mijn profiel"
-        >
-          {profileAvatar ? (
-            <img src={profileAvatar} alt="Profiel" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-yellow-500 flex items-center justify-center">
-              <span className="text-black font-black text-xs">{profileInitials}</span>
-            </div>
-          )}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onBellClick}
+            className="relative p-2 rounded transition-colors active:bg-gray-800"
+            title="Activiteit"
+          >
+            <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center bg-blue-500 text-white text-[10px] font-bold rounded-full px-0.5 pointer-events-none">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setShowProfile(true)}
+            className="w-8 h-8 rounded-full overflow-hidden border-2 border-gray-600 active:border-yellow-500 transition-colors flex-shrink-0 focus:outline-none"
+            title="Mijn profiel"
+          >
+            {profileAvatar ? (
+              <img src={profileAvatar} alt="Profiel" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-yellow-500 flex items-center justify-center">
+                <span className="text-black font-black text-xs">{profileInitials}</span>
+              </div>
+            )}
+          </button>
+        </div>
       </div>
-    </div>
 
-    {/* ============================================================
-        MOBIELE BOTTOM NAV — fixed onderaan, alleen op mobiel
-    ============================================================ */}
-    <div
-      className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-gray-900 border-t border-gray-800"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-    >
-      <div className="flex items-stretch h-16">
-        <BottomTab active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
-        <BottomTab active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Opstelling" />
-        <BottomTab active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Wedstr." />
-        <BottomTab active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
+      {/* Rij 2: scrollbare navigatietabs */}
+      <div className="flex overflow-x-auto scrollbar-none border-t border-gray-800/60">
+        <MobileNavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
+        <MobileNavTab active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Opstelling" />
+        <MobileNavTab active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Wedstr." />
+        <MobileNavTab active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
         {playerCardMode !== 'none' && (
-          <BottomTab
+          <MobileNavTab
             active={view === 'cards'}
             onClick={() => setView('cards')}
             icon={playerCardMode === 'teamsterren' ? '⭐' : '🃏'}
@@ -462,7 +458,7 @@ export default function Navbar({
           />
         )}
         {isAdmin && (
-          <BottomTab
+          <MobileNavTab
             active={beheerActive || showBeheerSheet}
             onClick={() => setShowBeheerSheet(v => !v)}
             icon="⚙️"
@@ -609,7 +605,7 @@ function NavButton({ active, onClick, label }: {
   );
 }
 
-function BottomTab({ active, onClick, icon, label, showDot }: {
+function MobileNavTab({ active, onClick, icon, label, showDot }: {
   active: boolean;
   onClick: () => void;
   icon: string;
@@ -619,14 +615,17 @@ function BottomTab({ active, onClick, icon, label, showDot }: {
   return (
     <button
       onClick={onClick}
-      className={`relative flex flex-col items-center justify-center flex-1 gap-0.5 py-2 transition-colors touch-manipulation ${
+      className={`relative flex items-center gap-1.5 flex-shrink-0 px-4 h-10 text-xs font-semibold touch-manipulation transition-colors ${
         active ? 'text-yellow-400' : 'text-gray-500 active:text-gray-200'
       }`}
     >
-      <span className="text-[22px] leading-none">{icon}</span>
-      <span className="text-[10px] font-semibold tracking-wide">{label}</span>
-      {showDot && (
-        <span className="absolute top-2 right-[calc(50%-10px)] w-2 h-2 bg-red-500 rounded-full" />
+      <span className="text-base leading-none">{icon}</span>
+      <span>{label}</span>
+      {active && (
+        <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-400 rounded-t" />
+      )}
+      {showDot && !active && (
+        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
       )}
     </button>
   );
