@@ -49,7 +49,7 @@ export function useSubstitutions() {
     const existing = substitutions.filter(s => s.substitution_number === subNumber);
     setTempSubs(existing.map(s => ({
       out: players.find(p => p.id === s.player_out_id) || null,
-      in: players.find(p => p.id === s.player_in_id) || null
+      in: players.find(p => p.id === s.player_in_id) || null,
     })));
     setShowSubModal(subNumber);
     setShowSubModalMinute(minute ?? null);
@@ -90,13 +90,14 @@ export function useSubstitutions() {
       return false;
     }
 
-    const outIds = tempSubs.map(s => s.out!.id);
-    const inIds = tempSubs.map(s => s.in!.id);
-    if (new Set(outIds).size !== outIds.length) {
+    const playerKey = (p: Player) => `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+    const outKeys = tempSubs.map(s => playerKey(s.out!));
+    const inKeys = tempSubs.map(s => playerKey(s.in!));
+    if (new Set(outKeys).size !== outKeys.length) {
       toast.warning('⚠️ Een speler kan maar 1x gewisseld worden');
       return false;
     }
-    if (new Set(inIds).size !== inIds.length) {
+    if (new Set(inKeys).size !== inKeys.length) {
       toast.warning('⚠️ Een speler kan maar 1x ingebracht worden');
       return false;
     }
@@ -133,10 +134,11 @@ export function useSubstitutions() {
       setShowSubModalMinute(null);
       setTempSubs([]);
       return true;
-    } catch {
+    } catch (err) {
+      toast.error('❌ Opslaan mislukt: ' + (err as Error)?.message ?? 'onbekende fout');
       return false;
     }
-  }, [showSubModal, showSubModalMinute, tempSubs, fetchSubstitutions, currentTeam]);
+  }, [showSubModal, showSubModalMinute, tempSubs, fetchSubstitutions, currentTeam, toast]);
 
   const closeSubModal = useCallback(() => {
     setShowSubModal(null);
