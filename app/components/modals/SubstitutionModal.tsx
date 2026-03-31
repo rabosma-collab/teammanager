@@ -162,16 +162,16 @@ export default function SubstitutionModal({
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-red-400 mb-2">⬇️ Eruit</label>
                     <select
-                      value={sub.out?.id || ''}
+                      value={sub.out ? `${sub.out.is_guest ? 'g' : 'r'}_${sub.out.id}` : ''}
                       onChange={(e) => {
-                        const player = availableOut.find(p => p.id === parseInt(e.target.value)) || null;
+                        const player = availableOut.find(p => `${p.is_guest ? 'g' : 'r'}_${p.id}` === e.target.value) || null;
                         onUpdateSub(index, 'out', player);
                       }}
                       className="w-full px-2 sm:px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm sm:text-base"
                     >
                       <option value="">Selecteer...</option>
                       {availableOut.map(player => (
-                        <option key={player.id} value={player.id}>{player.name}</option>
+                        <option key={`${player.is_guest ? 'g' : 'r'}_${player.id}`} value={`${player.is_guest ? 'g' : 'r'}_${player.id}`}>{player.name}</option>
                       ))}
                     </select>
                   </div>
@@ -179,16 +179,16 @@ export default function SubstitutionModal({
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-green-400 mb-2">⬆️ Erin</label>
                     <select
-                      value={sub.in?.id || ''}
+                      value={sub.in ? `${sub.in.is_guest ? 'g' : 'r'}_${sub.in.id}` : ''}
                       onChange={(e) => {
-                        const player = availableIn.find(p => p.id === parseInt(e.target.value)) || null;
+                        const player = availableIn.find(p => `${p.is_guest ? 'g' : 'r'}_${p.id}` === e.target.value) || null;
                         onUpdateSub(index, 'in', player);
                       }}
                       className="w-full px-2 sm:px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm sm:text-base"
                     >
                       <option value="">Selecteer...</option>
                       {availableIn.map(player => (
-                        <option key={player.id} value={player.id}>{player.name}</option>
+                        <option key={`${player.is_guest ? 'g' : 'r'}_${player.id}`} value={`${player.is_guest ? 'g' : 'r'}_${player.id}`}>{player.name}</option>
                       ))}
                     </select>
                   </div>
