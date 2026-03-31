@@ -21,11 +21,11 @@ const positionOrder: Record<string, number> = {
 };
 
 const POSITION_FILTERS: { value: PositionFilter; label: string }[] = [
-  { value: 'all', label: 'Alle' },
-  { value: 'Keeper', label: '🧤 Keepers' },
-  { value: 'Verdediger', label: '🛡️ Verdedigers' },
-  { value: 'Middenvelder', label: '⚙️ Middenvelders' },
-  { value: 'Aanvaller', label: '⚡ Aanvallers' },
+  { value: 'all', label: 'Alle posities' },
+  { value: 'Keeper', label: 'Keepers' },
+  { value: 'Verdediger', label: 'Verdedigers' },
+  { value: 'Middenvelder', label: 'Middenvelders' },
+  { value: 'Aanvaller', label: 'Aanvallers' },
 ];
 
 const STAT_LABELS: Record<string, string> = {
@@ -41,15 +41,15 @@ const STAT_LABELS: Record<string, string> = {
 };
 
 const STAT_LABELS_SHORT: Record<string, string> = {
-  goals: '⚽ Goals',
-  assists: '🅰️ Assists',
-  wash_count: '🧼 Was',
-  consumption_count: '🥤 Cons.',
-  transport_count: '🚗 Verv.',
-  yellow_cards: '🟨 Geel',
-  red_cards: '🟥 Rood',
-  min: '🔄 Wissel',
-  played_min: '⏱️ Min',
+  goals: 'Goals',
+  assists: 'Assists',
+  wash_count: 'Was',
+  consumption_count: 'Cons.',
+  transport_count: 'Vervoer',
+  yellow_cards: 'Geel',
+  red_cards: 'Rood',
+  min: 'Wissels',
+  played_min: 'Min',
 };
 
 interface EditingCell {
@@ -66,6 +66,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
   const [isEditing, setIsEditing] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [mobileStatField, setMobileStatField] = useState<string | null>(null);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
   const regularPlayers = useMemo(
     () => players.filter(p => !p.is_guest && (filterPosition === 'all' || p.position === filterPosition)),
@@ -153,11 +154,11 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
     { key: 'injured', label: 'Status' },
     ...(trackGoals          ? [{ key: 'goals'            as SortKey, label: 'Goals'       }] : []),
     ...(trackAssists        ? [{ key: 'assists'           as SortKey, label: 'Assists'     }] : []),
-    ...(trackWasbeurt       ? [{ key: 'wash_count'        as SortKey, label: '🧼 Was'     }] : []),
-    ...(trackConsumpties    ? [{ key: 'consumption_count' as SortKey, label: '🥤 Cons.'   }] : []),
-    ...(trackVervoer        ? [{ key: 'transport_count'   as SortKey, label: '🚗 Verv.'   }] : []),
-    ...(trackCards          ? [{ key: 'yellow_cards'      as SortKey, label: '🟨 Geel'    }] : []),
-    ...(trackCards          ? [{ key: 'red_cards'         as SortKey, label: '🟥 Rood'    }] : []),
+    ...(trackWasbeurt       ? [{ key: 'wash_count'        as SortKey, label: 'Was'        }] : []),
+    ...(trackConsumpties    ? [{ key: 'consumption_count' as SortKey, label: 'Cons.'      }] : []),
+    ...(trackVervoer        ? [{ key: 'transport_count'   as SortKey, label: 'Vervoer'    }] : []),
+    ...(trackCards          ? [{ key: 'yellow_cards'      as SortKey, label: 'Geel'       }] : []),
+    ...(trackCards          ? [{ key: 'red_cards'         as SortKey, label: 'Rood'       }] : []),
     ...(trackMinutes        ? [{ key: 'min'               as SortKey, label: 'Wissel'     }] : []),
     ...(trackPlayedMinutes  ? [{ key: 'played_min'        as SortKey, label: 'Ges. min'   }] : []),
   ];
@@ -191,49 +192,50 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
     </div>
   );
 
-  const positionFilterBar = (
-    <div className="flex flex-wrap gap-2 mb-4">
-      {POSITION_FILTERS.map(f => (
-        <button
-          key={f.value}
-          onClick={() => setFilterPosition(f.value)}
-          className={`px-3 py-1.5 rounded-full text-sm font-bold transition ${
-            filterPosition === f.value
-              ? 'bg-yellow-500 text-black'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          {f.label}
-        </button>
-      ))}
+  const statFilterBar = statFields.length > 0 && (
+    <div className="flex items-center gap-2 mb-4">
+      {/* Horizontaal scrollbare stat-pills */}
+      <div className="flex-1 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-2 pb-1">
+          {statFields.map(f => (
+            <button
+              key={f}
+              onClick={() => setMobileStatField(f)}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition ${
+                activeMobileStat === f
+                  ? 'bg-yellow-500 text-black'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {STAT_LABELS_SHORT[f] ?? f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Filter-knop */}
+      <button
+        onClick={() => setIsFilterSheetOpen(true)}
+        className="relative shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 transition"
+        aria-label="Positiefilter"
+      >
+        <svg className="w-4 h-4 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm2 4a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm2 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" clipRule="evenodd" />
+        </svg>
+        {filterPosition !== 'all' && (
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-yellow-400" />
+        )}
+      </button>
     </div>
   );
 
   return (
     <div className="p-4 sm:p-8">
       {sharedHeader}
-      {positionFilterBar}
+      {statFilterBar}
 
       {/* ── Mobiel: leaderboard ── */}
       <div className="md:hidden">
-        {/* Stat-selector pills */}
-        {statFields.length > 1 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {statFields.map(f => (
-              <button
-                key={f}
-                onClick={() => setMobileStatField(f)}
-                className={`px-3 py-1.5 rounded-full text-sm font-bold transition ${
-                  activeMobileStat === f
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                {STAT_LABELS_SHORT[f] ?? f}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Leaderboard lijst */}
         <div className="bg-gray-800 rounded-lg overflow-hidden">
@@ -350,6 +352,15 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
           onClose={handleOverlayClose}
         />
       )}
+
+      {/* Positie bottom sheet */}
+      {isFilterSheetOpen && (
+        <PositionBottomSheet
+          current={filterPosition}
+          onSelect={(pos) => { setFilterPosition(pos); setIsFilterSheetOpen(false); }}
+          onClose={() => setIsFilterSheetOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -386,6 +397,44 @@ function StatCell({ isEditing, value, field, playerId, playerName, onCellClick }
         <span className="text-sm sm:text-base">{value}</span>
       )}
     </td>
+  );
+}
+
+function PositionBottomSheet({ current, onSelect, onClose }: {
+  current: PositionFilter;
+  onSelect: (pos: PositionFilter) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 z-50 flex items-end"
+      onClick={onClose}
+    >
+      <div
+        className="w-full bg-gray-800 rounded-t-2xl p-4 pb-8 shadow-2xl"
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      >
+        <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-5" />
+        <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-3 px-1">
+          Filter op positie
+        </p>
+        <div className="flex flex-col gap-2">
+          {POSITION_FILTERS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => onSelect(f.value)}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-semibold transition ${
+                current === f.value
+                  ? 'bg-yellow-500 text-black'
+                  : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
