@@ -390,28 +390,48 @@ export default function Navbar({
 
     {/* ============================================================
         MOBIELE TOP BAR — alleen zichtbaar op mobiel (sm:hidden)
-        Rij 1: teamnaam + bel + avatar
-        Rij 2: scrollbare navigatietabs
+        Rij 1: teamnaam + [Beheer] + bel + avatar
+        Rij 2: navigatietabs, verdeeld over volledige breedte (geen scroll)
     ============================================================ */}
     <div className="sm:hidden bg-gray-900 border-b border-gray-800 select-none">
 
-      {/* Rij 1: team-switcher + bel + avatar */}
+      {/* Rij 1: team-switcher + Beheer (admin) + bel + avatar */}
       <div className="flex items-center justify-between px-3 min-h-[48px]">
-        <button
-          onClick={() => setShowMobileTeamSwitcher(v => !v)}
-          className="flex items-center gap-2 py-2 text-sm font-semibold text-gray-200 active:opacity-70 transition-opacity"
-        >
-          <span
-            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: currentTeam?.color || '#f59e0b' }}
-          />
-          <span className="max-w-[160px] truncate">{currentTeam?.name ?? 'Geen team'}</span>
-          <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={() => setShowMobileTeamSwitcher(v => !v)}
+            className="flex items-center gap-2 py-2 text-sm font-semibold text-gray-200 active:opacity-70 transition-opacity min-w-0"
+          >
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: currentTeam?.color || '#f59e0b' }}
+            />
+            <span className="truncate max-w-[120px]">{currentTeam?.name ?? 'Geen team'}</span>
+            <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-        <div className="flex items-center gap-1">
+          {isAdmin && (
+            <div className="relative">
+              <button
+                onClick={() => setShowBeheerSheet(v => !v)}
+                className={`relative flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition-colors flex-shrink-0 ${
+                  beheerActive || showBeheerSheet
+                    ? 'bg-yellow-500 text-gray-900'
+                    : 'text-gray-400 active:bg-gray-800'
+                }`}
+              >
+                Beheer
+                {beheerDot && !(beheerActive || showBeheerSheet) && (
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0" />
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={onBellClick}
             className="relative p-2 rounded transition-colors active:bg-gray-800"
@@ -443,28 +463,14 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Rij 2: scrollbare navigatietabs */}
-      <div className="flex overflow-x-auto scrollbar-none border-t border-gray-800/60">
-        <MobileNavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
-        <MobileNavTab active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Opstelling" />
-        <MobileNavTab active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Wedstr." />
-        <MobileNavTab active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
+      {/* Rij 2: navigatietabs — flex, gelijke breedte, geen scroll */}
+      <div className="flex border-t border-gray-800/60">
+        <MobileNavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Home" />
+        <MobileNavTab active={view === 'pitch'} onClick={() => setView('pitch')} label="Opstelling" />
+        <MobileNavTab active={view === 'uitslagen'} onClick={() => setView('uitslagen')} label="Wedstr." />
+        <MobileNavTab active={view === 'stats'} onClick={() => setView('stats')} label="Ranglijst" />
         {playerCardMode !== 'none' && (
-          <MobileNavTab
-            active={view === 'cards'}
-            onClick={() => setView('cards')}
-            icon={playerCardMode === 'teamsterren' ? '⭐' : '🃏'}
-            label="Kaarten"
-          />
-        )}
-        {isAdmin && (
-          <MobileNavTab
-            active={beheerActive || showBeheerSheet}
-            onClick={() => setShowBeheerSheet(v => !v)}
-            icon="⚙️"
-            label="Beheer"
-            showDot={beheerDot}
-          />
+          <MobileNavTab active={view === 'cards'} onClick={() => setView('cards')} label="Kaarten" />
         )}
       </div>
     </div>
@@ -605,27 +611,21 @@ function NavButton({ active, onClick, label }: {
   );
 }
 
-function MobileNavTab({ active, onClick, icon, label, showDot }: {
+function MobileNavTab({ active, onClick, label }: {
   active: boolean;
   onClick: () => void;
-  icon: string;
   label: string;
-  showDot?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`relative flex items-center gap-1.5 flex-shrink-0 px-4 h-10 text-xs font-semibold touch-manipulation transition-colors ${
+      className={`relative flex-1 flex items-center justify-center h-10 text-xs font-semibold touch-manipulation transition-colors ${
         active ? 'text-yellow-400' : 'text-gray-500 active:text-gray-200'
       }`}
     >
-      <span className="text-base leading-none">{icon}</span>
-      <span>{label}</span>
+      {label}
       {active && (
         <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-400 rounded-t" />
-      )}
-      {showDot && !active && (
-        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
       )}
     </button>
   );
