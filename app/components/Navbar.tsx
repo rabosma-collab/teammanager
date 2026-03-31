@@ -397,44 +397,41 @@ export default function Navbar({
 
       {/* Rij 1: team-switcher + Beheer (admin) + bel + avatar */}
       <div className="flex items-center justify-between px-3 min-h-[48px]">
-        <div className="flex items-center gap-2 min-w-0">
-          <button
-            onClick={() => setShowMobileTeamSwitcher(v => !v)}
-            className="flex items-center gap-2 py-2 text-sm font-semibold text-gray-200 active:opacity-70 transition-opacity min-w-0"
-          >
-            <span
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: currentTeam?.color || '#f59e0b' }}
-            />
-            <span className="truncate max-w-[120px]">{currentTeam?.name ?? 'Geen team'}</span>
-            <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+        {/* Links: teamnaam-switcher */}
+        <button
+          onClick={() => setShowMobileTeamSwitcher(v => !v)}
+          className="flex items-center gap-2 py-2 text-sm font-semibold text-gray-200 active:opacity-70 transition-opacity min-w-0"
+        >
+          <span
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: currentTeam?.color || '#f59e0b' }}
+          />
+          <span className="truncate max-w-[140px]">{currentTeam?.name ?? 'Geen team'}</span>
+          <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
-          {isAdmin && (
-            <div className="relative">
-              <button
-                onClick={() => setShowBeheerSheet(v => !v)}
-                className={`relative flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors flex-shrink-0 ${
-                  beheerActive || showBeheerSheet
-                    ? 'bg-yellow-500 text-gray-900'
-                    : 'text-gray-400 active:bg-gray-800'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Beheer
-                {beheerDot && !(beheerActive || showBeheerSheet) && (
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0" />
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-
+        {/* Rechts: tandwiel (admin) + bel + avatar */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          {isAdmin && (
+            <button
+              onClick={() => setShowBeheerSheet(v => !v)}
+              className={`relative p-2 rounded transition-colors active:bg-gray-800 ${
+                beheerActive || showBeheerSheet ? 'text-yellow-400' : 'text-gray-400'
+              }`}
+              title="Beheer"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {beheerDot && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full pointer-events-none" />
+              )}
+            </button>
+          )}
+
           <button
             onClick={onBellClick}
             className="relative p-2 rounded transition-colors active:bg-gray-800"
