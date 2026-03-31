@@ -78,9 +78,11 @@ export default function SubstitutionModal({
 
     // availableIn = bench players who haven't come in yet + players who went out earlier
     // Remove players already brought in at earlier moments (they're now on the field)
+    // Also filter outFromEarlierPlayers: a player who went out at moment 1 but came back in
+    // at moment 2 is now on the field and must NOT appear as an option to come in again.
     availableIn = [
       ...benchPlayers.filter(p => p.is_guest || !inFromEarlierIds.has(p.id)),
-      ...outFromEarlierPlayers
+      ...outFromEarlierPlayers.filter(p => p.is_guest || !inFromEarlierIds.has(p.id))
     ];
 
     // Remove players already used in other rows of THIS substitution
