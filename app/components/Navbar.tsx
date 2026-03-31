@@ -28,7 +28,7 @@ export default function Navbar({
   onBellClick,
 }: NavbarProps) {
   const router = useRouter();
-  const { currentTeam, currentPlayerId, teams, switchTeam, userRole, teamSettings } = useTeamContext();
+  const { currentTeam, currentPlayerId, teams, switchTeam, teamSettings } = useTeamContext();
   const playerCardMode = teamSettings?.player_card_mode ?? 'competitive';
   const [pendingCount, setPendingCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
@@ -38,6 +38,9 @@ export default function Navbar({
   const [showBeheer, setShowBeheer] = useState(false);
   const [showTeamSwitcher, setShowTeamSwitcher] = useState(false);
   const [hasUnreadReleaseNotes, setHasUnreadReleaseNotes] = useState(false);
+  // Mobile-specific overlays (separate state to avoid toggle-closes-immediately bug)
+  const [showMobileTeamSwitcher, setShowMobileTeamSwitcher] = useState(false);
+  const [showBeheerSheet, setShowBeheerSheet] = useState(false);
   const beheerRef = useRef<HTMLDivElement>(null);
   const teamSwitcherRef = useRef<HTMLDivElement>(null);
 
@@ -155,7 +158,7 @@ export default function Navbar({
     }
   }, [isAdmin, currentTeam, view]);
 
-  // Sluit Beheer-dropdown bij klik buiten
+  // Sluit desktop Beheer-dropdown bij klik buiten
   useEffect(() => {
     if (!showBeheer) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -167,7 +170,7 @@ export default function Navbar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showBeheer]);
 
-  // Sluit team-switcher dropdown bij klik buiten
+  // Sluit desktop team-switcher dropdown bij klik buiten
   useEffect(() => {
     if (!showTeamSwitcher) return;
     const handleClickOutside = (e: MouseEvent) => {
@@ -184,10 +187,16 @@ export default function Navbar({
   const navigateTo = (target: string) => {
     setView(target);
     setShowBeheer(false);
+    setShowBeheerSheet(false);
   };
+
+  const beheerDot = pendingCount > 0 || hasUnreadReleaseNotes;
 
   return (
     <>
+    {/* ============================================================
+        DESKTOP NAV — verborgen op mobiel (< sm)
+    ============================================================ */}
     {/*
       Nav is split in two parts:
       1. Left: scrollable tabs (overflow-x-auto)
@@ -195,16 +204,16 @@ export default function Navbar({
       This split is needed because overflow-x:auto also sets overflow-y:auto (CSS spec),
       which would clip the absolute-positioned Beheer dropdown.
     */}
-    <nav className="flex items-stretch bg-gray-900 border-b border-gray-800 select-none min-h-[52px]">
+    <nav className="hidden sm:flex items-stretch bg-gray-900 border-b border-gray-800 select-none min-h-[52px]">
 
       {/* Scrollable left side */}
       <div className="flex items-stretch gap-0 overflow-x-auto flex-1 min-w-0 pl-1 sm:pl-2">
-        <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} icon="🏠" label="Home" />
-        <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} icon="⚽" label="Opstelling" />
-        <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} icon="📋" label="Wedstrijden" />
-        <NavButton active={view === 'stats'} onClick={() => setView('stats')} icon="📊" label="Ranglijst" />
+        <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Home" />
+        <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} label="Opstelling" />
+        <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} label="Wedstrijden" />
+        <NavButton active={view === 'stats'} onClick={() => setView('stats')} label="Ranglijst" />
         {playerCardMode !== 'none' && (
-          <NavButton active={view === 'cards'} onClick={() => setView('cards')} icon={playerCardMode === 'teamsterren' ? '⭐' : '🃏'} label="Kaarten" />
+          <NavButton active={view === 'cards'} onClick={() => setView('cards')} label="Kaarten" />
         )}
       </div>
 
@@ -280,8 +289,7 @@ export default function Navbar({
                   : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
               }`}
             >
-              <span className="hidden sm:inline">Beheer {showBeheer ? '▲' : '▼'}</span>
-              <span className="sm:hidden">⚙</span>
+              Beheer {showBeheer ? '▲' : '▼'}
             </button>
 
             {showBeheer && (
@@ -380,6 +388,195 @@ export default function Navbar({
       </div>
     </nav>
 
+    {/* ============================================================
+        MOBIELE TOP BAR — alleen zichtbaar op mobiel (sm:hidden)
+        Rij 1: teamnaam + [Beheer] + bel + avatar
+        Rij 2: navigatietabs, verdeeld over volledige breedte (geen scroll)
+    ============================================================ */}
+    <div className="sm:hidden bg-gray-900 border-b border-gray-800 select-none">
+
+      {/* Rij 1: team-switcher + Beheer (admin) + bel + avatar */}
+      <div className="flex items-center justify-between px-3 min-h-[48px]">
+        {/* Links: teamnaam-switcher */}
+        <button
+          onClick={() => setShowMobileTeamSwitcher(v => !v)}
+          className="flex items-center gap-2 py-2 text-sm font-semibold text-gray-200 active:opacity-70 transition-opacity min-w-0"
+        >
+          <span
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: currentTeam?.color || '#f59e0b' }}
+          />
+          <span className="truncate max-w-[140px]">{currentTeam?.name ?? 'Geen team'}</span>
+          <svg className="w-3 h-3 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {/* Rechts: tandwiel (admin) + bel + avatar */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {isAdmin && (
+            <button
+              onClick={() => setShowBeheerSheet(v => !v)}
+              className={`relative p-2 rounded transition-colors active:bg-gray-800 ${
+                beheerActive || showBeheerSheet ? 'text-yellow-400' : 'text-gray-400'
+              }`}
+              title="Beheer"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {beheerDot && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full pointer-events-none" />
+              )}
+            </button>
+          )}
+
+          <button
+            onClick={onBellClick}
+            className="relative p-2 rounded transition-colors active:bg-gray-800"
+            title="Activiteit"
+          >
+            <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center bg-blue-500 text-white text-[10px] font-bold rounded-full px-0.5 pointer-events-none">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setShowProfile(true)}
+            className="w-8 h-8 rounded-full overflow-hidden border-2 border-gray-600 active:border-yellow-500 transition-colors flex-shrink-0 focus:outline-none"
+            title="Mijn profiel"
+          >
+            {profileAvatar ? (
+              <img src={profileAvatar} alt="Profiel" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-yellow-500 flex items-center justify-center">
+                <span className="text-black font-black text-xs">{profileInitials}</span>
+              </div>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Rij 2: navigatietabs — flex, gelijke breedte, geen scroll */}
+      <div className="flex border-t border-gray-800/60">
+        <MobileNavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Home" />
+        <MobileNavTab active={view === 'pitch'} onClick={() => setView('pitch')} label="Opstelling" />
+        <MobileNavTab active={view === 'uitslagen'} onClick={() => setView('uitslagen')} label="Wedstr." />
+        <MobileNavTab active={view === 'stats'} onClick={() => setView('stats')} label="Ranglijst" />
+        {playerCardMode !== 'none' && (
+          <MobileNavTab active={view === 'cards'} onClick={() => setView('cards')} label="Kaarten" />
+        )}
+      </div>
+    </div>
+
+    {/* ============================================================
+        MOBIELE TEAM-SWITCHER SHEET
+    ============================================================ */}
+    {showMobileTeamSwitcher && (
+      <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
+        <div
+          className="absolute inset-0 bg-black/60"
+          onClick={() => setShowMobileTeamSwitcher(false)}
+        />
+        <div className="relative bg-gray-900 rounded-t-2xl border-t border-gray-700 pt-1 pb-6">
+          {/* Drag handle */}
+          <div className="flex justify-center pt-2 pb-3">
+            <div className="w-10 h-1 rounded-full bg-gray-600" />
+          </div>
+          <div className="px-4 pb-2 text-xs text-gray-500 font-semibold uppercase tracking-wider">Team wisselen</div>
+          {teams.map(team => (
+            <button
+              key={team.id}
+              onClick={async () => {
+                await switchTeam(team.id);
+                setShowMobileTeamSwitcher(false);
+                setView('dashboard');
+              }}
+              className={`w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition active:bg-gray-800 ${
+                team.id === currentTeam?.id ? 'bg-gray-800/60' : ''
+              }`}
+            >
+              <span
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: team.color || '#f59e0b' }}
+              />
+              <span className="flex-1 font-medium">{team.name}</span>
+              {team.id === currentTeam?.id && (
+                <svg className="w-4 h-4 text-yellow-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          ))}
+          <div className="border-t border-gray-700 mt-1 pt-1">
+            <button
+              onClick={() => { setShowMobileTeamSwitcher(false); router.push('/team/new'); }}
+              className="w-full text-left px-4 py-3 text-sm text-yellow-400 active:bg-gray-800 transition flex items-center gap-3"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nieuw team aanmaken
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ============================================================
+        MOBIELE BEHEER SHEET
+    ============================================================ */}
+    {showBeheerSheet && (
+      <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
+        <div
+          className="absolute inset-0 bg-black/60"
+          onClick={() => setShowBeheerSheet(false)}
+        />
+        <div className="relative bg-gray-900 rounded-t-2xl border-t border-gray-700 pb-20">
+          {/* Drag handle */}
+          <div className="flex justify-center pt-2 pb-1">
+            <div className="w-10 h-1 rounded-full bg-gray-600" />
+          </div>
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+            <span className="font-bold text-white text-base">Beheer</span>
+            <button
+              onClick={() => setShowBeheerSheet(false)}
+              className="text-gray-400 hover:text-white p-1 text-xl leading-none transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+          <BeheerItem icon="⚙️" label="Teaminstellingen" active={view === 'team-settings'} onClick={() => navigateTo('team-settings')} />
+          <BeheerItem icon="🗓️" label="Seizoen" active={view === 'season-settings'} onClick={() => navigateTo('season-settings')} />
+          <div className="border-t border-gray-800 my-1" />
+          <BeheerItem icon="📣" label="Mededelingen" active={view === 'mededelingen'} onClick={() => navigateTo('mededelingen')} />
+          <BeheerItem icon="📋" label="Instructies" active={view === 'instructions'} onClick={() => navigateTo('instructions')} />
+          <BeheerItem icon="👥" label="Spelers" active={view === 'players-manage'} onClick={() => navigateTo('players-manage')} />
+          <div className="relative">
+            <BeheerItem icon="📨" label="Uitnodigingen" active={view === 'invites'} onClick={() => navigateTo('invites')} />
+            {pendingCount > 0 && (
+              <span className="absolute top-2 right-4 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full px-1 pointer-events-none">
+                {pendingCount}
+              </span>
+            )}
+          </div>
+          <div className="border-t border-gray-800 my-1" />
+          <div className="relative">
+            <BeheerItem icon="💬" label="Feedback" active={view === 'feedback'} onClick={() => navigateTo('feedback')} />
+            {hasUnreadReleaseNotes && (
+              <span className="absolute top-3 right-4 w-2 h-2 bg-red-500 rounded-full pointer-events-none" />
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
     {showProfile && (
       <ProfileModal
         onClose={() => { setShowProfile(false); setIsOnboarding(false); }}
@@ -392,10 +589,9 @@ export default function Navbar({
   );
 }
 
-function NavButton({ active, onClick, icon, label }: {
+function NavButton({ active, onClick, label }: {
   active: boolean;
   onClick: () => void;
-  icon: string;
   label: string;
 }) {
   return (
@@ -407,8 +603,27 @@ function NavButton({ active, onClick, icon, label }: {
           : 'text-gray-500 hover:text-gray-200'
       }`}
     >
-      <span className="hidden sm:inline">{label}</span>
-      <span className="sm:hidden">{icon}</span>
+      {label}
+      {active && (
+        <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-400 rounded-t" />
+      )}
+    </button>
+  );
+}
+
+function MobileNavTab({ active, onClick, label }: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex-1 flex items-center justify-center h-10 text-xs font-semibold touch-manipulation transition-colors ${
+        active ? 'text-yellow-400' : 'text-gray-500 active:text-gray-200'
+      }`}
+    >
+      {label}
       {active && (
         <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-400 rounded-t" />
       )}
@@ -425,11 +640,11 @@ function BeheerItem({ icon, label, active, onClick }: {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-2.5 text-sm font-medium transition hover:bg-gray-800 flex items-center gap-2 ${
+      className={`w-full text-left px-4 py-3 text-sm font-medium transition hover:bg-gray-800 active:bg-gray-800 flex items-center gap-3 ${
         active ? 'text-yellow-400' : 'text-gray-300'
       }`}
     >
-      <span>{icon}</span>
+      <span className="text-base">{icon}</span>
       <span>{label}</span>
     </button>
   );
