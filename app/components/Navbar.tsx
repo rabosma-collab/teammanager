@@ -44,6 +44,10 @@ export default function Navbar({
   const beheerRef = useRef<HTMLDivElement>(null);
   const teamSwitcherRef = useRef<HTMLDivElement>(null);
 
+  // Swipe-down-to-dismiss refs voor mobile sheets
+  const teamSheetRef = useRef<HTMLDivElement>(null);
+  const beheerSheetRef = useRef<HTMLDivElement>(null);
+
   // Ref zodat de auth-listener altijd de meest recente versie aanroept (geen stale closure)
   const loadProfileInfoRef = useRef<() => Promise<void>>(async () => {});
 
@@ -183,6 +187,36 @@ export default function Navbar({
   }, [showTeamSwitcher]);
 
   const beheerActive = (ADMIN_VIEWS as readonly string[]).includes(view);
+
+  // Maakt touch-handlers voor swipe-down-to-dismiss op een sheet
+  const makeSwipeHandlers = (sheetRef: React.RefObject<HTMLDivElement>, onClose: () => void) => {
+    let startY = 0;
+    return {
+      onTouchStart: (e: React.TouchEvent) => {
+        startY = e.touches[0].clientY;
+        if (sheetRef.current) sheetRef.current.style.transition = 'none';
+      },
+      onTouchMove: (e: React.TouchEvent) => {
+        const delta = e.touches[0].clientY - startY;
+        if (delta > 0 && sheetRef.current) {
+          sheetRef.current.style.transform = `translateY(${delta}px)`;
+        }
+      },
+      onTouchEnd: (e: React.TouchEvent) => {
+        const delta = e.changedTouches[0].clientY - startY;
+        if (sheetRef.current) {
+          if (delta > 80) {
+            sheetRef.current.style.transition = 'transform 0.25s ease';
+            sheetRef.current.style.transform = 'translateY(100%)';
+            setTimeout(onClose, 220);
+          } else {
+            sheetRef.current.style.transition = 'transform 0.2s ease';
+            sheetRef.current.style.transform = '';
+          }
+        }
+      },
+    };
+  };
 
   const navigateTo = (target: string) => {
     setView(target);
@@ -484,7 +518,11 @@ export default function Navbar({
           className="absolute inset-0 bg-black/60"
           onClick={() => setShowMobileTeamSwitcher(false)}
         />
-        <div className="relative bg-gray-900 rounded-t-2xl border-t border-gray-700 pt-1 pb-6">
+        <div
+          ref={teamSheetRef}
+          className="relative bg-gray-900 rounded-t-2xl border-t border-gray-700 pt-1 pb-6"
+          {...makeSwipeHandlers(teamSheetRef, () => setShowMobileTeamSwitcher(false))}
+        >
           {/* Drag handle */}
           <div className="flex justify-center pt-2 pb-3">
             <div className="w-10 h-1 rounded-full bg-gray-600" />
@@ -538,7 +576,11 @@ export default function Navbar({
           className="absolute inset-0 bg-black/60"
           onClick={() => setShowBeheerSheet(false)}
         />
-        <div className="relative bg-gray-900 rounded-t-2xl border-t border-gray-700 pb-20">
+        <div
+          ref={beheerSheetRef}
+          className="relative bg-gray-900 rounded-t-2xl border-t border-gray-700 pb-20"
+          {...makeSwipeHandlers(beheerSheetRef, () => setShowBeheerSheet(false))}
+        >
           {/* Drag handle */}
           <div className="flex justify-center pt-2 pb-1">
             <div className="w-10 h-1 rounded-full bg-gray-600" />
