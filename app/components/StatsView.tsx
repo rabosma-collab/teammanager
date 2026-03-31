@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { positionEmojis } from '../lib/constants';
 import type { Player, TeamSettings } from '../lib/types';
 
@@ -152,15 +152,15 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
     { key: 'name', label: 'Speler' },
     { key: 'position', label: 'Positie' },
     { key: 'injured', label: 'Status' },
-    ...(trackGoals          ? [{ key: 'goals'            as SortKey, label: 'Goals'       }] : []),
-    ...(trackAssists        ? [{ key: 'assists'           as SortKey, label: 'Assists'     }] : []),
-    ...(trackWasbeurt       ? [{ key: 'wash_count'        as SortKey, label: 'Was'        }] : []),
-    ...(trackConsumpties    ? [{ key: 'consumption_count' as SortKey, label: 'Cons.'      }] : []),
-    ...(trackVervoer        ? [{ key: 'transport_count'   as SortKey, label: 'Vervoer'    }] : []),
-    ...(trackCards          ? [{ key: 'yellow_cards'      as SortKey, label: 'Geel'       }] : []),
-    ...(trackCards          ? [{ key: 'red_cards'         as SortKey, label: 'Rood'       }] : []),
-    ...(trackMinutes        ? [{ key: 'min'               as SortKey, label: 'Wissel'     }] : []),
-    ...(trackPlayedMinutes  ? [{ key: 'played_min'        as SortKey, label: 'Ges. min'   }] : []),
+    ...(trackGoals         ? [{ key: 'goals'            as SortKey, label: 'Goals'    }] : []),
+    ...(trackAssists       ? [{ key: 'assists'           as SortKey, label: 'Assists'  }] : []),
+    ...(trackWasbeurt      ? [{ key: 'wash_count'        as SortKey, label: 'Was'      }] : []),
+    ...(trackConsumpties   ? [{ key: 'consumption_count' as SortKey, label: 'Cons.'    }] : []),
+    ...(trackVervoer       ? [{ key: 'transport_count'   as SortKey, label: 'Vervoer'  }] : []),
+    ...(trackCards         ? [{ key: 'yellow_cards'      as SortKey, label: 'Geel'     }] : []),
+    ...(trackCards         ? [{ key: 'red_cards'         as SortKey, label: 'Rood'     }] : []),
+    ...(trackMinutes       ? [{ key: 'min'               as SortKey, label: 'Wissels'  }] : []),
+    ...(trackPlayedMinutes ? [{ key: 'played_min'        as SortKey, label: 'Ges. min' }] : []),
   ];
 
   // Mobile: active stat (default to first available)
@@ -174,34 +174,52 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
     });
   }, [regularPlayers, activeMobileStat]);
 
-  const sharedHeader = (
-    <div className="flex items-center justify-between mb-4 sm:mb-6">
-      <h2 className="text-2xl sm:text-3xl font-bold">📊 Ranglijst</h2>
-      {isAdmin && (
-        <button
-          onClick={toggleEditMode}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition ${
-            isEditing
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-          }`}
-        >
-          {isEditing ? '✓ Klaar' : '✏️ Bewerken'}
-        </button>
-      )}
-    </div>
-  );
+  const activePositionLabel = POSITION_FILTERS.find(f => f.value === filterPosition)?.label ?? 'Alle posities';
 
-  const statFilterBar = statFields.length > 0 && (
-    <div className="flex items-center gap-2 mb-4">
-      {/* Horizontaal scrollbare stat-pills */}
-      <div className="flex-1 overflow-x-auto scrollbar-hide">
-        <div className="flex gap-2 pb-1">
+  return (
+    <div className="p-4 sm:p-8">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-2xl sm:text-3xl font-bold shrink-0">📊 Ranglijst</h2>
+          {/* Positiefilter knop — mobiel in header, desktop apart */}
+          <button
+            onClick={() => setIsFilterSheetOpen(true)}
+            className={`md:hidden flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition ${
+              filterPosition !== 'all'
+                ? 'bg-yellow-500 text-black'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            {activePositionLabel}
+            <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={toggleEditMode}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition ${
+              isEditing
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+            }`}
+          >
+            {isEditing ? '✓ Klaar' : '✏️ Bewerken'}
+          </button>
+        )}
+      </div>
+
+      {/* ── Mobiel: stat-pills (wrappend, geen scroll) ── */}
+      {statFields.length > 1 && (
+        <div className="md:hidden flex flex-wrap gap-2 mb-4">
           {statFields.map(f => (
             <button
               key={f}
               onClick={() => setMobileStatField(f)}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition ${
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition ${
                 activeMobileStat === f
                   ? 'bg-yellow-500 text-black'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -211,33 +229,10 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Filter-knop */}
-      <button
-        onClick={() => setIsFilterSheetOpen(true)}
-        className="relative shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-gray-700 hover:bg-gray-600 transition"
-        aria-label="Positiefilter"
-      >
-        <svg className="w-4 h-4 text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm2 4a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm2 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z" clipRule="evenodd" />
-        </svg>
-        {filterPosition !== 'all' && (
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-yellow-400" />
-        )}
-      </button>
-    </div>
-  );
-
-  return (
-    <div className="p-4 sm:p-8">
-      {sharedHeader}
-      {statFilterBar}
+      )}
 
       {/* ── Mobiel: leaderboard ── */}
       <div className="md:hidden">
-
-        {/* Leaderboard lijst */}
         <div className="bg-gray-800 rounded-lg overflow-hidden">
           {mobileSortedPlayers.map((player, index) => {
             const statValue = activeMobileStat ? ((player as unknown as Record<string, number>)[activeMobileStat] ?? 0) : 0;
@@ -246,12 +241,9 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
                 key={player.id}
                 className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0"
               >
-                {/* Rang */}
                 <span className="text-gray-500 text-sm font-bold w-6 text-right shrink-0">
                   {index + 1}
                 </span>
-
-                {/* Naam + positie */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="font-bold text-white truncate">{player.name}</span>
@@ -261,8 +253,6 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
                     {positionEmojis[player.position]} {player.position}
                   </span>
                 </div>
-
-                {/* Stat waarde */}
                 {activeMobileStat && (
                   isEditing ? (
                     <button
@@ -280,69 +270,85 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
               </div>
             );
           })}
-
           {mobileSortedPlayers.length === 0 && (
             <p className="text-gray-500 text-sm text-center py-8">Geen spelers gevonden</p>
           )}
         </div>
       </div>
 
-      {/* ── Desktop: tabel ── */}
-      <div className="hidden md:block overflow-x-auto pb-1">
-        <div className="bg-gray-800 rounded-lg overflow-hidden min-w-max pr-4">
-          <table className="w-full">
-            <thead className="bg-gray-700 sticky top-0 z-10">
-              <tr className="text-left">
-                {columns.map((col, i) => (
-                  <th
-                    key={col.key}
-                    className={`p-2 sm:p-4 text-sm sm:text-base select-none transition-colors ${
-                      !isEditing ? 'cursor-pointer hover:bg-gray-600' : 'cursor-default'
-                    } ${i === 0 ? 'sticky left-0 bg-gray-700 z-20' : ''}`}
-                    onClick={() => handleSort(col.key)}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      {col.label}
-                      {!isEditing && <SortIndicator active={sortKey === col.key} dir={sortDir} />}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedPlayers.map(player => (
-                <tr key={player.id} className="border-t border-gray-700 hover:bg-gray-700/50">
-                  <td className="p-2 sm:p-4 font-bold text-sm sm:text-base sticky left-0 bg-gray-800 z-10">
-                    {player.name}
-                  </td>
-                  <td className="p-2 sm:p-4">
-                    <span className="text-xs">{positionEmojis[player.position]} {player.position}</span>
-                  </td>
-                  <td className="p-2 sm:p-4">
-                    {player.injured
-                      ? <span className="text-red-500" title="Geblesseerd">🏥</span>
-                      : <span className="text-green-500">✓</span>
-                    }
-                  </td>
-                  {statFields.map(field => (
-                    <StatCell
-                      key={field}
-                      isEditing={isEditing}
-                      value={player[field] ?? 0}
-                      field={field}
-                      playerId={player.id}
-                      playerName={player.name}
-                      onCellClick={handleCellClick}
-                    />
+      {/* ── Desktop: positiefilter + tabel ── */}
+      <div className="hidden md:block">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {POSITION_FILTERS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setFilterPosition(f.value)}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition ${
+                filterPosition === f.value
+                  ? 'bg-yellow-500 text-black'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="overflow-x-auto pb-1">
+          <div className="bg-gray-800 rounded-lg overflow-hidden min-w-max pr-4">
+            <table className="w-full">
+              <thead className="bg-gray-700 sticky top-0 z-10">
+                <tr className="text-left">
+                  {columns.map((col, i) => (
+                    <th
+                      key={col.key}
+                      className={`p-2 sm:p-4 text-sm sm:text-base select-none transition-colors ${
+                        !isEditing ? 'cursor-pointer hover:bg-gray-600' : 'cursor-default'
+                      } ${i === 0 ? 'sticky left-0 bg-gray-700 z-20' : ''}`}
+                      onClick={() => handleSort(col.key)}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        {!isEditing && <SortIndicator active={sortKey === col.key} dir={sortDir} />}
+                      </span>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedPlayers.map(player => (
+                  <tr key={player.id} className="border-t border-gray-700 hover:bg-gray-700/50">
+                    <td className="p-2 sm:p-4 font-bold text-sm sm:text-base sticky left-0 bg-gray-800 z-10">
+                      {player.name}
+                    </td>
+                    <td className="p-2 sm:p-4">
+                      <span className="text-xs">{positionEmojis[player.position]} {player.position}</span>
+                    </td>
+                    <td className="p-2 sm:p-4">
+                      {player.injured
+                        ? <span className="text-red-500" title="Geblesseerd">🏥</span>
+                        : <span className="text-green-500">✓</span>
+                      }
+                    </td>
+                    {statFields.map(field => (
+                      <StatCell
+                        key={field}
+                        isEditing={isEditing}
+                        value={player[field] ?? 0}
+                        field={field}
+                        playerId={player.id}
+                        playerName={player.name}
+                        onCellClick={handleCellClick}
+                      />
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      {/* Overlay (gedeeld mobiel + desktop) */}
+      {/* Stat-edit overlay */}
       {editingCell && (
         <StatEditOverlay
           playerName={editingCell.playerName}
@@ -353,7 +359,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
         />
       )}
 
-      {/* Positie bottom sheet */}
+      {/* Positie bottom sheet (mobiel) */}
       {isFilterSheetOpen && (
         <PositionBottomSheet
           current={filterPosition}
@@ -366,14 +372,8 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
 }
 
 function SortIndicator({ active, dir }: { active: boolean; dir: SortDir }) {
-  if (!active) {
-    return <span className="text-gray-500 text-xs ml-0.5">↕</span>;
-  }
-  return (
-    <span className="text-blue-400 text-xs ml-0.5">
-      {dir === 'asc' ? '▲' : '▼'}
-    </span>
-  );
+  if (!active) return <span className="text-gray-500 text-xs ml-0.5">↕</span>;
+  return <span className="text-blue-400 text-xs ml-0.5">{dir === 'asc' ? '▲' : '▼'}</span>;
 }
 
 function StatCell({ isEditing, value, field, playerId, playerName, onCellClick }: {
@@ -405,6 +405,19 @@ function PositionBottomSheet({ current, onSelect, onClose }: {
   onSelect: (pos: PositionFilter) => void;
   onClose: () => void;
 }) {
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartY.current === null) return;
+    const delta = e.changedTouches[0].clientY - touchStartY.current;
+    if (delta > 60) onClose();
+    touchStartY.current = null;
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black/60 z-50 flex items-end"
@@ -413,6 +426,8 @@ function PositionBottomSheet({ current, onSelect, onClose }: {
       <div
         className="w-full bg-gray-800 rounded-t-2xl p-4 pb-8 shadow-2xl"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-5" />
         <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-3 px-1">
@@ -433,6 +448,12 @@ function PositionBottomSheet({ current, onSelect, onClose }: {
             </button>
           ))}
         </div>
+        <button
+          onClick={onClose}
+          className="w-full mt-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-semibold transition"
+        >
+          Sluiten
+        </button>
       </div>
     </div>
   );
@@ -458,7 +479,6 @@ function StatEditOverlay({ playerName, field, value, onStep, onClose }: {
           <p className="text-gray-400 text-sm">{playerName}</p>
           <p className="font-bold text-white">{STAT_LABELS[field] ?? field}</p>
         </div>
-
         <div className="flex items-center justify-center gap-6 my-6">
           <button
             onClick={() => onStep(-1)}
@@ -467,11 +487,9 @@ function StatEditOverlay({ playerName, field, value, onStep, onClose }: {
           >
             −
           </button>
-
           <span className="text-5xl font-black text-white w-16 text-center tabular-nums">
             {value}
           </span>
-
           <button
             onClick={() => onStep(1)}
             className="w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 text-white text-3xl font-bold transition flex items-center justify-center"
@@ -479,7 +497,6 @@ function StatEditOverlay({ playerName, field, value, onStep, onClose }: {
             +
           </button>
         </div>
-
         <button
           onClick={onClose}
           className="w-full py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-bold transition"
