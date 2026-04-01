@@ -371,8 +371,11 @@ export default function DashboardView({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 dashboard-bg">
+      <div className="max-w-4xl mx-auto relative">
+        {/* Hoekschop-arc — decoratief veldaccent */}
+        <div aria-hidden="true" className="pointer-events-none absolute -top-2 -right-2 w-28 h-28 rounded-full border border-white/[0.05]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -top-2 -right-2 w-48 h-48 rounded-full border border-white/[0.03]" />
 
         <InstallBanner />
         <AnnouncementBanner />

@@ -44,6 +44,19 @@ body {
   animation: screenFadeIn 0.25s ease-out forwards;
 }
 
+/* Dashboard — subtiele voetbaltextuur (grasstrepen + centercircle spotlight) */
+.dashboard-bg {
+  background-image:
+    radial-gradient(circle at 50% -5%, rgba(255, 255, 255, 0.04) 0%, transparent 52%),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 64px,
+      rgba(255, 255, 255, 0.016) 64px,
+      rgba(255, 255, 255, 0.016) 128px
+    );
+}
+
 /* Prevent text selection on all buttons and interactive elements */
 button,
 [role="button"] {
