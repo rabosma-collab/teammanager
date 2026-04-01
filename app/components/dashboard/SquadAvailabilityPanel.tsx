@@ -23,13 +23,16 @@ function PlayerRow({ player, isAbsent }: PlayerRowProps) {
     <div className="flex items-center gap-2 py-1.5 border-b border-gray-700/40 last:border-0">
       <span className="text-sm flex-shrink-0">{positionEmojis[player.position] || '⚽'}</span>
       <span className="flex-1 text-sm font-medium truncate">{player.name}</span>
-      {player.injured && (
+      {player.is_guest && (
+        <span className="text-xs px-1.5 py-0.5 bg-blue-900/50 text-blue-300 rounded flex-shrink-0">Gast</span>
+      )}
+      {!player.is_guest && player.injured && (
         <span className="text-xs px-1.5 py-0.5 bg-red-900/50 text-red-300 rounded flex-shrink-0">🏥 Geblesseerd</span>
       )}
-      {!player.injured && isAbsent && (
+      {!player.is_guest && !player.injured && isAbsent && (
         <span className="text-xs px-1.5 py-0.5 bg-orange-900/50 text-orange-300 rounded flex-shrink-0">❌ Afwezig</span>
       )}
-      {!player.injured && !isAbsent && (
+      {!player.is_guest && !player.injured && !isAbsent && (
         <span className="text-xs px-1.5 py-0.5 bg-green-900/50 text-green-300 rounded flex-shrink-0">✅</span>
       )}
     </div>
@@ -57,6 +60,7 @@ export default function SquadAvailabilityPanel({
   const handleShareAvailability = async () => {
     const dateStr = formatShareDate(match.date);
     const regularPlayers = players.filter(p => !p.is_guest);
+    const matchGuests = players.filter(p => p.is_guest && p.guest_match_id === match.id);
 
     const available = regularPlayers.filter(p => !p.injured && !matchAbsences.includes(p.id));
     const absent = regularPlayers.filter(p => !p.injured && matchAbsences.includes(p.id));
@@ -65,8 +69,9 @@ export default function SquadAvailabilityPanel({
     const lines: string[] = [
       `📋 Beschikbaarheid — ${match.opponent} · ${dateStr}`,
       '',
-      `✅ Beschikbaar (${available.length}):`,
+      `✅ Beschikbaar (${available.length + matchGuests.length}):`,
       ...available.map(p => `  ${p.name}`),
+      ...matchGuests.map(p => `  ${p.name} (gast)`),
     ];
     if (absent.length > 0) {
       lines.push('', `❌ Afwezig (${absent.length}):`, ...absent.map(p => `  ${p.name}`));
@@ -91,19 +96,21 @@ export default function SquadAvailabilityPanel({
   };
 
   const regularPlayers = players.filter(p => !p.is_guest);
+  const matchGuests = players.filter(p => p.is_guest && p.guest_match_id === match.id);
 
-  if (regularPlayers.length === 0) return null;
+  if (regularPlayers.length === 0 && matchGuests.length === 0) return null;
 
   const injuredCount = regularPlayers.filter(p => p.injured).length;
   const absentCount = matchAbsences.filter(id => {
     const p = regularPlayers.find(pl => pl.id === id);
     return p && !p.injured;
   }).length;
-  const availableCount = regularPlayers.length - injuredCount - absentCount;
+  const availableCount = regularPlayers.length - injuredCount - absentCount + matchGuests.length;
 
+  const allForMatch = [...regularPlayers, ...matchGuests];
   const byPosition = positionOrder.map(pos => ({
     pos,
-    group: regularPlayers.filter(p => p.position === pos),
+    group: allForMatch.filter(p => p.position === pos),
   })).filter(({ group }) => group.length > 0);
 
   return (
@@ -182,7 +189,7 @@ export default function SquadAvailabilityPanel({
                 </div>
                 {group.map(p => (
                   <PlayerRow
-                    key={p.id}
+                    key={`${p.is_guest ? 'g' : 'r'}_${p.id}`}
                     player={p}
                     isAbsent={matchAbsences.includes(p.id)}
                   />
