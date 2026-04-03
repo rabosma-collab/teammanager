@@ -183,6 +183,7 @@ export default function FootballApp() {
   const { overrides: periodOverrides, periodFormations, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, savePeriodFormation, clearOverrides: clearPeriodOverrides } = usePeriodOverrides();
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
   const [showActivity, setShowActivity] = useState(false);
+  const [upcomingAbsencesMap, setUpcomingAbsencesMap] = useState<Record<number, number[]>>({});
 
   const { activeEditor, claimEdit, releaseEdit } = useLineupPresence(selectedMatch?.id ?? null);
   const myName = players.find(p => p.id === teamPlayerId)?.name ?? 'Manager';
@@ -191,6 +192,13 @@ export default function FootballApp() {
   const matchDuration = teamSettings?.match_duration ?? 90;
 
   // ---- BEREKENDE WAARDEN ----
+  // Alle aankomende concept-wedstrijden gesorteerd op datum (voor cumulatieve taakberekening)
+  const upcomingConceptMatches = useMemo(
+    () => matches.filter(m => m.match_status === 'concept')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [matches]
+  );
+
   const editable = isMatchEditable(isManager);
   const isFinalized = selectedMatch?.match_status === 'afgerond' || selectedMatch?.match_status === 'geannuleerd';
   const isLineupPublished = selectedMatch?.lineup_published === true;
@@ -238,10 +246,36 @@ export default function FootballApp() {
 
   // Vervoer berekening voor PitchView toolbar
   const vervoerCount = teamSettings?.vervoer_count ?? 3;
+  // Simuleer cumulatieve transport-count t/m de geselecteerde wedstrijd (zelfde logica als UitslagenView)
+  // zodat de auto-selectie verandert wanneer je van wedstrijd wisselt.
+  const vervoerEffectiveCounts = useMemo(() => {
+    const counts = new Map<number, number>(players.filter((p: Player) => !p.is_guest).map((p: Player) => [p.id, p.transport_count]));
+    if (!selectedMatch || !(teamSettings?.track_vervoer ?? true)) return counts;
+    for (const match of upcomingConceptMatches) {
+      if (match.id === selectedMatch.id) break;
+      if (match.home_away === 'Thuis') continue;
+      const absentIds = new Set(upcomingAbsencesMap[match.id] ?? []);
+      const available = players.filter((p: Player) => !p.is_guest && !p.injured && !absentIds.has(p.id));
+      const eligibleList = [...available].sort((a: Player, b: Player) => ((counts.get(a.id) ?? 0) - (counts.get(b.id) ?? 0)) || a.name.localeCompare(b.name));
+      const usedIds = new Set<number>();
+      const overrideIds: number[] = match.transport_player_ids ?? [];
+      for (let i = 0; i < vervoerCount; i++) {
+        const overrideId = overrideIds[i] ?? null;
+        if (overrideId) {
+          const op = available.find((p: Player) => p.id === overrideId && !usedIds.has(p.id)) ?? null;
+          if (op) { counts.set(op.id, (counts.get(op.id) ?? 0) + 1); usedIds.add(op.id); continue; }
+        }
+        const auto = eligibleList.find((p: Player) => !usedIds.has(p.id)) ?? null;
+        if (auto) { counts.set(auto.id, (counts.get(auto.id) ?? 0) + 1); usedIds.add(auto.id); }
+      }
+    }
+    return counts;
+  }, [selectedMatch?.id, upcomingConceptMatches, upcomingAbsencesMap, players, vervoerCount, teamSettings?.track_vervoer]);
+
   const vervoerEligible = useMemo(() =>
     players.filter((p: Player) => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
-      .sort((a: Player, b: Player) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name)),
-    [players, matchAbsences]
+      .sort((a: Player, b: Player) => ((vervoerEffectiveCounts.get(a.id) ?? a.transport_count) - (vervoerEffectiveCounts.get(b.id) ?? b.transport_count)) || a.name.localeCompare(b.name)),
+    [players, matchAbsences, vervoerEffectiveCounts]
   );
   const vervoerOverrideIds: number[] = selectedMatch?.transport_player_ids ?? [];
   const vervoerAllPlayers = useMemo(() =>
@@ -460,6 +494,28 @@ export default function FootballApp() {
       if (players.length > 0) loadLineup(selectedMatch.id, players, playerCount);
     }
   }, [view, selectedMatch?.id, players, fetchAbsences, loadLineup, playerCount]);
+
+  // Haal afwezigheid op voor alle aankomende concept-wedstrijden (nodig voor cumulatieve vervoer/wasbeurt/consumpties berekening)
+  useEffect(() => {
+    if (!currentTeam || upcomingConceptMatches.length === 0) return;
+    const ids = upcomingConceptMatches.map(m => m.id);
+    supabase.from('match_absences').select('match_id, player_id').in('match_id', ids)
+      .then(({ data }: { data: { match_id: number; player_id: number }[] | null }) => {
+        const map: Record<number, number[]> = {};
+        for (const row of data ?? []) {
+          if (!map[row.match_id]) map[row.match_id] = [];
+          map[row.match_id].push(row.player_id);
+        }
+        setUpcomingAbsencesMap(map);
+      });
+  }, [upcomingConceptMatches.length, currentTeam?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Houd de geselecteerde wedstrijd synchroon in upcomingAbsencesMap (bij toggling afwezigheid)
+  useEffect(() => {
+    if (selectedMatch) {
+      setUpcomingAbsencesMap(prev => ({ ...prev, [selectedMatch.id]: matchAbsences }));
+    }
+  }, [matchAbsences, selectedMatch?.id]);
 
   useEffect(() => {
     if (view === 'instructions') {
