@@ -87,14 +87,30 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
 
           <div>
             <label className="block text-sm font-bold text-gray-400 mb-1">Uit / Thuis</label>
-            <select
-              value={homeAway}
-              onChange={(e) => setHomeAway(e.target.value as 'Thuis' | 'Uit')}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
-            >
-              <option value="Thuis">Thuis</option>
-              <option value="Uit">Uit</option>
-            </select>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setHomeAway('Thuis')}
+                className={`flex-1 py-2 rounded font-bold text-sm transition ${
+                  homeAway === 'Thuis'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🏠 Thuis
+              </button>
+              <button
+                type="button"
+                onClick={() => setHomeAway('Uit')}
+                className={`flex-1 py-2 rounded font-bold text-sm transition ${
+                  homeAway === 'Uit'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                ✈️ Uit
+              </button>
+            </div>
           </div>
 
           <div>

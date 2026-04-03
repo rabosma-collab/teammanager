@@ -286,37 +286,28 @@ export default function NextMatchCard({
           </div>
         ) : null}
         {!isFinalized && (trackWasbeurt || trackConsumpties || trackVervoer) && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 flex flex-wrap gap-2">
             {trackWasbeurt && nextWasbeurt && (
-              <div className="flex items-center gap-1.5 text-xs flex-wrap">
-                <span>🧺</span>
-                <span className="text-blue-300">Wasbeurt: <span className="font-bold text-white">{nextWasbeurt.name}</span></span>
-                <span className="text-gray-500">({nextWasbeurt.wash_count}x gewassen)</span>
+              <span className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
+                🧺 <span className="font-medium text-white">{nextWasbeurt.name}</span>
                 {wasbeurtOverrideUnavailable && wasbeurtOverridePlayer && (
-                  <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-1.5 py-0.5">
-                    ⚠️ {wasbeurtOverridePlayer.name} is {wasbeurtOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}, automatisch gekozen
-                  </span>
+                  <span className="text-yellow-400 ml-1">⚠️</span>
                 )}
-              </div>
+              </span>
             )}
             {trackConsumpties && nextConsumpties && (
-              <div className="flex items-center gap-1.5 text-xs flex-wrap">
-                <span>🥤</span>
-                <span className="text-green-300">Consumpties: <span className="font-bold text-white">{nextConsumpties.name}</span></span>
-                <span className="text-gray-500">({nextConsumpties.consumption_count}x meegebracht)</span>
+              <span className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
+                🥤 <span className="font-medium text-white">{nextConsumpties.name}</span>
                 {consumptiesOverrideUnavailable && consumptiesOverridePlayer && (
-                  <span className="text-yellow-400 bg-yellow-900/30 border border-yellow-700/40 rounded px-1.5 py-0.5">
-                    ⚠️ {consumptiesOverridePlayer.name} is {consumptiesOverridePlayer.injured ? 'geblesseerd' : 'afwezig'}, automatisch gekozen
-                  </span>
+                  <span className="text-yellow-400 ml-1">⚠️</span>
                 )}
-              </div>
+              </span>
             )}
-            {trackVervoer && vervoerDisplayPlayers.some(p => p !== null) && (
-              <div className="flex items-center gap-1.5 text-xs flex-wrap">
-                <span>🚗</span>
-                <span className="text-orange-300">Vervoer: <span className="font-bold text-white">{vervoerDisplayPlayers.filter((p): p is Player => p !== null).map(p => p.name).join(', ')}</span></span>
-              </div>
-            )}
+            {trackVervoer && vervoerDisplayPlayers.map((p, i) => p && (
+              <span key={i} className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
+                {i === 0 ? '🚗' : '🚙'} <span className="font-medium text-white">{p.name}</span>
+              </span>
+            ))}
           </div>
         )}
       </div>
