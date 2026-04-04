@@ -359,13 +359,20 @@ export default function FootballApp() {
     const computedLineup = computeLineupForPeriod(fieldOccupants, substitutions, players, selectedPeriod);
     const override = periodOverrides[selectedPeriod];
     if (override) {
-      // Gebruik de override alleen als dezelfde spelers op het veld staan als de berekende opstelling.
+      // Gebruik de override alleen als dezelfde reguliere spelers op het veld staan als de berekende opstelling.
+      // Gastspelers worden niet opgeslagen in lineup_period_overrides (player_id = null), dus worden uitgesloten
+      // van de vergelijking. Hun positie wordt altijd overgenomen uit de berekende opstelling.
       // Als de override verouderd is (bijv. wissel na override aangemaakt), negeer hem.
-      const playerKey = (p: import('./lib/types').Player | null) => p ? `${p.is_guest ? 'g' : 'r'}_${p.id}` : null;
+      const playerKey = (p: import('./lib/types').Player | null) => (p && !p.is_guest) ? `r_${p.id}` : null;
       const computedIds = new Set(computedLineup.map(playerKey).filter(Boolean));
       const overrideIds = new Set(override.map(playerKey).filter(Boolean));
       const setsMatch = computedIds.size === overrideIds.size && Array.from(computedIds).every(id => overrideIds.has(id));
-      if (setsMatch) return override;
+      if (setsMatch) {
+        // Vul gastspelerposities in vanuit computedLineup (worden niet opgeslagen in de DB)
+        return override.map((p, idx) =>
+          p !== null ? p : (computedLineup[idx]?.is_guest ? computedLineup[idx] : null)
+        );
+      }
     }
     return computedLineup;
   }, [selectedPeriod, fieldOccupants, substitutions, players, periodOverrides]);
