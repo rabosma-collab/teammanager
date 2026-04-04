@@ -106,6 +106,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
   const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
     const reader = new FileReader();
     reader.onload = ev => {
       setCsvParsed(parseCsvMatches(ev.target?.result as string));
@@ -296,7 +297,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
             <div className="text-3xl mb-2">📂</div>
             <div className="font-medium text-gray-300">Klik om een CSV-bestand te kiezen</div>
             <div className="text-xs text-gray-500 mt-1">Kolommen: datum, tegenstander, thuis/uit</div>
-            <input type="file" accept=".csv,.txt" onChange={handleCsvFile} className="hidden" />
+            <input type="file" accept=".csv,.txt" onChange={handleCsvFile} className="sr-only" />
           </label>
 
           <details className="text-xs text-gray-500">

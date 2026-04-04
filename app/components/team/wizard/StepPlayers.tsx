@@ -180,6 +180,7 @@ export default function StepPlayers({ teamId, currentUserId, onNext, onBack, onS
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
     const reader = new FileReader();
     reader.onload = (ev) => {
       setParsed(parseCsv(ev.target?.result as string));
@@ -438,16 +439,13 @@ export default function StepPlayers({ teamId, currentUserId, onNext, onBack, onS
             ← Terug
           </button>
 
-          <div
-            className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center cursor-pointer hover:border-gray-500 transition"
-            onClick={() => fileRef.current?.click()}
-          >
+          <label className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center cursor-pointer hover:border-gray-500 transition block">
             <div className="text-3xl mb-2">📂</div>
             <div className="font-medium text-gray-300">Klik om een CSV-bestand te kiezen</div>
             <div className="text-xs text-gray-500 mt-1">Formaat: naam, positie (per rij)</div>
             <div className="text-xs text-gray-500">Posities: Keeper, Verdediger, Middenvelder, Aanvaller</div>
-          </div>
-          <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />
+            <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="sr-only" />
+          </label>
 
           <details className="text-xs text-gray-500">
             <summary className="cursor-pointer hover:text-gray-400">Voorbeeld CSV bekijken</summary>
