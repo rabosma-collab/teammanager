@@ -53,28 +53,19 @@ export default function SubstitutionModal({
     // IDs of players who went OUT during earlier substitution moments
     const outFromEarlierIds = new Set(earlierSubs.map(s => s.player_out_id));
 
-    // Find actual player objects for who came IN earlier, using composite key to handle
-    // guest/regular ID collisions correctly (a guest Des and a regular Des are different players)
+    // Helper to resolve a substitution player_id to a Player object
+    const resolvePlayer = (id: number, preferGuest: boolean): Player | undefined => {
+      const guestVersion =
+        benchPlayers.find(p => p.is_guest && p.id === id) ??
+        fieldOccupants.find((p): p is Player => p !== null && !!p.is_guest && p.id === id);
+      if (guestVersion) return guestVersion;
+      return players.find(p => p.id === id && !p.is_guest);
+    };
+
+    // Find actual player objects for who came IN earlier
     const inFromEarlierPlayers = earlierSubs
-      .map(s => {
-        const guestVersion =
-          benchPlayers.find(p => p.is_guest && p.id === s.player_in_id) ??
-          fieldOccupants.find((p): p is Player => p !== null && !!p.is_guest && p.id === s.player_in_id);
-        if (guestVersion) return guestVersion;
-        return players.find(p => p.id === s.player_in_id && !p.is_guest);
-      })
+      .map(s => resolvePlayer(s.player_in_id, false))
       .filter((p): p is Player => p !== undefined);
-
-    // Composite keys for players who came IN earlier — used to exclude them from availableIn
-    const inFromEarlierKeys = new Set(inFromEarlierPlayers.map(playerKey));
-
-    // availableOut = starters still on field + players who came in earlier
-    // Guard guest players against ID collision: a guest with the same ID as a subbed-out
-    // regular player must NOT be removed from the field list
-    availableOut = [
-      ...currentField.filter(p => p.is_guest || !outFromEarlierIds.has(p.id)),
-      ...inFromEarlierPlayers
-    ];
 
     const outFromEarlierPlayers = earlierSubs
       .map(s => {
@@ -88,12 +79,29 @@ export default function SubstitutionModal({
       })
       .filter((p): p is Player => p !== undefined);
 
-    // availableIn = bench players who haven't come in yet + players who went out earlier
-    // Use composite keys so guest/regular players with the same ID are treated independently.
-    // A player who came IN at an earlier moment is now on the field and must not appear again.
+    // Process earlierSubs in substitution_number order to track each player's LAST action.
+    // A player subbed in at moment 1 and out again at moment 3 has last action = 'out'
+    // and is therefore available to come back in — the old inFromEarlierKeys approach
+    // incorrectly blocked such players.
+    const lastActionIsIn = new Set<string>();
+    const sortedEarlierSubs = [...earlierSubs].sort((a, b) => a.substitution_number - b.substitution_number);
+    for (const s of sortedEarlierSubs) {
+      const outPlayer = resolvePlayer(s.player_out_id, true);
+      const inPlayer = resolvePlayer(s.player_in_id, false);
+      if (outPlayer) lastActionIsIn.delete(playerKey(outPlayer));
+      if (inPlayer) lastActionIsIn.add(playerKey(inPlayer));
+    }
+
+    // availableOut = starters still on field + players who came in and are still on field
+    availableOut = [
+      ...currentField.filter(p => p.is_guest || !outFromEarlierIds.has(p.id)),
+      ...inFromEarlierPlayers.filter(p => lastActionIsIn.has(playerKey(p)))
+    ];
+
+    // availableIn = bench players not currently on field + players who went out and aren't back on field
     availableIn = [
-      ...benchPlayers.filter(p => !inFromEarlierKeys.has(playerKey(p))),
-      ...outFromEarlierPlayers.filter(p => !inFromEarlierKeys.has(playerKey(p)))
+      ...benchPlayers.filter(p => !lastActionIsIn.has(playerKey(p))),
+      ...outFromEarlierPlayers.filter(p => !lastActionIsIn.has(playerKey(p)))
     ];
 
     // Remove players already used in other rows of THIS substitution

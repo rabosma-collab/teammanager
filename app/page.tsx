@@ -180,7 +180,7 @@ export default function FootballApp() {
   const { votingMatches, isLoadingVotes, lastSpdwResult, fetchVotingMatches, submitVote } = useVoting();
   const { balance: creditBalance, fetchBalance, awardSpdwCredits, awardAttendanceCredits, spendCreditsForStats } = useStatCredits();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
-  const { overrides: periodOverrides, periodFormations, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, savePeriodFormation, clearOverrides: clearPeriodOverrides } = usePeriodOverrides();
+  const { overrides: periodOverrides, periodFormations, fetchPeriodOverrides, applyAndSave: applyPeriodOverride, savePeriodFormation, clearOverrides: clearPeriodOverrides, clearFromPeriod: clearOverridesFromPeriod } = usePeriodOverrides();
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
   const [showActivity, setShowActivity] = useState(false);
   const [upcomingAbsencesMap, setUpcomingAbsencesMap] = useState<Record<number, number[]>>({});
@@ -794,8 +794,11 @@ export default function FootballApp() {
 
   const handleSaveSubstitutions = async (customMinute?: number) => {
     if (!selectedMatch) return;
+    const subMoment = showSubModal; // capture vóór save reset showSubModal naar null
     const success = await saveSubstitutions(selectedMatch.id, customMinute);
-    if (success) {
+    if (success && subMoment) {
+      // Fix A: stale periodOverrides voor periodes na dit wisselmoment wissen
+      await clearOverridesFromPeriod(selectedMatch.id, subMoment + 1);
       toast.success('✅ Wissels opgeslagen!');
     }
   };
@@ -1192,7 +1195,7 @@ export default function FootballApp() {
           onConfirm={async (playerIn) => {
             const subNumber = selectedPeriod - 1;
             const minute = subMomentMinutes[subNumber - 1] ?? 0;
-            await saveQuickSwap(selectedMatch.id, subNumber, minute, swapTarget.player.id, playerIn.id);
+            await saveQuickSwap(selectedMatch.id, subNumber, minute, swapTarget.player.id, playerIn.id, Boolean(swapTarget.player.is_guest), Boolean(playerIn.is_guest));
             setSwapTarget(null);
           }}
           onClose={() => setSwapTarget(null)}

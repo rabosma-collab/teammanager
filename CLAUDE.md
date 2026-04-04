@@ -146,7 +146,7 @@ Supabase Storage bucket `avatars` — public read, for profile pictures.
 
 ## Na elke implementatie
 
-After completing any code change, always perform these three checks before closing out. Present findings proactively — do not ask whether to check, just do it and report.
+Only perform these checks when the user explicitly asks for them (e.g. "doe de nacontrole" or "/check").
 
 1. **Wizard** — Scan `app/components/team/wizard/` and `TeamSetupWizard.tsx`. Does the change affect any setting, concept, or flow that is also part of the team setup wizard? If yes, state exactly which step and what needs updating.
 2. **Uniformiteit** — Look for similar features or patterns elsewhere in the app (other views, modals, hooks). If the same concept exists in multiple places, check whether the change is applied consistently. Report any gaps.

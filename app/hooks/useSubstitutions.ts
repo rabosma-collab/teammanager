@@ -48,8 +48,8 @@ export function useSubstitutions() {
   ) => {
     const existing = substitutions.filter(s => s.substitution_number === subNumber);
     setTempSubs(existing.map(s => ({
-      out: players.find(p => p.id === s.player_out_id) || null,
-      in: players.find(p => p.id === s.player_in_id) || null,
+      out: players.find(p => p.id === s.player_out_id && Boolean(p.is_guest) === Boolean(s.player_out_is_guest)) || null,
+      in: players.find(p => p.id === s.player_in_id && Boolean(p.is_guest) === Boolean(s.player_in_is_guest)) || null,
     })));
     setShowSubModal(subNumber);
     setShowSubModalMinute(minute ?? null);
@@ -118,6 +118,8 @@ export function useSubstitutions() {
         minute: minute,
         player_out_id: s.out!.id,
         player_in_id: s.in!.id,
+        player_out_is_guest: Boolean(s.out!.is_guest),
+        player_in_is_guest: Boolean(s.in!.is_guest),
         custom_minute: isCustom ? minute : null,
         is_extra: false
       }));
@@ -155,7 +157,9 @@ export function useSubstitutions() {
     subNumber: number,
     minute: number,
     playerOutId: number,
-    playerInId: number
+    playerInId: number,
+    playerOutIsGuest: boolean = false,
+    playerInIsGuest: boolean = false
   ): Promise<boolean> => {
     if (!currentTeam) return false;
     try {
@@ -176,6 +180,8 @@ export function useSubstitutions() {
           minute,
           player_out_id: playerOutId,
           player_in_id: playerInId,
+          player_out_is_guest: playerOutIsGuest,
+          player_in_is_guest: playerInIsGuest,
           custom_minute: null,
           is_extra: false,
         });

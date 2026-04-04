@@ -72,6 +72,8 @@ export interface Player {
     minute: number;
     player_out_id: number;
     player_in_id: number;
+    player_out_is_guest: boolean;
+    player_in_is_guest: boolean;
     custom_minute: number | null;
     is_extra: boolean;
   }
