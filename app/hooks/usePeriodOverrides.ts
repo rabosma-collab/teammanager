@@ -106,5 +106,24 @@ export function usePeriodOverrides() {
     setPeriodFormations({});
   }, []);
 
-  return { overrides, periodFormations, fetchPeriodOverrides, applyAndSave, savePeriodFormation, clearOverrides };
+  /**
+   * Verwijder overrides voor alle periodes >= fromPeriod (lokaal + DB).
+   * Aanroepen na het opslaan van een wissel om stale positie-overrides te wissen.
+   */
+  const clearFromPeriod = useCallback(async (matchId: number, fromPeriod: number) => {
+    setOverrides(prev => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        if (Number(key) >= fromPeriod) delete next[Number(key)];
+      }
+      return next;
+    });
+    await supabase
+      .from('lineup_period_overrides')
+      .delete()
+      .eq('match_id', matchId)
+      .gte('period', fromPeriod);
+  }, []);
+
+  return { overrides, periodFormations, fetchPeriodOverrides, applyAndSave, savePeriodFormation, clearOverrides, clearFromPeriod };
 }

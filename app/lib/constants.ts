@@ -258,9 +258,16 @@ export function computeLineupForPeriod(
   for (let moment = 1; moment < period; moment++) {
     const subs = substitutions.filter(s => s.substitution_number === moment && !s.is_extra);
     for (const sub of subs) {
-      const idx = lineup.findIndex(p => p !== null && p.id === sub.player_out_id);
+      const idx = lineup.findIndex(p =>
+        p !== null &&
+        p.id === sub.player_out_id &&
+        Boolean(p.is_guest) === Boolean(sub.player_out_is_guest)
+      );
       if (idx !== -1) {
-        lineup[idx] = allPlayers.find(p => p.id === sub.player_in_id) ?? null;
+        lineup[idx] = allPlayers.find(p =>
+          p.id === sub.player_in_id &&
+          Boolean(p.is_guest) === Boolean(sub.player_in_is_guest)
+        ) ?? null;
       }
     }
   }

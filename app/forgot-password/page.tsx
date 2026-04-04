@@ -9,12 +9,26 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [isGoogleOnly, setIsGoogleOnly] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
+      // Controleer eerst of het account alleen via Google is aangemaakt
+      const res = await fetch('/api/check-auth-provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const { provider } = await res.json();
+
+      if (provider === 'google') {
+        setIsGoogleOnly(true);
+        return;
+      }
+
       await resetPasswordForEmail(email);
       setSent(true);
     } catch (err) {
@@ -23,6 +37,29 @@ export default function ForgotPasswordPage() {
       setLoading(false);
     }
   };
+
+  if (isGoogleOnly) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-700 text-center">
+            <div className="text-5xl mb-4">🔑</div>
+            <h2 className="text-2xl font-bold text-white mb-3">Inloggen via Google</h2>
+            <p className="text-gray-300 mb-6">
+              Je account is aangemaakt via Google. Er is geen wachtwoord ingesteld —
+              je kunt inloggen met de Google-knop op de inlogpagina.
+            </p>
+            <Link
+              href="/login"
+              className="inline-block w-full py-3 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-gray-900 font-display font-bold text-base uppercase tracking-wide transition active:scale-[0.98]"
+            >
+              Terug naar inloggen
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (sent) {
     return (
@@ -86,7 +123,7 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-gray-900 font-display font-bold text-base uppercase tracking-wide transition active:scale-[0.98]"
             >
-              {loading ? 'Versturen...' : 'Resetlink versturen'}
+              {loading ? 'Controleren...' : 'Resetlink versturen'}
             </button>
           </form>
 

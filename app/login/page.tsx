@@ -20,6 +20,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
 
+  // Redirect to reset-password page if a PASSWORD_RECOVERY event fires here
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event: string) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        router.replace('/reset-password');
+      }
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [router]);
+
   // Check for pending invite token on mount
   useEffect(() => {
     const token = localStorage.getItem('inviteToken');
