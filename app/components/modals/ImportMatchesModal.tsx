@@ -62,6 +62,8 @@ export default function ImportMatchesModal({ teamId, defaultFormation, onImporte
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset input value so the same file can be re-selected
+    e.target.value = '';
     const reader = new FileReader();
     reader.onload = ev => {
       setParsed(parseCsvMatches(ev.target?.result as string));
@@ -110,16 +112,13 @@ export default function ImportMatchesModal({ teamId, defaultFormation, onImporte
 
         {!imported ? (
           <div className="space-y-4">
-            {/* Drop zone */}
-            <div
-              className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center cursor-pointer hover:border-gray-500 transition"
-              onClick={() => fileRef.current?.click()}
-            >
+            {/* Drop zone — label wraps input for mobile-safe file picking */}
+            <label className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center cursor-pointer hover:border-gray-500 transition block">
               <div className="text-3xl mb-2">📂</div>
               <div className="font-medium text-gray-300">Klik om een CSV-bestand te kiezen</div>
               <div className="text-xs text-gray-500 mt-1">Kolommen: datum, tegenstander, thuis/uit</div>
-            </div>
-            <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="hidden" />
+              <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFile} className="sr-only" />
+            </label>
 
             <details className="text-xs text-gray-500">
               <summary className="cursor-pointer hover:text-gray-400">Voorbeeld CSV bekijken</summary>
