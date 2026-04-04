@@ -12,8 +12,9 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Zoek de user op via e-mail (filter = tekst-zoekopdracht op email)
-  const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+  // filter bestaat wel in de runtime-API maar ontbreekt in de TypeScript-types van deze versie
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabaseAdmin.auth.admin.listUsers as any)({
     filter: email,
     perPage: 10,
   });
@@ -22,14 +23,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const user = data.users.find((u) => u.email === email);
+  const user = (data?.users ?? []).find(
+    (u: { email?: string }) => u.email === email
+  ) ?? null;
 
   if (!user) {
     // Gebruiker niet gevonden — geen info weggeven; behandel als normaal
     return NextResponse.json({ provider: 'unknown' });
   }
 
-  const identities = user.identities ?? [];
+  const identities: { provider: string }[] = user.identities ?? [];
   const hasEmail = identities.some((i) => i.provider === 'email');
   const hasGoogle = identities.some((i) => i.provider === 'google');
 
