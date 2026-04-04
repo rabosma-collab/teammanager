@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
   );
 
   // filter bestaat wel in de runtime-API maar ontbreekt in de TypeScript-types van deze versie
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabaseAdmin.auth.admin.listUsers as any)({
     filter: email,
     perPage: 10,
