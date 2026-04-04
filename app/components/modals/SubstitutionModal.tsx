@@ -114,8 +114,8 @@ export default function SubstitutionModal({
       .map(s => s.in ? playerKey(s.in) : null)
       .filter((k): k is string => k !== null);
 
-    availableOut = availableOut.filter(p => !usedOutKeys.includes(playerKey(p)));
-    availableIn = availableIn.filter(p => !usedInKeys.includes(playerKey(p)));
+    availableOut = availableOut.filter(p => !usedOutKeys.includes(playerKey(p)) && !usedInKeys.includes(playerKey(p)));
+    availableIn = availableIn.filter(p => !usedInKeys.includes(playerKey(p)) && !usedOutKeys.includes(playerKey(p)));
 
     // Deduplicate using composite key to avoid collisions between regular and guest player IDs
     availableOut = Array.from(new Map(availableOut.map(p => [playerKey(p), p])).values());
