@@ -167,6 +167,17 @@ export default function JoinPage() {
 
       if (memberError) throw memberError;
 
+      // Kopieer avatar naar het gekoppelde spelerrecord (als de gebruiker er al een heeft)
+      if (invite.player_id) {
+        const avatarUrl = user.user_metadata?.avatar_url ?? null;
+        if (avatarUrl) {
+          await supabase
+            .from('players')
+            .update({ avatar_url: avatarUrl })
+            .eq('id', invite.player_id);
+        }
+      }
+
       const playerName = invite.invite_type === 'player'
         ? invite.player?.name
         : (invite.display_name || null);

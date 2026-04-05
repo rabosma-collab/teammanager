@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 interface MyAvailabilityPanelProps {
   futureMatches: Match[];
@@ -144,6 +145,9 @@ export default function MyAvailabilityPanel({
   trackVervoer = false,
   vervoerCount = 3,
 }: MyAvailabilityPanelProps) {
+  const { currentTeam } = useTeamContext();
+  const teamColor = currentTeam?.color || '#f59e0b';
+
   const [absencesByMatch, setAbsencesByMatch] = useState<Record<number, boolean>>({});
   const [allAbsencesByMatch, setAllAbsencesByMatch] = useState<Record<number, Set<number>>>({});
   const [loadingMatchId, setLoadingMatchId] = useState<number | null>(null);
@@ -216,7 +220,7 @@ export default function MyAvailabilityPanel({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 mb-3">
+      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 mb-3 border-l-2 pl-2" style={{ borderLeftColor: teamColor }}>
         Mijn beschikbaarheid
       </h3>
 

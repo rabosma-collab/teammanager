@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { positionEmojis, positionOrder } from '../../lib/constants';
 import InfoButton from '../InfoButton';
+import { useTeamContext } from '../../contexts/TeamContext';
 
 function formatShareDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('nl-NL', {
@@ -54,6 +55,9 @@ export default function SquadAvailabilityPanel({
   isManager,
   onNavigateToWedstrijd,
 }: SquadAvailabilityPanelProps) {
+  const { currentTeam } = useTeamContext();
+  const teamColor = currentTeam?.color || '#f59e0b';
+
   const [expanded, setExpanded] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
 
@@ -118,7 +122,7 @@ export default function SquadAvailabilityPanel({
       {/* Header */}
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Selectie aanwezigheid</h3>
+          <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 border-l-2 pl-2" style={{ borderLeftColor: teamColor }}>Selectie aanwezigheid</h3>
           <InfoButton>
             <p className="font-semibold text-white mb-1">Hoe werkt beschikbaarheid?</p>
             <div className="space-y-1">

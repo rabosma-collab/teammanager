@@ -228,7 +228,7 @@ export default function NextMatchCard({
 
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col gap-4 border-l-4" style={{ borderLeftColor: teamColor }}>
-      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">{getMatchCardTitle(match)}</h3>
+      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 border-l-2 pl-2" style={{ borderLeftColor: teamColor }}>{getMatchCardTitle(match)}</h3>
 
       {/* Match info */}
       <div>
