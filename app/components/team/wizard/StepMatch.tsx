@@ -116,8 +116,8 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
     reader.readAsText(file, 'UTF-8');
   };
 
-  const handleImportCsv = async () => {
-    if (!validCsvMatches.length) return;
+  const handleImportCsv = async (): Promise<boolean> => {
+    if (!validCsvMatches.length) return true;
     setCsvImporting(true);
     setCsvError(null);
     const rows = validCsvMatches.map(m => ({
@@ -127,9 +127,18 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
     }));
     const { error } = await supabase.from('matches').insert(rows);
     setCsvImporting(false);
-    if (error) { setCsvError('Fout bij importeren: ' + error.message); return; }
+    if (error) { setCsvError('Fout bij importeren: ' + error.message); return false; }
     setCsvImported(true);
     onMatchCreated();
+    return true;
+  };
+
+  const handleNext = async (importFn?: () => Promise<boolean>) => {
+    if (importFn) {
+      const ok = await importFn();
+      if (!ok) return;
+    }
+    onNext();
   };
 
   const formatDate = (d: string) =>
@@ -343,8 +352,12 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
             </div>
           )}
 
-          <button onClick={onNext} className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-black font-black rounded-xl transition active:scale-95">
-            Doorgaan →
+          <button
+            onClick={() => handleNext(validCsvMatches.length > 0 && !csvImported ? handleImportCsv : undefined)}
+            disabled={csvImporting}
+            className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black font-black rounded-xl transition active:scale-95"
+          >
+            {csvImporting ? 'Bezig met importeren...' : 'Doorgaan →'}
           </button>
         </div>
       )}

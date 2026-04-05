@@ -11,8 +11,10 @@ import ImportPlayersModal from './modals/ImportPlayersModal';
 import type { GuestPoolEntry } from '../hooks/usePlayers';
 
 interface PlayerAccount {
+  memberId: string;
   userId: string;
   role: 'manager' | 'player' | 'staff';
+  displayName: string | null;
 }
 
 interface ActiveInvite {
@@ -61,14 +63,15 @@ export default function PlayersManageView({
   const [editingPlayer, setEditingPlayer] = useState<Player | null | 'new'>(null);
   const [invitingPlayer, setInvitingPlayer] = useState<Player | null>(null);
   const [showStaffInviteModal, setShowStaffInviteModal] = useState(false);
-  const [playerAccounts, setPlayerAccounts] = useState<Map<number, PlayerAccount>>(new Map());
+  const [playerAccounts, setPlayerAccounts] = useState<Map<number, PlayerAccount[]>>(new Map());
   const [activeInvites, setActiveInvites] = useState<Map<number, ActiveInvite>>(new Map());
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [pendingStaffInvites, setPendingStaffInvites] = useState<PendingStaffInvite[]>([]);
   const [showImportPlayers, setShowImportPlayers] = useState(false);
   const [copiedPlayerId, setCopiedPlayerId] = useState<number | null>(null);
   const [copiedStaffToken, setCopiedStaffToken] = useState<string | null>(null);
-  const [togglingPlayerId, setTogglingPlayerId] = useState<number | null>(null);
+  const [togglingMemberId, setTogglingMemberId] = useState<string | null>(null);
+  const [unlinkingMemberId, setUnlinkingMemberId] = useState<string | null>(null);
   const [togglingStaffId, setTogglingStaffId] = useState<string | null>(null);
   const [removingStaffId, setRemovingStaffId] = useState<string | null>(null);
   const [revokingStaffToken, setRevokingStaffToken] = useState<string | null>(null);
@@ -81,21 +84,26 @@ export default function PlayersManageView({
   const fetchLinkStatus = useCallback(async () => {
     if (!currentTeam) return;
 
-    // Fetch linked players
+    // Fetch linked players (meerdere accounts per speler mogelijk)
     const { data: members } = await supabase
       .from('team_members')
-      .select('player_id, user_id, role')
+      .select('id, player_id, user_id, role, display_name')
       .eq('team_id', currentTeam.id)
       .eq('status', 'active')
       .not('player_id', 'is', null);
 
     if (members) {
-      const map = new Map<number, PlayerAccount>();
+      const map = new Map<number, PlayerAccount[]>();
       for (const m of members) {
-        map.set(m.player_id as number, {
+        const playerId = m.player_id as number;
+        const account: PlayerAccount = {
+          memberId: m.id,
           userId: m.user_id,
           role: m.role as 'manager' | 'player' | 'staff',
-        });
+          displayName: m.display_name ?? null,
+        };
+        if (!map.has(playerId)) map.set(playerId, []);
+        map.get(playerId)!.push(account);
       }
       setPlayerAccounts(map);
     }
@@ -248,14 +256,13 @@ export default function PlayersManageView({
     }
   };
 
-  const handleToggleRole = async (playerId: number, playerName: string) => {
-    const account = playerAccounts.get(playerId);
-    if (!account || !currentTeam) return;
+  const handleToggleRole = async (playerId: number, account: PlayerAccount, displayLabel: string) => {
+    if (!currentTeam) return;
 
     const newRole = account.role === 'manager' ? 'player' : 'manager';
 
     if (newRole === 'player') {
-      const managerCount = Array.from(playerAccounts.values()).filter((a: PlayerAccount) => a.role === 'manager').length
+      const managerCount = Array.from(playerAccounts.values()).flat().filter(a => a.role === 'manager').length
         + staffMembers.filter(s => s.role === 'manager').length;
       if (managerCount <= 1) {
         toast.error('Er moet minimaal 1 manager in het team blijven');
@@ -264,16 +271,18 @@ export default function PlayersManageView({
     }
 
     if (newRole === 'manager') {
-      if (!confirm(`Geef ${playerName} manager rechten? Ze kunnen dan alles bewerken.`)) return;
+      if (!confirm(`Geef ${displayLabel} manager rechten? Ze kunnen dan alles bewerken.`)) return;
     } else {
-      if (!confirm(`${playerName} kan dan alleen nog lezen, niet bewerken. Doorgaan?`)) return;
+      if (!confirm(`${displayLabel} kan dan alleen nog lezen, niet bewerken. Doorgaan?`)) return;
     }
 
-    setTogglingPlayerId(playerId);
-    const previousRole = account.role;
+    setTogglingMemberId(account.memberId);
     setPlayerAccounts(prev => {
       const next = new Map(prev);
-      next.set(playerId, { ...account, role: newRole });
+      const accounts = (prev.get(playerId) ?? []).map(a =>
+        a.memberId === account.memberId ? { ...a, role: newRole as PlayerAccount['role'] } : a
+      );
+      next.set(playerId, accounts);
       return next;
     });
 
@@ -281,21 +290,51 @@ export default function PlayersManageView({
       const { error } = await supabase
         .from('team_members')
         .update({ role: newRole })
-        .eq('team_id', currentTeam.id)
-        .eq('user_id', account.userId);
+        .eq('id', account.memberId);
 
       if (error) throw error;
 
-      toast.success(newRole === 'manager' ? `${playerName} is nu manager` : `${playerName} is nu speler`);
+      toast.success(newRole === 'manager' ? `${displayLabel} is nu manager` : `${displayLabel} is nu speler`);
     } catch {
       setPlayerAccounts(prev => {
         const next = new Map(prev);
-        next.set(playerId, { ...account, role: previousRole });
+        const accounts = (prev.get(playerId) ?? []).map(a =>
+          a.memberId === account.memberId ? { ...a, role: account.role } : a
+        );
+        next.set(playerId, accounts);
         return next;
       });
       toast.error('Kon rol niet wijzigen. Probeer het opnieuw.');
     } finally {
-      setTogglingPlayerId(null);
+      setTogglingMemberId(null);
+    }
+  };
+
+  const handleUnlinkAccount = async (playerId: number, account: PlayerAccount, displayLabel: string) => {
+    if (!currentTeam) return;
+    if (!confirm(`Account "${displayLabel}" ontkoppelen van dit spelersprofiel?`)) return;
+
+    setUnlinkingMemberId(account.memberId);
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .update({ status: 'inactive' })
+        .eq('id', account.memberId);
+
+      if (error) throw error;
+
+      setPlayerAccounts(prev => {
+        const next = new Map(prev);
+        const remaining = (prev.get(playerId) ?? []).filter(a => a.memberId !== account.memberId);
+        if (remaining.length > 0) next.set(playerId, remaining);
+        else next.delete(playerId);
+        return next;
+      });
+      toast.success(`${displayLabel} ontkoppeld`);
+    } catch {
+      toast.error('Kon account niet ontkoppelen');
+    } finally {
+      setUnlinkingMemberId(null);
     }
   };
 
@@ -305,7 +344,7 @@ export default function PlayersManageView({
     const newRole = staff.role === 'manager' ? 'staff' : 'manager';
 
     if (newRole === 'staff') {
-      const managerCount = Array.from(playerAccounts.values()).filter(a => a.role === 'manager').length
+      const managerCount = Array.from(playerAccounts.values()).flat().filter(a => a.role === 'manager').length
         + staffMembers.filter(s => s.role === 'manager').length;
       if (managerCount <= 1) {
         toast.error('Er moet minimaal 1 manager in het team blijven');
@@ -453,65 +492,47 @@ export default function PlayersManageView({
 
               <div className="bg-gray-800 rounded-lg overflow-hidden">
                 {posPlayers.map(player => {
-                  const account = playerAccounts.get(player.id);
-                  const isLinked = !!account;
-                  const isManager = account?.role === 'manager';
+                  const accounts = playerAccounts.get(player.id) ?? [];
+                  const isLinked = accounts.length > 0;
                   const invite = activeInvites.get(player.id);
                   const isCopied = copiedPlayerId === player.id;
-                  const isToggling = togglingPlayerId === player.id;
 
                   return (
                     <div
                       key={player.id}
-                      className="flex items-center gap-3 p-3 sm:p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50"
+                      className="border-b border-gray-700 last:border-b-0"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2 flex-wrap">
-                          {player.name}
-                          {isLinked ? (
-                            <>
+                      {/* Speler hoofdrij */}
+                      <div className="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-700/50">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2 flex-wrap">
+                            {player.name}
+                            {isLinked ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-900/40 border border-green-700/50 rounded-full text-xs text-green-400 font-medium">
-                                ✅ Gekoppeld
+                                ✅ {accounts.length > 1 ? `${accounts.length} accounts` : 'Gekoppeld'}
                               </span>
-                              {isManager && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-600/50 rounded-full text-xs text-yellow-300 font-medium">
-                                  👑 Manager
-                                </span>
-                              )}
-                            </>
-                          ) : invite ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs text-yellow-400 font-medium">
-                              ⏳ Uitgenodigd
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-900/40 border border-red-700/50 rounded-full text-xs text-red-400 font-medium">
-                              🔴 Niet gekoppeld
-                            </span>
-                          )}
+                            ) : invite ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs text-yellow-400 font-medium">
+                                ⏳ Uitgenodigd
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-900/40 border border-red-700/50 rounded-full text-xs text-red-400 font-medium">
+                                🔴 Niet gekoppeld
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
+                            <span>⚽{player.goals}</span>
+                            <span>🎯{player.assists}</span>
+                            <span>⏱️{player.min}min</span>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
-                          <span>⚽{player.goals}</span>
-                          <span>🎯{player.assists}</span>
-                          <span>⏱️{player.min}min</span>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                        {player.injured && <span className="text-red-500 text-sm" title="Geblesseerd">🏥</span>}
+                        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                          {player.injured && <span className="text-red-500 text-sm" title="Geblesseerd">🏥</span>}
 
-                        {isLinked && (
-                          <button
-                            onClick={() => handleToggleRole(player.id, player.name)}
-                            disabled={isToggling}
-                            className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${isToggling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isManager ? 'bg-yellow-600' : 'bg-gray-600'}`}
-                            title={isManager ? 'Manager rechten uitschakelen' : 'Manager rechten inschakelen'}
-                          >
-                            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${isManager ? 'translate-x-5' : 'translate-x-0'}`} />
-                          </button>
-                        )}
-
-                        {!isLinked && (
-                          invite ? (
+                          {/* Uitnodigingsknop: altijd zichtbaar (ook bij gekoppeld, voor extra accounts) */}
+                          {invite && !isLinked ? (
                             <button
                               onClick={() => handleCopyLink(player.id)}
                               className={`px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm font-bold transition-colors ${isCopied ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'}`}
@@ -522,15 +543,61 @@ export default function PlayersManageView({
                             <button
                               onClick={() => setInvitingPlayer(player)}
                               className="px-2 sm:px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-xs sm:text-sm font-bold"
+                              title={isLinked ? 'Extra account uitnodigen' : 'Uitnodigen'}
                             >
                               📧
                             </button>
-                          )
-                        )}
+                          )}
 
-                        <button onClick={() => setEditingPlayer(player)} className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold">✏️</button>
-                        <button onClick={() => handleDelete(player)} className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold">🗑️</button>
+                          <button onClick={() => setEditingPlayer(player)} className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold">✏️</button>
+                          <button onClick={() => handleDelete(player)} className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold">🗑️</button>
+                        </div>
                       </div>
+
+                      {/* Gekoppelde accounts (ingesprongen) */}
+                      {accounts.map(account => {
+                        const displayLabel = account.displayName ?? player.name;
+                        const isManager = account.role === 'manager';
+                        const isToggling = togglingMemberId === account.memberId;
+                        const isUnlinking = unlinkingMemberId === account.memberId;
+
+                        return (
+                          <div
+                            key={account.memberId}
+                            className="flex items-center gap-2 px-4 sm:px-6 py-2 bg-gray-900/40 border-t border-gray-700/50"
+                          >
+                            <span className="text-gray-500 text-xs">└─</span>
+                            <span className="text-sm text-gray-300 flex-1 truncate flex items-center gap-2">
+                              {displayLabel}
+                              {isManager && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-900/40 border border-yellow-600/50 rounded-full text-xs text-yellow-300 font-medium">
+                                  👑 Manager
+                                </span>
+                              )}
+                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {/* Manager toggle */}
+                              <button
+                                onClick={() => handleToggleRole(player.id, account, displayLabel)}
+                                disabled={isToggling}
+                                className={`relative w-8 h-4 rounded-full transition-colors flex-shrink-0 ${isToggling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isManager ? 'bg-yellow-600' : 'bg-gray-600'}`}
+                                title={isManager ? 'Manager rechten uitschakelen' : 'Manager rechten inschakelen'}
+                              >
+                                <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform shadow-sm ${isManager ? 'translate-x-4' : 'translate-x-0'}`} />
+                              </button>
+                              {/* Ontkoppelen */}
+                              <button
+                                onClick={() => handleUnlinkAccount(player.id, account, displayLabel)}
+                                disabled={isUnlinking}
+                                className="px-2 py-1 bg-red-800 hover:bg-red-700 disabled:opacity-50 rounded text-xs font-bold"
+                                title="Account ontkoppelen"
+                              >
+                                {isUnlinking ? '...' : '✕'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
