@@ -162,7 +162,7 @@ export default function JoinPage() {
           role,
           player_id: invite.player_id ?? null,
           status: 'active',
-          ...(invite.invite_type === 'staff' && invite.display_name ? { display_name: invite.display_name } : {}),
+          ...(invite.display_name ? { display_name: invite.display_name } : {}),
         });
 
       if (memberError) throw memberError;

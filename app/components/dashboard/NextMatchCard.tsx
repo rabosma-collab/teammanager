@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { Match, Player, Substitution } from '../../lib/types';
 import { formationLabels, displayScore } from '../../lib/constants';
+import { useTeamContext } from '../../contexts/TeamContext';
 import LineupStatusBadge from './LineupStatusBadge';
 import { generateWhatsAppText } from '../../utils/generateWhatsAppText';
 
@@ -80,6 +81,9 @@ export default function NextMatchCard({
   onNavigateToWedstrijd,
   onNavigateToMatches,
 }: NextMatchCardProps) {
+  const { currentTeam } = useTeamContext();
+  const teamColor = currentTeam?.color || '#f59e0b';
+
   const [loadingAbsence, setLoadingAbsence] = useState(false);
   const [loadingInjury, setLoadingInjury] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
@@ -223,7 +227,7 @@ export default function NextMatchCard({
   };
 
   return (
-    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col gap-4">
+    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col gap-4 border-l-4" style={{ borderLeftColor: teamColor }}>
       <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">{getMatchCardTitle(match)}</h3>
 
       {/* Match info */}
@@ -303,7 +307,7 @@ export default function NextMatchCard({
                 )}
               </span>
             )}
-            {trackVervoer && vervoerDisplayPlayers.map((p, i) => p && (
+            {trackVervoer && !isThuis && vervoerDisplayPlayers.map((p, i) => p && (
               <span key={i} className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
                 {i === 0 ? '🚗' : '🚙'} <span className="font-medium text-white">{p.name}</span>
               </span>
@@ -371,7 +375,8 @@ export default function NextMatchCard({
         </button>
         <button
           onClick={() => onNavigateToWedstrijd(match)}
-          className="flex-1 px-4 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg font-display font-bold text-sm uppercase tracking-wide transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
+          className="flex-1 px-4 py-2.5 rounded-lg font-display font-bold text-sm uppercase tracking-wide transition touch-manipulation active:scale-95 flex items-center justify-center gap-2"
+          style={{ backgroundColor: teamColor, color: '#111827' }}
         >
           <span>{isManager && !isFinalized ? 'Bekijk / bewerk opstelling' : 'Bekijk opstelling'}</span>
           <span>→</span>

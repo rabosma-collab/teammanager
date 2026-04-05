@@ -408,9 +408,8 @@ export function useMatches() {
           ?? (selectedMatch?.id === matchId ? selectedMatch : null);
         const opponent = match?.opponent ?? 'tegenstander';
         const prefix = `📋 Wedstrijdverslag vs ${opponent}:\n`;
-        const maxBody = 300 - prefix.length;
-        const body = trimmed.length > maxBody ? trimmed.slice(0, maxBody - 1) + '…' : trimmed;
-        const message = prefix + body;
+        const fullMessage = prefix + trimmed;
+        const message = fullMessage.length > 2000 ? fullMessage.slice(0, 1999) + '…' : fullMessage;
 
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);

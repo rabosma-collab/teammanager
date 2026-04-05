@@ -242,12 +242,12 @@ export default function Navbar({
 
       {/* Scrollable left side */}
       <div className="flex items-stretch gap-0 overflow-x-auto flex-1 min-w-0 pl-1 sm:pl-2">
-        <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Home" />
-        <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} label="Opstelling" />
-        <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} label="Wedstrijden" />
-        <NavButton active={view === 'stats'} onClick={() => setView('stats')} label="Ranglijst" />
+        <NavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Home" teamColor={currentTeam?.color || '#f59e0b'} />
+        <NavButton active={view === 'pitch'} onClick={() => setView('pitch')} label="Opstelling" teamColor={currentTeam?.color || '#f59e0b'} />
+        <NavButton active={view === 'uitslagen'} onClick={() => setView('uitslagen')} label="Wedstrijden" teamColor={currentTeam?.color || '#f59e0b'} />
+        <NavButton active={view === 'stats'} onClick={() => setView('stats')} label="Ranglijst" teamColor={currentTeam?.color || '#f59e0b'} />
         {playerCardMode !== 'none' && (
-          <NavButton active={view === 'cards'} onClick={() => setView('cards')} label="Kaarten" />
+          <NavButton active={view === 'cards'} onClick={() => setView('cards')} label="Kaarten" teamColor={currentTeam?.color || '#f59e0b'} />
         )}
       </div>
 
@@ -499,12 +499,12 @@ export default function Navbar({
 
       {/* Rij 2: navigatietabs — flex, gelijke breedte, geen scroll */}
       <div className="flex border-t border-gray-800/60">
-        <MobileNavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Home" />
-        <MobileNavTab active={view === 'pitch'} onClick={() => setView('pitch')} label="Opstelling" />
-        <MobileNavTab active={view === 'uitslagen'} onClick={() => setView('uitslagen')} label="Wedstr." />
-        <MobileNavTab active={view === 'stats'} onClick={() => setView('stats')} label="Ranglijst" />
+        <MobileNavTab active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Home" teamColor={currentTeam?.color || '#f59e0b'} />
+        <MobileNavTab active={view === 'pitch'} onClick={() => setView('pitch')} label="Opstelling" teamColor={currentTeam?.color || '#f59e0b'} />
+        <MobileNavTab active={view === 'uitslagen'} onClick={() => setView('uitslagen')} label="Wedstr." teamColor={currentTeam?.color || '#f59e0b'} />
+        <MobileNavTab active={view === 'stats'} onClick={() => setView('stats')} label="Ranglijst" teamColor={currentTeam?.color || '#f59e0b'} />
         {playerCardMode !== 'none' && (
-          <MobileNavTab active={view === 'cards'} onClick={() => setView('cards')} label="Kaarten" />
+          <MobileNavTab active={view === 'cards'} onClick={() => setView('cards')} label="Kaarten" teamColor={currentTeam?.color || '#f59e0b'} />
         )}
       </div>
     </div>
@@ -631,43 +631,47 @@ export default function Navbar({
   );
 }
 
-function NavButton({ active, onClick, label }: {
+function NavButton({ active, onClick, label, teamColor = '#f59e0b' }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  teamColor?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      style={active ? { color: teamColor } : undefined}
       className={`relative px-3 sm:px-4 py-0 font-display font-semibold uppercase tracking-wide transition-colors text-xs sm:text-sm flex-shrink-0 flex items-center gap-1.5 h-full ${
         active
-          ? 'text-yellow-400'
+          ? ''
           : 'text-gray-500 hover:text-gray-200'
       }`}
     >
       {label}
       {active && (
-        <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-400 rounded-t" />
+        <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-t" style={{ backgroundColor: teamColor }} />
       )}
     </button>
   );
 }
 
-function MobileNavTab({ active, onClick, label }: {
+function MobileNavTab({ active, onClick, label, teamColor = '#f59e0b' }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  teamColor?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      style={active ? { color: teamColor } : undefined}
       className={`relative flex-1 flex items-center justify-center h-10 text-xs font-semibold touch-manipulation transition-colors ${
-        active ? 'text-yellow-400' : 'text-gray-500 active:text-gray-200'
+        active ? '' : 'text-gray-500 active:text-gray-200'
       }`}
     >
       {label}
       {active && (
-        <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-400 rounded-t" />
+        <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-t" style={{ backgroundColor: teamColor }} />
       )}
     </button>
   );
