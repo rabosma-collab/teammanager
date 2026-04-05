@@ -874,6 +874,7 @@ export default function UitslagenView({
         <ImportMatchesModal
           teamId={currentTeam.id}
           defaultFormation={defaultFormation}
+          seasonId={activeSeasonId}
           onImported={() => { onRefreshMatches(); setShowImport(false); }}
           onClose={() => setShowImport(false)}
         />

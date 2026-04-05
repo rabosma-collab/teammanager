@@ -46,11 +46,12 @@ function parseCsvMatches(text: string): ParsedMatch[] {
 interface ImportMatchesModalProps {
   teamId: string;
   defaultFormation: string;
+  seasonId: number | null;
   onImported: () => void;
   onClose: () => void;
 }
 
-export default function ImportMatchesModal({ teamId, defaultFormation, onImported, onClose }: ImportMatchesModalProps) {
+export default function ImportMatchesModal({ teamId, defaultFormation, seasonId, onImported, onClose }: ImportMatchesModalProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [parsed, setParsed] = useState<ParsedMatch[] | null>(null);
   const [importing, setImporting] = useState(false);
@@ -84,6 +85,7 @@ export default function ImportMatchesModal({ teamId, defaultFormation, onImporte
       home_away: m.home_away,
       formation: defaultFormation,
       match_status: 'concept',
+      season_id: seasonId,
     }));
     const { error } = await supabase.from('matches').insert(rows);
     setImporting(false);
