@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { TeamProvider } from './contexts/TeamContext';
 import { ToastProvider } from './contexts/ToastContext';
 import CookieBanner from './components/CookieBanner';
+import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 
 export const metadata: Metadata = {
   title: 'Team Manager',
@@ -66,6 +67,7 @@ export default function RootLayout({
           <TeamProvider>{children}</TeamProvider>
         </ToastProvider>
         <CookieBanner />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

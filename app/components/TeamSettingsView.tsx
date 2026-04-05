@@ -306,14 +306,14 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
               <p className="font-semibold text-white mb-1.5">Wat is de spelvorm?</p>
               <div className="space-y-1.5 text-gray-300">
                 <div>Bepaalt hoeveel spelers er per ploeg spelen en welke formaties beschikbaar zijn.</div>
-                <div><span className="text-white font-semibold">Periodes</span> — per periode kun je de opstelling en formatie aanpassen. De app stelt wisselstops voor op basis van dit aantal.</div>
+                <div><span className="text-white font-semibold">Vaste wisselmomenten</span> — elk wisselmoment verdeelt de wedstrijd in een extra blok. Per blok kun je een aparte opstelling en formatie instellen.</div>
                 <div><span className="text-white font-semibold">Wedstrijdduur</span> — de standaard speelduur. Je kunt dit per wedstrijd aanpassen.</div>
               </div>
               <p className="mt-1.5 text-yellow-400/80 text-xs">Let op: het wijzigen van de spelvorm reset de standaard formatie.</p>
             </InfoButton>
           </div>
           <p className="text-sm text-gray-400">
-            Bepaalt het aantal spelers en periodes.
+            Bepaalt het aantal spelers en standaard vaste wisselmomenten.
             <span className="text-yellow-500 ml-1">Let op: wijzigen reset de standaard formatie.</span>
           </p>
           <div className="flex flex-wrap gap-2">
@@ -336,26 +336,26 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-2">Aantal periodes</label>
-            <div className="flex gap-2">
-              {[2, 3, 4].map((p) => (
+            <label className="block text-sm font-medium text-gray-400 mb-2">Standaard vaste wisselmomenten</label>
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((w) => (
                 <button
-                  key={p}
-                  onClick={() => { setDraft(prev => prev ? { ...prev, periods: p } : null); setSettingsDirty(true); }}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-bold transition ${
-                    draft.periods === p
+                  key={w}
+                  onClick={() => { setDraft(prev => prev ? { ...prev, periods: w + 1 } : null); setSettingsDirty(true); }}
+                  className={`px-3 py-2 rounded-lg border text-sm font-bold transition ${
+                    draft.periods - 1 === w
                       ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
                       : 'border-gray-600 hover:border-gray-500 text-gray-300'
                   }`}
                 >
-                  {p}
+                  {w}
                 </button>
               ))}
             </div>
             <p className="text-xs text-gray-500 mt-1.5">
-              {draft.periods} periodes van {Math.round((parseInt(localDuration) || 90) / draft.periods)} minuten
+              {draft.periods - 1} wisselmoment{draft.periods - 1 > 1 ? 'en' : ''} — {draft.periods} blokken van {Math.round((parseInt(localDuration) || 90) / draft.periods)} minuten
             </p>
-            <p className="text-xs text-gray-500 mt-1">Per periode kun je de opstelling en formatie aanpassen. De app stelt wisselstops voor op basis van dit aantal. Je kunt dit per wedstrijd aanpassen.</p>
+            <p className="text-xs text-gray-500 mt-1">Per blok kun je een aparte opstelling en formatie instellen. Je kunt dit per wedstrijd aanpassen.</p>
           </div>
 
           <div className="pt-2 border-t border-gray-700">
@@ -374,7 +374,7 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
               />
               <span className="text-sm text-gray-400">minuten totaal</span>
               <span className="text-xs text-gray-500">
-                ({draft.periods}×{Math.round((parseInt(localDuration) || 90) / draft.periods)} min)
+                ({draft.periods} blokken × {Math.round((parseInt(localDuration) || 90) / draft.periods)} min)
               </span>
             </div>
           </div>

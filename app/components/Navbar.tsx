@@ -238,7 +238,7 @@ export default function Navbar({
       This split is needed because overflow-x:auto also sets overflow-y:auto (CSS spec),
       which would clip the absolute-positioned Beheer dropdown.
     */}
-    <nav className="hidden sm:flex items-stretch bg-gray-900 border-b border-gray-800 select-none min-h-[52px]">
+    <nav className="hidden sm:flex items-stretch bg-gray-900 border-b border-gray-800 select-none min-h-[52px] border-t-2" style={{ borderTopColor: currentTeam?.color || '#f59e0b' }}>
 
       {/* Scrollable left side */}
       <div className="flex items-stretch gap-0 overflow-x-auto flex-1 min-w-0 pl-1 sm:pl-2">
@@ -427,7 +427,7 @@ export default function Navbar({
         Rij 1: teamnaam + [Beheer] + bel + avatar
         Rij 2: navigatietabs, verdeeld over volledige breedte (geen scroll)
     ============================================================ */}
-    <div className="sm:hidden bg-gray-900 border-b border-gray-800 select-none">
+    <div className="sm:hidden bg-gray-900 border-b border-gray-800 select-none border-t-2" style={{ borderTopColor: currentTeam?.color || '#f59e0b' }}>
 
       {/* Rij 1: team-switcher + Beheer (admin) + bel + avatar */}
       <div className="flex items-center justify-between px-3 min-h-[48px]">

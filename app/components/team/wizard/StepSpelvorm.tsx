@@ -46,24 +46,24 @@ export default function StepSpelvorm({ gameFormat, matchDuration, periods, onCha
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Aantal periodes</label>
-        <div className="flex gap-2">
-          {[2, 3, 4].map((p) => (
+        <label className="block text-sm font-medium text-gray-300 mb-2">Standaard vaste wisselmomenten</label>
+        <div className="flex flex-wrap gap-1.5">
+          {Array.from({ length: 10 }, (_, i) => i + 1).map((w) => (
             <button
-              key={p}
-              onClick={() => onChangePeriods(p)}
-              className={`flex-1 py-2.5 rounded-xl border-2 font-bold text-sm transition ${
-                periods === p
+              key={w}
+              onClick={() => onChangePeriods(w + 1)}
+              className={`px-3 py-2 rounded-xl border-2 font-bold text-sm transition ${
+                periods - 1 === w
                   ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
                   : 'border-gray-600 hover:border-gray-500 bg-gray-700/50 text-white'
               }`}
             >
-              {p}
+              {w}
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-1.5">{periods} periodes van {periodDuration} minuten</p>
-        <p className="text-xs text-gray-500 mt-1">Per periode kun je de opstelling en formatie aanpassen. De app stelt wisselstops voor op basis van dit aantal. Je kunt dit per wedstrijd aanpassen.</p>
+        <p className="text-xs text-gray-500 mt-1.5">{periods - 1} wisselmoment{periods - 1 > 1 ? 'en' : ''} — {periods} blokken van {periodDuration} minuten</p>
+        <p className="text-xs text-gray-500 mt-1">Per blok kun je een aparte opstelling en formatie instellen. Je kunt dit per wedstrijd aanpassen.</p>
       </div>
 
       <div>

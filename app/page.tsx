@@ -1522,29 +1522,27 @@ export default function FootballApp() {
               )}
 
               {activelyEditing && (
-                <div className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded px-2 py-1">
-                  <span className="text-xs text-gray-400 mr-1"># periodes:</span>
-                  {/* 2-5 = aantal periodes (= n-1 wisselmomenten); vrij wisselen is altijd mogelijk */}
-                  {([2, 3, 4, 5] as const).map((val) => {
-                    const n = val - 1; // aantal wisselmomenten opgeslagen in subMoments
+                <div className="flex items-center gap-1 bg-gray-700 border border-gray-600 rounded px-2 py-1 flex-wrap">
+                  <span className="text-xs text-gray-400 mr-1">Wisselmomenten:</span>
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
                     const isActive = subMoments === n;
-                    const preview = `${val} periodes — wisselmoment${n > 1 ? 'en' : ''}: ${computeSubMomentMinutes(n, matchDuration).join("', ")}' `;
+                    const preview = `${n} wisselmoment${n > 1 ? 'en' : ''}: ${computeSubMomentMinutes(n, matchDuration).join("', ")}' `;
                     return (
                       <button
                         key={n}
                         onClick={() => { setSubMoments(n); setSelectedPeriod(1); setPeriodPositionPick(null); }}
                         title={preview}
-                        className={`px-2 py-0.5 rounded text-sm font-bold transition ${
+                        className={`px-1.5 py-0.5 rounded text-xs font-bold transition ${
                           isActive
                             ? 'bg-yellow-500 text-black'
                             : 'text-gray-300 hover:text-white hover:bg-gray-600'
                         }`}
                       >
-                        {val}
+                        {n}
                       </button>
                     );
                   })}
-                  <PeriodesInfoButton />
+                  <WisselMomentenInfoButton />
                 </div>
               )}
 
@@ -1927,25 +1925,26 @@ function MatchDropdown({
   );
 }
 
-function PeriodesInfoButton() {
+function WisselMomentenInfoButton() {
   const [open, setOpen] = React.useState(false);
   return (
     <div className="relative">
       <button
         onClick={() => setOpen(v => !v)}
         className="ml-1 w-4 h-4 rounded-full bg-gray-600 text-gray-300 hover:bg-gray-500 hover:text-white text-xs flex items-center justify-center leading-none"
-        title="Uitleg periodes"
+        title="Uitleg vaste wisselmomenten"
       >
         i
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-6 z-50 w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-xl p-3 text-xs text-gray-300 space-y-2">
-            <p className="font-semibold text-white">Wat doen periodes?</p>
-            <p>Het aantal periodes bepaalt hoe de wedstrijd wordt opgedeeld. Bij 2 periodes speelt iedereen de eerste helft in dezelfde opstelling, bij 3 periodes zijn er drie blokken, enzovoort.</p>
-            <p>Per periode kun je een aparte opstelling instellen én krijg je automatisch een wisselmoment aan het begin van elk nieuw blok. Zo kun je voor de tweede helft een andere speler op een positie zetten en worden de wissels op het juiste moment gesignaleerd.</p>
-            <p className="text-gray-400">Vrije wissels zijn altijd mogelijk — je kunt op elk willekeurig moment een wissel doorvoeren, ongeacht het aantal periodes.</p>
+          <div className="fixed inset-0 z-50" onClick={() => setOpen(false)} />
+          <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-sm p-4 bg-gray-800 border border-gray-600 rounded-xl shadow-xl text-xs text-gray-300 space-y-2">
+            <button onClick={() => setOpen(false)} className="absolute top-2 right-2 text-gray-500 hover:text-white text-base leading-none p-1">✕</button>
+            <p className="font-semibold text-white">Wat zijn vaste wisselmomenten?</p>
+            <p>Vaste wisselmomenten verdelen de wedstrijd in gelijke blokken. Bij 1 wisselmoment spelen de spelers de eerste helft in één opstelling en de tweede helft in een andere. Bij 2 wisselmomenten zijn er 3 blokken, enzovoort — de minuten worden automatisch berekend op basis van de wedstrijdduur.</p>
+            <p><strong className="text-white">Per blok stel je een aparte opstelling in.</strong> Je kiest welke speler op welke positie staat voor dat blok. Op het wisselmoment geeft de app automatisch aan dat er gewisseld kan worden.</p>
+            <p className="text-gray-400">Vrije wissels zijn altijd mogelijk — je kunt op elk moment een extra wissel doorvoeren, los van de vaste wisselmomenten.</p>
           </div>
         </>
       )}

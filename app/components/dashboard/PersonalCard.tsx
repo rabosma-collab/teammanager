@@ -84,7 +84,7 @@ export default function PersonalCard({
   return (
     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
       <div className="flex items-center gap-2 mb-3">
-        <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500">Mijn profiel</h3>
+        <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-gray-500 border-l-2 pl-2" style={{ borderLeftColor: currentTeam?.color || '#f59e0b' }}>Mijn profiel</h3>
         <InfoButton>
           {playerCardMode === 'teamsterren' ? (
             <>
