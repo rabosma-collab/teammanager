@@ -84,7 +84,6 @@ export default function ImportMatchesModal({ teamId, defaultFormation, onImporte
       home_away: m.home_away,
       formation: defaultFormation,
       match_status: 'concept',
-      substitution_scheme_id: null,
     }));
     const { error } = await supabase.from('matches').insert(rows);
     setImporting(false);

@@ -94,7 +94,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
     const rows = matchList.map(m => ({
       team_id: teamId, date: m.date, opponent: m.opponent,
       home_away: m.home_away, formation: defaultFormation,
-      match_status: 'concept', substitution_scheme_id: null,
+      match_status: 'concept',
     }));
     const { error } = await supabase.from('matches').insert(rows);
     setSaving(false);
@@ -123,7 +123,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
     const rows = validCsvMatches.map(m => ({
       team_id: teamId, date: m.date, opponent: m.opponent,
       home_away: m.home_away, formation: defaultFormation,
-      match_status: 'concept', substitution_scheme_id: null,
+      match_status: 'concept',
     }));
     const { error } = await supabase.from('matches').insert(rows);
     setCsvImporting(false);
