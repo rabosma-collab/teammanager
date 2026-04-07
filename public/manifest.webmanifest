@@ -1,7 +1,10 @@
 {
+  "id": "/",
   "name": "Team Manager",
   "short_name": "TeamMgr",
+  "description": "Beheer je voetbalteam: opstelling, wissels, statistieken en meer.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#f5b300",
