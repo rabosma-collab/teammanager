@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { MATCH_REPORT_MAX_LENGTH } from '../../lib/constants';
 import type { Match, Player, TeamSettings } from '../../lib/types';
 
 interface PlayerTally {
@@ -123,6 +124,7 @@ export default function FinalizeMatchModal({
 
   // Thuis/uit: bepaal volgorde uitslag
   const isThuis = match.home_away === 'Thuis';
+  const scoreComplete = goalsFor !== null && goalsAgainst !== null;
 
   // Berekend overzicht van stats per speler voor bevestig-stap
   const computedStats = useMemo(() => {
@@ -435,13 +437,13 @@ export default function FinalizeMatchModal({
               <textarea
                 value={matchReport}
                 onChange={e => setMatchReport(e.target.value)}
-                maxLength={2000}
+                maxLength={MATCH_REPORT_MAX_LENGTH}
                 rows={8}
                 placeholder="Bijv. Een spannende wedstrijd met een sterke tweede helft. We scoorden vroeg maar moesten lang wachten op de overwinning…"
                 className="w-full px-3 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-500 resize-none focus:outline-none focus:border-yellow-500 transition"
               />
               <div className="text-xs text-gray-500 text-right">
-                {matchReport.length} / 2000 tekens
+                {matchReport.length} / {MATCH_REPORT_MAX_LENGTH} tekens
               </div>
             </div>
           )}
@@ -542,14 +544,15 @@ export default function FinalizeMatchModal({
           {currentStep !== 'bevestig' ? (
             <button
               onClick={goNext}
+              disabled={currentStep === 'uitslag' && !scoreComplete}
               className="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded font-bold text-sm transition"
             >
-              Volgende →
+              {currentStep === 'uitslag' && !scoreComplete ? 'Vul eerst de uitslag in' : 'Volgende →'}
             </button>
           ) : (
             <button
               onClick={handleFinalize}
-              disabled={saving}
+              disabled={saving || !scoreComplete}
               className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold text-sm transition disabled:opacity-50"
             >
               {saving ? 'Bezig…' : '🏁 Definitief afsluiten'}

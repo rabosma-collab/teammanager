@@ -8,7 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import ImportMatchesModal from './modals/ImportMatchesModal';
-import { displayScore } from '../lib/constants';
+import { displayScore, MATCH_REPORT_MAX_LENGTH } from '../lib/constants';
 
 interface UitslagenViewProps {
   matches: Match[];
@@ -803,11 +803,11 @@ export default function UitslagenView({
                             <textarea
                               value={reportDraft}
                               onChange={e => setReportDraft(e.target.value)}
-                              maxLength={2000}
+                              maxLength={MATCH_REPORT_MAX_LENGTH}
                               rows={5}
                               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-500 resize-none focus:outline-none focus:border-yellow-500 transition"
                             />
-                            <div className="text-xs text-gray-500 text-right">{reportDraft.length} / 2000</div>
+                            <div className="text-xs text-gray-500 text-right">{reportDraft.length} / {MATCH_REPORT_MAX_LENGTH}</div>
                             <div className="flex gap-2">
                               <button onClick={() => handleSaveReport(match.id)} disabled={savingReport} className="flex-1 py-1.5 bg-green-700 hover:bg-green-600 rounded text-xs font-bold transition disabled:opacity-50">
                                 {savingReport ? 'Opslaan…' : '✅ Opslaan'}

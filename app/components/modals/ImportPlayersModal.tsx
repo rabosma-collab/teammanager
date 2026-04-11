@@ -43,6 +43,7 @@ interface ImportPlayersModalProps {
 
 export default function ImportPlayersModal({ teamId, onImported, onClose }: ImportPlayersModalProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const suppressCloseRef = useRef(false);
   const [parsed, setParsed] = useState<ParsedPlayer[] | null>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -86,7 +87,7 @@ export default function ImportPlayersModal({ teamId, onImported, onClose }: Impo
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => { if (!suppressCloseRef.current) onClose(); }}>
       <div
         className="bg-gray-800 border border-gray-700 rounded-2xl p-5 w-full max-w-md shadow-2xl"
         onClick={e => e.stopPropagation()}
@@ -98,7 +99,11 @@ export default function ImportPlayersModal({ teamId, onImported, onClose }: Impo
 
         {!imported ? (
           <div className="space-y-4">
-            <label className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center cursor-pointer hover:border-gray-500 transition block">
+            <label
+              className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center cursor-pointer hover:border-gray-500 transition block"
+              onMouseDown={() => { suppressCloseRef.current = true; setTimeout(() => { suppressCloseRef.current = false; }, 2000); }}
+              onTouchStart={() => { suppressCloseRef.current = true; setTimeout(() => { suppressCloseRef.current = false; }, 2000); }}
+            >
               <div className="text-3xl mb-2">📂</div>
               <div className="font-medium text-gray-300">Klik om een CSV-bestand te kiezen</div>
               <div className="text-xs text-gray-500 mt-1">Kolommen: naam, positie</div>

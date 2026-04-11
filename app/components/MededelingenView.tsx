@@ -4,9 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
+import { ANNOUNCEMENT_MAX_LENGTH } from '../lib/constants';
 import { logActivity } from '../lib/logActivity';
 
-const MAX_CHARS = 2000;
 const EXPIRY_DAYS = 7;
 
 interface Announcement {
@@ -129,14 +129,15 @@ export default function MededelingenView({ onDirtyChange }: { onDirtyChange?: (d
           </h3>
           <textarea
             value={message}
-            onChange={e => setMessage(e.target.value.slice(0, MAX_CHARS))}
+            onChange={e => setMessage(e.target.value.slice(0, ANNOUNCEMENT_MAX_LENGTH))}
+            maxLength={ANNOUNCEMENT_MAX_LENGTH}
             placeholder="Typ een bericht voor het team..."
             rows={8}
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm resize-none focus:outline-none focus:border-blue-500"
           />
           <div className="flex items-center justify-between mt-2">
-            <span className={`text-xs ${message.length >= MAX_CHARS ? 'text-red-400' : 'text-gray-500'}`}>
-              {message.length}/{MAX_CHARS} tekens
+            <span className={`text-xs ${message.length >= ANNOUNCEMENT_MAX_LENGTH ? 'text-red-400' : 'text-gray-500'}`}>
+              {message.length}/{ANNOUNCEMENT_MAX_LENGTH} tekens
             </span>
             <button
               onClick={handlePost}

@@ -24,11 +24,14 @@ AS $$
 DECLARE
   v_status   text;
   v_team_id  uuid;
+  v_goals_for integer;
+  v_goals_against integer;
   v_duration integer;
   v_sub      record;
 BEGIN
   -- Stap 1: Vergrendel en valideer de wedstrijd (FOR UPDATE voorkomt race condition)
-  SELECT match_status, team_id INTO v_status, v_team_id
+  SELECT match_status, team_id, goals_for, goals_against
+  INTO v_status, v_team_id, v_goals_for, v_goals_against
   FROM matches
   WHERE id = p_match_id
   FOR UPDATE;
@@ -42,6 +45,26 @@ BEGIN
       'success', false,
       'error', 'Wedstrijd is niet in concept-status (huidige status: ' || v_status || ')'
     );
+  END IF;
+
+  -- Voorkom stilletjes afronden zonder complete uitslag.
+  -- Toegestaan:
+  -- 1) Beide doelen meegestuurd in deze call, of
+  -- 2) Beide doelen stonden al op de wedstrijd.
+  IF p_goals_for IS NULL OR p_goals_ag IS NULL THEN
+    IF p_goals_for IS NULL AND p_goals_ag IS NULL THEN
+      IF v_goals_for IS NULL OR v_goals_against IS NULL THEN
+        RETURN jsonb_build_object(
+          'success', false,
+          'error', 'Uitslag ontbreekt. Vul goals voor en goals tegen in voordat je afsluit.'
+        );
+      END IF;
+    ELSE
+      RETURN jsonb_build_object(
+        'success', false,
+        'error', 'Uitslag is onvolledig. Vul zowel goals voor als goals tegen in.'
+      );
+    END IF;
   END IF;
 
   -- Stap 2: Bereken speelminuten (optioneel)
