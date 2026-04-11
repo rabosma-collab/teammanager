@@ -55,6 +55,8 @@ export interface Player {
     location_details?: string | null;
     season_id?: number | null;
     match_report?: string | null;
+    lineup_last_edited_by_name?: string | null;
+    lineup_last_edited_at?: string | null;
   }
 
   export interface SubstitutionScheme {

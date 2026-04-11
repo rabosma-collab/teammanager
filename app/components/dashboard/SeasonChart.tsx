@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Match } from '../../lib/types';
 import { displayScore } from '../../lib/constants';
 
@@ -29,6 +29,8 @@ const RESULT_COLOR = {
 } as const;
 
 export default function SeasonChart({ matches, onNavigateToUitslagen }: SeasonChartProps) {
+  const [showAllResults, setShowAllResults] = useState(false);
+
   // Afgeronde + geannuleerde wedstrijden met uitslag, chronologisch
   const finished = useMemo(
     () => matches
@@ -62,6 +64,8 @@ export default function SeasonChart({ matches, onNavigateToUitslagen }: SeasonCh
   if (finished.length === 0) return null;
 
   const maxPoints = Math.max(...matchData.map(d => d.cumPoints), 1);
+  const visibleResultData = showAllResults ? matchData : matchData.slice(-10);
+  const canToggleResultView = matchData.length > 10;
 
   // Grafiek: SVG-lijn voor cumulatieve punten
   const chartW = 400;
@@ -150,22 +154,46 @@ export default function SeasonChart({ matches, onNavigateToUitslagen }: SeasonCh
         </svg>
       </div>
 
-      {/* W/D/V balkjes (laatste 10) */}
+      {/* W/D/V balkjes */}
       {finished.length > 0 && (
-        <div className="flex gap-0.5 mt-2">
-          {matchData.slice(-10).map((d, i) => {
-            const cfg = d.result ? RESULT_COLOR[d.result] : null;
-            return (
-              <div
-                key={i}
-                className={`flex-1 h-4 rounded-sm flex items-center justify-center text-[9px] font-black ${cfg ? cfg.bg : 'bg-gray-700'}`}
-                title={(() => { const { left, right } = displayScore(d.match.goals_for, d.match.goals_against, d.match.home_away); return `${d.match.opponent} ${left}–${right}`; })()}
-              >
-                {cfg?.label ?? '?'}
+        <>
+          {canToggleResultView && (
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wide">Resultatenstrip</span>
+              <div className="inline-flex rounded-md border border-gray-700 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowAllResults(false)}
+                  className={`px-2 py-1 text-[10px] font-semibold transition ${!showAllResults ? 'bg-yellow-500/20 text-yellow-300' : 'bg-gray-800 text-gray-400 hover:text-gray-300'}`}
+                >
+                  Laatste 10
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAllResults(true)}
+                  className={`px-2 py-1 text-[10px] font-semibold transition ${showAllResults ? 'bg-yellow-500/20 text-yellow-300' : 'bg-gray-800 text-gray-400 hover:text-gray-300'}`}
+                >
+                  Alles
+                </button>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+
+          <div className="flex gap-0.5 mt-2">
+            {visibleResultData.map((d, i) => {
+              const cfg = d.result ? RESULT_COLOR[d.result] : null;
+              return (
+                <div
+                  key={i}
+                  className={`flex-1 h-4 rounded-sm flex items-center justify-center text-[9px] font-black ${cfg ? cfg.bg : 'bg-gray-700'}`}
+                  title={(() => { const { left, right } = displayScore(d.match.goals_for, d.match.goals_against, d.match.home_away); return `${d.match.opponent} ${left}–${right}`; })()}
+                >
+                  {cfg?.label ?? '?'}
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Goals samenvatting + clean sheets */}

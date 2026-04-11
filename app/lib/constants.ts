@@ -9,6 +9,8 @@ export const GAME_FORMATS: Record<string, { players: number; periods: number; ma
 };
 
 export const DEFAULT_GAME_FORMAT = '11v11';
+export const MATCH_REPORT_MAX_LENGTH = 4000;
+export const ANNOUNCEMENT_MAX_LENGTH = 4000;
 
 /**
  * Bereken de wisselmomenten (in minuten) voor N wisselmomenten in een wedstrijd van matchDuration minuten.

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { ANNOUNCEMENT_MAX_LENGTH } from '../lib/constants';
 import type { Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
 import { logActivity } from '../lib/logActivity';
@@ -197,10 +198,13 @@ export function useMatches() {
 
     try {
       const existingMatch = matches.find(m => m.id === id);
+      const normalizedMatchData = matchData.home_away === 'Thuis'
+        ? { ...matchData, transport_player_ids: [] }
+        : matchData;
 
       const { error } = await supabase
         .from('matches')
-        .update(matchData)
+        .update(normalizedMatchData)
         .eq('id', id)
         .eq('team_id', currentTeam.id);
 
@@ -221,16 +225,17 @@ export function useMatches() {
       }
 
       setMatches(prev =>
-        prev.map(m => m.id === id ? { ...m, ...matchData } : m)
+        prev.map(m => m.id === id ? { ...m, ...normalizedMatchData } : m)
       );
       if (selectedMatch?.id === id) {
-        setSelectedMatch(prev => prev ? { ...prev, ...matchData } : prev);
+        setSelectedMatch(prev => prev ? { ...prev, ...normalizedMatchData } : prev);
       }
+
       return true;
     } catch {
       return false;
     }
-  }, [matches, selectedMatch?.id, currentTeam]);
+  }, [currentTeam, matches, selectedMatch?.id]);
 
   const updateMatchScore = useCallback(async (
     id: number,
@@ -357,26 +362,31 @@ export function useMatches() {
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
+    const targetMatch = selectedMatch?.id === matchId
+      ? selectedMatch
+      : matches.find(m => m.id === matchId) ?? null;
+    const normalizedPlayerIds = targetMatch?.home_away === 'Thuis' ? [] : playerIds;
+
     try {
       const { error } = await supabase
         .from('matches')
-        .update({ transport_player_ids: playerIds })
+        .update({ transport_player_ids: normalizedPlayerIds })
         .eq('id', matchId)
         .eq('team_id', currentTeam.id);
 
       if (error) throw error;
 
       setMatches(prev =>
-        prev.map(m => m.id === matchId ? { ...m, transport_player_ids: playerIds } : m)
+        prev.map(m => m.id === matchId ? { ...m, transport_player_ids: normalizedPlayerIds } : m)
       );
       if (selectedMatch?.id === matchId) {
-        setSelectedMatch(prev => prev ? { ...prev, transport_player_ids: playerIds } : prev);
+        setSelectedMatch(prev => prev ? { ...prev, transport_player_ids: normalizedPlayerIds } : prev);
       }
       return true;
     } catch {
       return false;
     }
-  }, [selectedMatch?.id, currentTeam]);
+  }, [selectedMatch, currentTeam, matches]);
 
   const updateMatchReport = useCallback(async (
     matchId: number,
@@ -409,7 +419,9 @@ export function useMatches() {
         const opponent = match?.opponent ?? 'tegenstander';
         const prefix = `📋 Wedstrijdverslag vs ${opponent}:\n`;
         const fullMessage = prefix + trimmed;
-        const message = fullMessage.length > 2000 ? fullMessage.slice(0, 1999) + '…' : fullMessage;
+        const message = fullMessage.length > ANNOUNCEMENT_MAX_LENGTH
+          ? fullMessage.slice(0, ANNOUNCEMENT_MAX_LENGTH - 1) + '…'
+          : fullMessage;
 
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);

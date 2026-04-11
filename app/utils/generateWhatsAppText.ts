@@ -59,6 +59,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
     trackLocationDetails = false,
     appUrl,
   } = data;
+  const isAwayMatch = match.home_away !== 'Thuis';
 
   const fmt = gameFormat ?? DEFAULT_GAME_FORMAT;
   const getFormationLabel = (formation: string) =>
@@ -159,7 +160,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
     if (consumptiesSpeler) taskLines.push(`🥤 Consumpties: *${consumptiesSpeler.name}*`);
   }
 
-  if (trackVervoer) {
+  if (trackVervoer && isAwayMatch) {
     const eligible = players
       .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
       .sort((a, b) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name));

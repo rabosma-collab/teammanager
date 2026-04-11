@@ -3,9 +3,10 @@ import { supabase } from '../lib/supabase';
 import type { Player, Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
 import { logActivity } from '../lib/logActivity';
+import { resolveCurrentTeamMemberName } from '../lib/memberDisplayName';
 
 export function useLineup() {
-  const { currentTeam } = useTeamContext();
+  const { currentTeam, currentUserId, currentPlayerId } = useTeamContext();
   const [fieldOccupants, setFieldOccupants] = useState<(Player | null)[]>(Array(11).fill(null));
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
@@ -76,14 +77,6 @@ export function useLineup() {
     setSavingLineup(true);
 
     try {
-      const { error: formationError } = await supabase
-        .from('matches')
-        .update({ formation, sub_moments: subMoments })
-        .eq('id', match.id)
-        .eq('team_id', currentTeam.id);
-
-      if (formationError) throw formationError;
-
       const { error: deleteError } = await supabase
         .from('lineups')
         .delete()
@@ -132,7 +125,29 @@ export function useLineup() {
           .eq('team_id', currentTeam.id);
       }
 
-      const updatedMatch = { ...match, formation, sub_moments: subMoments };
+      const editorName = await resolveCurrentTeamMemberName(currentTeam.id, currentUserId, currentPlayerId);
+      const editedAt = new Date().toISOString();
+
+      const { error: formationError } = await supabase
+        .from('matches')
+        .update({
+          formation,
+          sub_moments: subMoments,
+          lineup_last_edited_by_name: editorName,
+          lineup_last_edited_at: editedAt,
+        })
+        .eq('id', match.id)
+        .eq('team_id', currentTeam.id);
+
+      if (formationError) throw formationError;
+
+      const updatedMatch = {
+        ...match,
+        formation,
+        sub_moments: subMoments,
+        lineup_last_edited_by_name: editorName,
+        lineup_last_edited_at: editedAt,
+      };
       onMatchUpdate(updatedMatch);
 
       if (match.lineup_published) {
@@ -151,7 +166,7 @@ export function useLineup() {
     } finally {
       setSavingLineup(false);
     }
-  }, [fieldOccupants, currentTeam]);
+  }, [fieldOccupants, currentPlayerId, currentTeam, currentUserId]);
 
   const isPlayerOnField = useCallback((player: Player): boolean => {
     return fieldOccupants.some(p =>

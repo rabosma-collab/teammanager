@@ -81,12 +81,13 @@ import FinalizeMatchModal from './components/modals/FinalizeMatchModal';
 import PeriodSwapModal from './components/modals/PeriodSwapModal';
 import ActivitySlideOver from './components/ActivitySlideOver';
 import { logActivity } from './lib/logActivity';
+import { resolveCurrentTeamMemberName } from './lib/memberDisplayName';
 
 export default function FootballApp() {
   const router = useRouter();
   const toast = useToast();
   const [authChecking, setAuthChecking] = useState(true);
-  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, hasPendingTeam, teamSettings, refreshTeamSettings } = useTeamContext();
+  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, currentUserId, hasPendingTeam, teamSettings, refreshTeamSettings } = useTeamContext();
 
   // ---- AUTH CHECK ----
   useEffect(() => {
@@ -184,9 +185,34 @@ export default function FootballApp() {
   const { activities, unreadCount, loading: activityLoading, fetchActivities, markAsRead, markAllAsRead } = useActivityLog();
   const [showActivity, setShowActivity] = useState(false);
   const [upcomingAbsencesMap, setUpcomingAbsencesMap] = useState<Record<number, number[]>>({});
+  const [currentEditorName, setCurrentEditorName] = useState('Manager');
 
   const { activeEditor, claimEdit, releaseEdit } = useLineupPresence(selectedMatch?.id ?? null);
-  const myName = players.find(p => p.id === teamPlayerId)?.name ?? 'Manager';
+
+  useEffect(() => {
+    if (!currentTeam?.id) {
+      setCurrentEditorName('Manager');
+      return;
+    }
+
+    let cancelled = false;
+
+    resolveCurrentTeamMemberName(currentTeam.id, currentUserId, teamPlayerId)
+      .then((name) => {
+        if (!cancelled) {
+          setCurrentEditorName(name);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCurrentEditorName('Manager');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTeam?.id, currentUserId, teamPlayerId]);
 
   const gameFormat = teamSettings?.game_format ?? DEFAULT_GAME_FORMAT;
   const matchDuration = teamSettings?.match_duration ?? 90;
@@ -775,9 +801,21 @@ export default function FootballApp() {
     const success = await saveLineup(selectedMatch, formation, subMoments, (updatedMatch) => {
       // Alleen formation en sub_moments bijwerken — lineup_published NIET aanraken
       // zodat een gelijktijdige publishLineup-update niet wordt overschreven.
-      setSelectedMatch(prev => prev ? { ...prev, formation: updatedMatch.formation, sub_moments: updatedMatch.sub_moments } : prev);
+      setSelectedMatch(prev => prev ? {
+        ...prev,
+        formation: updatedMatch.formation,
+        sub_moments: updatedMatch.sub_moments,
+        lineup_last_edited_by_name: updatedMatch.lineup_last_edited_by_name ?? null,
+        lineup_last_edited_at: updatedMatch.lineup_last_edited_at ?? null,
+      } : prev);
       setMatches(prev => prev.map(m => m.id === updatedMatch.id
-        ? { ...m, formation: updatedMatch.formation, sub_moments: updatedMatch.sub_moments }
+        ? {
+          ...m,
+          formation: updatedMatch.formation,
+          sub_moments: updatedMatch.sub_moments,
+          lineup_last_edited_by_name: updatedMatch.lineup_last_edited_by_name ?? null,
+          lineup_last_edited_at: updatedMatch.lineup_last_edited_at ?? null,
+        }
         : m
       ));
     });
@@ -818,7 +856,10 @@ export default function FootballApp() {
     matchReport: string | null;
   }) => {
     if (!selectedMatch || !canFinalizeMatch()) return;
-    setShowFinalizeModal(false);
+    if (params.goalsFor == null || params.goalsAgainst == null) {
+      toast.error('❌ Vul eerst een complete uitslag in (voor en tegen).');
+      return;
+    }
 
     try {
       // 1. Sluit de wedstrijd af (atomisch: minuten + status)
@@ -831,6 +872,21 @@ export default function FootballApp() {
 
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error ?? 'Onbekende fout');
+
+      const { data: finalizedRow, error: verifyError } = await supabase
+        .from('matches')
+        .select('match_status, goals_for, goals_against')
+        .eq('id', selectedMatch.id)
+        .single();
+
+      if (verifyError) throw verifyError;
+      if (
+        finalizedRow.match_status !== 'afgerond' ||
+        finalizedRow.goals_for == null ||
+        finalizedRow.goals_against == null
+      ) {
+        throw new Error('Afsluiten is niet volledig opgeslagen. Controleer de uitslag en probeer opnieuw.');
+      }
 
       // 2. Ken 1 aanwezigheidscredit toe aan elke speler in de opstelling (alleen bij competitive)
       if (currentTeam && (teamSettings?.player_card_mode ?? 'competitive') === 'competitive') {
@@ -939,6 +995,8 @@ export default function FootballApp() {
 
       // Refresh activiteitenfeed
       fetchActivities();
+
+      setShowFinalizeModal(false);
 
       toast.success(params.calcMinutes
         ? '✅ Wedstrijd afgesloten! Wisselminuten zijn bijgewerkt.'
@@ -1552,13 +1610,20 @@ export default function FootballApp() {
                 </span>
               )}
 
+              {selectedMatch?.lineup_last_edited_by_name && (
+                <span className="text-xs text-gray-400 flex items-center gap-1 px-2">
+                  Laatst aangepast door
+                  <span className="text-gray-200 font-medium">{selectedMatch.lineup_last_edited_by_name}</span>
+                </span>
+              )}
+
               {editable && !isFinalized && !isEditingLineup && (
                 <button
                   onClick={() => {
                     wasPublishedBeforeEdit.current = isLineupPublished;
                     takeSnapshot();
                     setIsEditingLineup(true);
-                    claimEdit(myName);
+                    claimEdit(currentEditorName);
                     if (isLineupPublished && selectedMatch) {
                       publishLineup(selectedMatch.id, false);
                     }
