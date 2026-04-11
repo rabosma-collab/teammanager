@@ -28,6 +28,8 @@ export interface Player {
     avatar_url?: string | null;
     bonus_wins?: number;
     bonus_draws?: number;
+    preferred_position?: string | null;
+    can_play_goalkeeper?: boolean;
     is_guest?: boolean;
     guest_match_id?: number;
     lineup_position?: number | null;
@@ -171,6 +173,10 @@ export interface Player {
     player_card_mode: PlayerCardMode;
     spdw_enabled: boolean;
     allow_edit_others: boolean;
+    auto_lineup_enabled: boolean;
+    auto_lineup_basis: 'bench_minutes' | 'played_minutes';
+    auto_lineup_rotate_goalkeeper: boolean;
+    auto_lineup_position_mode: 'off' | 'soft' | 'strict';
   }
 
   export interface TeamMember {

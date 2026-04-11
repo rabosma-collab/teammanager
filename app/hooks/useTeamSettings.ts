@@ -25,6 +25,10 @@ const DEFAULT_SETTINGS: Omit<TeamSettings, 'team_id'> = {
   player_card_mode: 'competitive',
   spdw_enabled: true,
   allow_edit_others: false,
+  auto_lineup_enabled: false,
+  auto_lineup_basis: 'bench_minutes',
+  auto_lineup_rotate_goalkeeper: false,
+  auto_lineup_position_mode: 'off',
 };
 
 

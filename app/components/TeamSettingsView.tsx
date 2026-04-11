@@ -108,6 +108,10 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
         player_card_mode:       (settings.player_card_mode      ?? 'competitive') as PlayerCardMode,
         spdw_enabled:           settings.spdw_enabled           ?? true,
         allow_edit_others:      settings.allow_edit_others      ?? true,
+        auto_lineup_enabled:    settings.auto_lineup_enabled    ?? false,
+        auto_lineup_basis:      settings.auto_lineup_basis      ?? 'bench_minutes',
+        auto_lineup_rotate_goalkeeper: settings.auto_lineup_rotate_goalkeeper ?? false,
+        auto_lineup_position_mode: settings.auto_lineup_position_mode ?? 'off',
       });
     }
   }, [settings]);
@@ -607,6 +611,122 @@ export default function TeamSettingsView({ onSettingsSaved, onDirtyChange }: { o
                   </div>
                 </label>
               ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Auto-opstelling defaults ── */}
+        <section className="bg-gray-800 rounded-xl p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-base text-gray-200">🤖 Auto-opstelling</h2>
+            <InfoButton>
+              <p className="font-semibold text-white mb-1">Wat is auto-opstelling?</p>
+              <p className="text-gray-300">Laat de app per periode automatisch een eerlijke opstelling en wissels bepalen. De instellingen hieronder zijn de standaardwaarden — je kunt ze per wedstrijd aanpassen in de wizard.</p>
+            </InfoButton>
+          </div>
+          <p className="text-sm text-gray-400">Standaardinstellingen voor de auto-opstelling wizard.</p>
+
+          <label className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+            <div>
+              <span className="text-sm font-medium text-white">Auto-opstelling inschakelen</span>
+              <p className="text-xs text-gray-400 mt-0.5">Toon de 🤖 Auto knop bij het bewerken van een opstelling</p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={draft.auto_lineup_enabled}
+              onClick={() => handleToggle('auto_lineup_enabled', !draft.auto_lineup_enabled)}
+              className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                draft.auto_lineup_enabled ? 'bg-yellow-500' : 'bg-gray-600'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  draft.auto_lineup_enabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </label>
+
+          {draft.auto_lineup_enabled && (
+            <div className="space-y-3 pt-2 border-t border-gray-700">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Standaard basis</label>
+                <div className="flex gap-2">
+                  <button
+                    disabled={!draft.track_minutes}
+                    onClick={() => { setDraft(prev => prev ? { ...prev, auto_lineup_basis: 'bench_minutes' } : null); setSettingsDirty(true); }}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-bold border transition ${
+                      draft.auto_lineup_basis === 'bench_minutes'
+                        ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                        : 'border-gray-600 hover:border-gray-500 text-gray-300'
+                    } ${!draft.track_minutes ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    ⏱️ Wisselminuten
+                  </button>
+                  <button
+                    disabled={!draft.track_played_minutes}
+                    onClick={() => { setDraft(prev => prev ? { ...prev, auto_lineup_basis: 'played_minutes' } : null); setSettingsDirty(true); }}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-bold border transition ${
+                      draft.auto_lineup_basis === 'played_minutes'
+                        ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                        : 'border-gray-600 hover:border-gray-500 text-gray-300'
+                    } ${!draft.track_played_minutes ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    ⚽ Gespeelde min.
+                  </button>
+                </div>
+                {!draft.track_minutes && !draft.track_played_minutes && (
+                  <p className="text-xs text-red-400 mt-1">Schakel minstens één minutenregistratie in bij Statistieken.</p>
+                )}
+              </div>
+
+              <label className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                <div>
+                  <span className="text-sm font-medium text-white">🧤 Keeper ook wisselen</span>
+                  <p className="text-xs text-gray-400 mt-0.5">Keepers eerlijk mee laten roteren</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={draft.auto_lineup_rotate_goalkeeper}
+                  onClick={() => handleToggle('auto_lineup_rotate_goalkeeper', !draft.auto_lineup_rotate_goalkeeper)}
+                  className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none ${
+                    draft.auto_lineup_rotate_goalkeeper ? 'bg-yellow-500' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      draft.auto_lineup_rotate_goalkeeper ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </label>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Standaard positievoorkeur</label>
+                <div className="space-y-1.5">
+                  {([
+                    { mode: 'off', label: '🔀 Uit', desc: 'Iedereen kan overal spelen' },
+                    { mode: 'soft', label: '🎯 Voorkeur', desc: 'Probeer voorkeurspositie' },
+                    { mode: 'strict', label: '🔒 Strikt', desc: 'Alleen voorkeurspositie' },
+                  ] as const).map(({ mode, label, desc }) => (
+                    <button
+                      key={mode}
+                      onClick={() => { setDraft(prev => prev ? { ...prev, auto_lineup_position_mode: mode } : null); setSettingsDirty(true); }}
+                      className={`w-full text-left flex items-center gap-3 p-2.5 rounded-lg border-2 transition text-sm ${
+                        draft.auto_lineup_position_mode === mode
+                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400'
+                          : 'border-gray-700 hover:border-gray-500 text-gray-300'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <span className="font-bold">{label}</span>
+                        <span className="ml-2 text-xs text-gray-400">{desc}</span>
+                      </div>
+                      {draft.auto_lineup_position_mode === mode && <span className="text-yellow-400 text-sm">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </section>

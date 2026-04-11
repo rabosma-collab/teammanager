@@ -79,9 +79,11 @@ import PlayerCardModal from './components/modals/PlayerCardModal';
 import PositionInfoModal from './components/modals/PositionInfoModal';
 import FinalizeMatchModal from './components/modals/FinalizeMatchModal';
 import PeriodSwapModal from './components/modals/PeriodSwapModal';
+import AutoLineupWizard from './components/modals/AutoLineupWizard';
 import ActivitySlideOver from './components/ActivitySlideOver';
 import { logActivity } from './lib/logActivity';
 import { resolveCurrentTeamMemberName } from './lib/memberDisplayName';
+import type { PeriodLineup } from './lib/autoLineup';
 
 export default function FootballApp() {
   const router = useRouter();
@@ -138,6 +140,7 @@ export default function FootballApp() {
   const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
   const [activeDragPlayer, setActiveDragPlayer] = useState<Player | null>(null);
+  const [showAutoLineupWizard, setShowAutoLineupWizard] = useState(false);
 
   // ---- HOOKS ----
   const {
@@ -848,6 +851,25 @@ export default function FootballApp() {
     }
   };
 
+  const handleApplyAutoLineup = useCallback(async (result: PeriodLineup[]) => {
+    if (!selectedMatch || !currentTeam) return;
+
+    // Period 1 → set als startopstelling op het veld
+    const period1 = result[0];
+    if (period1) {
+      setFieldOccupants(period1.lineup);
+    }
+
+    // Period 2+ → sla op als period overrides
+    for (let i = 1; i < result.length; i++) {
+      const pd = result[i];
+      await applyPeriodOverride(selectedMatch.id, currentTeam.id, pd.period, pd.lineup);
+    }
+
+    setShowAutoLineupWizard(false);
+    toast.success('🤖 Auto-opstelling toegepast!');
+  }, [selectedMatch, currentTeam, setFieldOccupants, applyPeriodOverride, toast]);
+
   const handleFinalizeMatch = async (params: {
     calcMinutes: boolean;
     goalsFor: number | null;
@@ -1150,6 +1172,19 @@ export default function FootballApp() {
 
       {showGuestModal && isManager && (
         <GuestPlayerModal guestPool={guestPool} onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
+      )}
+
+      {showAutoLineupWizard && teamSettings && (
+        <AutoLineupWizard
+          players={players.filter(p => !p.injured && !matchAbsences.includes(p.id))}
+          settings={teamSettings}
+          gameFormat={gameFormat}
+          formation={formation}
+          periods={subMoments + 1}
+          matchDuration={matchDuration}
+          onApply={handleApplyAutoLineup}
+          onClose={() => setShowAutoLineupWizard(false)}
+        />
       )}
 
       {showSelectionModal && (
@@ -1650,6 +1685,15 @@ export default function FootballApp() {
                     className="px-3 sm:px-4 py-2 rounded font-bold bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-sm sm:text-base"
                   >
                     Annuleer
+                  </button>
+                  <button
+                    onClick={() => setShowAutoLineupWizard(true)}
+                    disabled={savingLineup}
+                    className={`px-3 sm:px-4 py-2 rounded font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm sm:text-base ${
+                      !teamSettings?.auto_lineup_enabled ? 'hidden' : ''
+                    }`}
+                  >
+                    🤖 Auto
                   </button>
                   <button
                     onClick={async () => {
