@@ -36,7 +36,7 @@ export interface PeriodLineup {
 
 export interface SubstitutionPair {
   out: Player;
-  in: Player;
+  in: Player | null;  // null = open wissel (manager moet kiezen, bijv. bij strict positie-tekort)
 }
 
 // ── Helpers ───────────────────────────────────────────────
@@ -84,13 +84,11 @@ function tieBreaker(player: Player): number {
  *
  * Strategy:
  * - Period 1: pick the fairest starting lineup based on historical stats.
- * - Period 2+: ALL bench players MUST rotate onto the field, replacing field
- *   players who have played the most (highest "should rest" priority). This
- *   guarantees every available player gets field time across periods.
- *
- * @param availablePlayers All players available for this match (present, not injured).
- * @param config Algorithm configuration from the wizard.
- * @returns Array of PeriodLineup for period 1 through config.periods.
+ * - Period 2+: ALL bench players MUST rotate onto the field. The players who
+ *   go OUT are picked by "who hasn't been on the bench yet this match" first,
+ *   then by fairness score. This prevents the same players being benched twice.
+ * - Strict mode: if no positionally matching bench player exists for a swap,
+ *   the substitution is left OPEN (in = null) with a warning for the manager.
  */
 export function generateAutoLineup(
   availablePlayers: Player[],
@@ -103,7 +101,7 @@ export function generateAutoLineup(
   const pool = [...availablePlayers].filter(p => !p.injured);
   const minutesPerPeriod = matchDuration / periods;
 
-  // Running fairness state
+  // Running fairness state (cumulative across the match for ordering)
   const runningFieldMins = new Map<number, number>();
   const runningBenchMins = new Map<number, number>();
   for (const p of pool) {
@@ -111,6 +109,10 @@ export function generateAutoLineup(
     runningFieldMins.set(key, p.played_min ?? 0);
     runningBenchMins.set(key, p.min ?? 0);
   }
+
+  // Track how many periods each player has been on the bench THIS match
+  const benchPeriods = new Map<number, number>();
+  for (const p of pool) benchPeriods.set(playerKey(p), 0);
 
   const results: PeriodLineup[] = [];
   let currentLineup: (Player | null)[] | null = null;
@@ -138,61 +140,103 @@ export function generateAutoLineup(
       const onFieldKeys = new Set(lineup.filter(Boolean).map(p => playerKey(p!)));
       const benchPlayers = pool.filter(p => !onFieldKeys.has(playerKey(p)));
 
-      // Sort bench by "most deserving of field time" (lowest fairness score first)
-      const benchSorted = [...benchPlayers].sort((a, b) => {
-        const fa = adjustedFairness(a, basis, runningFieldMins, runningBenchMins);
-        const fb = adjustedFairness(b, basis, runningFieldMins, runningBenchMins);
-        return fa - fb || tieBreaker(a) - tieBreaker(b);
-      });
+      if (benchPlayers.length === 0) {
+        // Everyone is on the field — no subs needed
+        results.push({ period, lineup, bench: [], subs: [], warnings });
+        currentLineup = lineup;
+        // Update running minutes
+        for (const p of pool) {
+          const key = playerKey(p);
+          runningFieldMins.set(key, (runningFieldMins.get(key) ?? 0) + minutesPerPeriod);
+        }
+        continue;
+      }
 
-      // Field players eligible to be swapped out, sorted by "most deserving of rest"
-      // (highest fairness = played most / least bench)
+      // ── Determine who goes OUT ──
+      // Primary sort: players with the fewest bench periods go out first (fairness within match)
+      // Secondary sort: highest running fairness score = most played → should rest
       const fieldPlayersWithSlot = lineup
         .map((p, i) => ({ player: p, slotIndex: i }))
         .filter((item): item is { player: Player; slotIndex: number } => item.player !== null);
 
-      // Exclude keeper from swap-out candidates if keeper rotation is off
       const swapOutCandidates = fieldPlayersWithSlot
         .filter(item => {
           if (!rotateGoalkeeper && hasKeeper && item.slotIndex === 0) return false;
           return true;
         })
         .sort((a, b) => {
-          // Reverse: highest fairness first = should rest most
+          // Primary: fewest bench periods first → they SHOULD go to bench now
+          const bpA = benchPeriods.get(playerKey(a.player)) ?? 0;
+          const bpB = benchPeriods.get(playerKey(b.player)) ?? 0;
+          if (bpA !== bpB) return bpA - bpB;
+          // Secondary: highest fairness (most played) → should rest
           const fa = adjustedFairness(a.player, basis, runningFieldMins, runningBenchMins);
           const fb = adjustedFairness(b.player, basis, runningFieldMins, runningBenchMins);
           return fb - fa || tieBreaker(a.player) - tieBreaker(b.player);
         });
 
-      // Swap ALL bench players in (up to available swap-out candidates)
-      const subsCount = Math.min(benchSorted.length, swapOutCandidates.length);
-      for (let s = 0; s < subsCount; s++) {
-        const benchPlayer = benchSorted[s];
-        const swapOut = swapOutCandidates[s];
+      // ── Match bench players to outgoing slots ──
+      const subsCount = Math.min(benchPlayers.length, swapOutCandidates.length);
 
-        subs.push({ out: swapOut.player, in: benchPlayer });
-        lineup[swapOut.slotIndex] = benchPlayer;
-      }
+      if (positionMode === 'strict') {
+        // Strict: only pair bench→field if positions match; leave open otherwise
+        const usedBench = new Set<number>();
+        const usedOut = new Set<number>();
 
-      // If keeper rotation is on and bench contains a keeper candidate, handle keeper swap
-      if (rotateGoalkeeper && hasKeeper) {
-        const keeperOnField = lineup[0];
-        const keeperNeedsSwap = keeperOnField && subs.some(s => playerKey(s.in) === playerKey(keeperOnField));
-        // Keeper was already swapped out through normal rotation — no extra action needed
-        if (!keeperNeedsSwap) {
-          // Check if a bench keeper should come in
-          const benchKeeper = benchSorted.find(p => {
-            const pref = p.preferred_position ?? p.position;
-            return (pref === 'Keeper' || p.can_play_goalkeeper) && !subs.some(sub => playerKey(sub.in) === playerKey(p));
+        // First pass: find matching pairs
+        for (let s = 0; s < subsCount; s++) {
+          const outCandidate = swapOutCandidates[s];
+          const outSlotCat = slotCategories[outCandidate.slotIndex];
+
+          // Find a bench player whose preference matches this slot
+          const matchingBench = benchPlayers.find(bp => {
+            if (usedBench.has(playerKey(bp))) return false;
+            const pref = bp.preferred_position ?? bp.position;
+            return pref === outSlotCat;
           });
-          if (benchKeeper && keeperOnField) {
-            // Already handled above since we swap ALL bench players
+
+          if (matchingBench) {
+            subs.push({ out: outCandidate.player, in: matchingBench });
+            lineup[outCandidate.slotIndex] = matchingBench;
+            usedBench.add(playerKey(matchingBench));
+            usedOut.add(playerKey(outCandidate.player));
           }
+        }
+
+        // Second pass: remaining bench players that have no positional match → open subs
+        for (const bp of benchPlayers) {
+          if (usedBench.has(playerKey(bp))) continue;
+          // Find an out candidate not yet used
+          const outCandidate = swapOutCandidates.find(c => !usedOut.has(playerKey(c.player)));
+          if (outCandidate) {
+            const outSlotCat = slotCategories[outCandidate.slotIndex];
+            const pref = bp.preferred_position ?? bp.position;
+            warnings.push(`⚠️ Geen ${outSlotCat} beschikbaar voor wissel — ${bp.name} (${pref || 'geen voorkeur'}) staat open`);
+            subs.push({ out: outCandidate.player, in: null });
+            // Don't place anyone in the lineup slot — leave current player
+            // Actually remove the out player to signal open slot
+            lineup[outCandidate.slotIndex] = null;
+            usedOut.add(playerKey(outCandidate.player));
+          }
+        }
+      } else {
+        // Off / Soft: pair all bench players in, sort bench by fairness
+        const benchSorted = [...benchPlayers].sort((a, b) => {
+          const fa = adjustedFairness(a, basis, runningFieldMins, runningBenchMins);
+          const fb = adjustedFairness(b, basis, runningFieldMins, runningBenchMins);
+          return fa - fb || tieBreaker(a) - tieBreaker(b);
+        });
+
+        for (let s = 0; s < subsCount; s++) {
+          const benchPlayer = benchSorted[s];
+          const swapOut = swapOutCandidates[s];
+          subs.push({ out: swapOut.player, in: benchPlayer });
+          lineup[swapOut.slotIndex] = benchPlayer;
         }
       }
 
-      // Position optimization: try to swap players to better-matching slots (soft/strict)
-      if (positionMode !== 'off') {
+      // Position optimization for non-strict modes
+      if (positionMode === 'soft') {
         optimizePositions(lineup, slotCategories, positionMode, hasKeeper, warnings);
       }
     }
@@ -201,13 +245,14 @@ export function generateAutoLineup(
     const assignedKeys = new Set(lineup.filter(Boolean).map(p => playerKey(p!)));
     const bench = pool.filter(p => !assignedKeys.has(playerKey(p)));
 
-    // Update running minutes
+    // Update running minutes + bench period counts
     for (const p of pool) {
       const key = playerKey(p);
       if (assignedKeys.has(key)) {
         runningFieldMins.set(key, (runningFieldMins.get(key) ?? 0) + minutesPerPeriod);
       } else {
         runningBenchMins.set(key, (runningBenchMins.get(key) ?? 0) + minutesPerPeriod);
+        benchPeriods.set(key, (benchPeriods.get(key) ?? 0) + 1);
       }
     }
 
