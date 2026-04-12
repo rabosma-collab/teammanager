@@ -978,24 +978,38 @@ export default function FootballApp() {
       const trackCons = teamSettings?.track_consumpties ?? true;
       const trackVerv = (teamSettings?.track_vervoer   ?? true) && selectedMatch.home_away !== 'Thuis';
 
+      // Sla de daadwerkelijke toewijzingen op in de match zodat ze later traceerbaar zijn
+      const assignmentUpdate: Record<string, unknown> = {};
       if (trackWas && wasbeurtDisplayPlayer && !wasbeurtDisplayPlayer.is_guest) {
+        assignmentUpdate.wasbeurt_player_id = wasbeurtDisplayPlayer.id;
         await supabase.from('players')
           .update({ wash_count: wasbeurtDisplayPlayer.wash_count + 1 })
           .eq('id', wasbeurtDisplayPlayer.id);
       }
       if (trackCons && consumptiesDisplayPlayer && !consumptiesDisplayPlayer.is_guest) {
+        assignmentUpdate.consumpties_player_id = consumptiesDisplayPlayer.id;
         await supabase.from('players')
           .update({ consumption_count: consumptiesDisplayPlayer.consumption_count + 1 })
           .eq('id', consumptiesDisplayPlayer.id);
       }
       if (trackVerv) {
+        const vervoerIds: number[] = [];
         for (const p of vervoerDisplayPlayers) {
           if (p && !p.is_guest) {
+            vervoerIds.push(p.id);
             await supabase.from('players')
               .update({ transport_count: p.transport_count + 1 })
               .eq('id', p.id);
           }
         }
+        if (vervoerIds.length > 0) {
+          assignmentUpdate.transport_player_ids = vervoerIds;
+        }
+      }
+      if (Object.keys(assignmentUpdate).length > 0) {
+        await supabase.from('matches')
+          .update(assignmentUpdate)
+          .eq('id', selectedMatch.id);
       }
 
       // Update lokale state
@@ -1004,6 +1018,7 @@ export default function FootballApp() {
         ...(params.goalsFor != null ? { goals_for: params.goalsFor } : {}),
         ...(params.goalsAgainst != null ? { goals_against: params.goalsAgainst } : {}),
         ...(params.matchReport != null ? { match_report: params.matchReport } : {}),
+        ...assignmentUpdate,
       };
       setIsEditingLineup(false);
       setFinalizeGoalsFor('');
