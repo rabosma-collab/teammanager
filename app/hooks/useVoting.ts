@@ -10,7 +10,8 @@ const POINTS_BY_RANK = [5, 3, 2];
 
 function computePodium(
   voteCounts: Record<number, number>,
-  playerMap: Map<number, string>
+  playerMap: Map<number, string>,
+  votersByPlayer?: Map<number, string[]>
 ): SpdwPodiumEntry[] {
   const sorted = Object.entries(voteCounts)
     .map(([pid, count]) => ({ player_id: parseInt(pid), vote_count: count }))
@@ -31,6 +32,7 @@ function computePodium(
       player_name: playerMap.get(sorted[i].player_id) ?? `Speler ${sorted[i].player_id}`,
       vote_count: sorted[i].vote_count,
       credits,
+      voters: votersByPlayer?.get(sorted[i].player_id) ?? [],
     });
   }
   return podium;
@@ -87,7 +89,7 @@ export function useVoting() {
 
         const { data: votesData } = await supabase
           .from('player_of_week_votes')
-          .select('voted_for_player_id')
+          .select('voted_for_player_id, voter_player_id')
           .eq('match_id', lastMatch.id)
           .eq('team_id', currentTeam.id);
 
@@ -97,20 +99,31 @@ export function useVoting() {
         }
 
         const voteCounts: Record<number, number> = {};
+        const voterIdsByPlayer = new Map<number, number[]>();
         for (const v of votesData) {
           voteCounts[v.voted_for_player_id] = (voteCounts[v.voted_for_player_id] || 0) + 1;
+          if (v.voter_player_id) {
+            if (!voterIdsByPlayer.has(v.voted_for_player_id)) voterIdsByPlayer.set(v.voted_for_player_id, []);
+            voterIdsByPlayer.get(v.voted_for_player_id)!.push(v.voter_player_id);
+          }
         }
 
-        const playerIds = Object.keys(voteCounts).map(Number);
+        const allIds = new Set<number>([...Object.keys(voteCounts).map(Number)]);
+        for (const ids of Array.from(voterIdsByPlayer.values())) ids.forEach(id => allIds.add(id));
         const { data: playerData } = await supabase
           .from('players')
           .select('id, name')
-          .in('id', playerIds);
+          .in('id', Array.from(allIds));
 
         const playerMap = new Map<number, string>();
         for (const p of (playerData || [])) playerMap.set(p.id, p.name);
 
-        const podium = computePodium(voteCounts, playerMap);
+        const votersByPlayer = new Map<number, string[]>();
+        voterIdsByPlayer.forEach((voterIds, pid) => {
+          votersByPlayer.set(pid, voterIds.map(vid => playerMap.get(vid) ?? `Speler ${vid}`));
+        });
+
+        const podium = computePodium(voteCounts, playerMap, votersByPlayer);
         if (fetchId === fetchIdRef.current) setLastSpdwResult({ match: lastMatch, podium });
         return;
       }
@@ -194,14 +207,20 @@ export function useVoting() {
         const votes: VoteRow[] = votesByMatch.get(match.id) || [];
 
         const voteCounts: Record<number, number> = {};
+        const voterIdsByPlayer = new Map<number, number[]>();
         for (const vote of votes) {
           voteCounts[vote.voted_for_player_id] = (voteCounts[vote.voted_for_player_id] || 0) + 1;
+          if (vote.voter_player_id) {
+            if (!voterIdsByPlayer.has(vote.voted_for_player_id)) voterIdsByPlayer.set(vote.voted_for_player_id, []);
+            voterIdsByPlayer.get(vote.voted_for_player_id)!.push(vote.voter_player_id);
+          }
         }
 
         const voteResults: VoteResults[] = matchPlayers.map(p => ({
           player_id: p.id,
           player_name: p.name,
-          vote_count: voteCounts[p.id] || 0
+          vote_count: voteCounts[p.id] || 0,
+          voters: (voterIdsByPlayer.get(p.id) ?? []).map(vid => playerMap.get(vid) ?? `Speler ${vid}`),
         })).sort((a, b) => b.vote_count - a.vote_count);
 
         const currentVote = votes.find(v =>

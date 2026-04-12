@@ -111,6 +111,7 @@ export interface Player {
     player_id: number;
     player_name: string;
     vote_count: number;
+    voters: string[];
   }
 
   export interface VotingMatch {
@@ -128,6 +129,7 @@ export interface Player {
     player_name: string;
     vote_count: number;
     credits: number;
+    voters: string[];
   }
 
   export interface SpdwResult {

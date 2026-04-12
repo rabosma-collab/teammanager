@@ -1,7 +1,6 @@
-const CACHE_NAME = 'teammanager-v2';
+const CACHE_NAME = 'teammanager-v3';
 
 const APP_SHELL = [
-  '/',
   '/manifest.webmanifest',
   '/favicon.ico',
   '/icon-192.png',

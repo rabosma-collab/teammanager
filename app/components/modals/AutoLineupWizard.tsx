@@ -1,16 +1,55 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import DraggableModal from './DraggableModal';
 import type { Player, TeamSettings } from '../../lib/types';
 import {
   generateAutoLineup,
+  playerKey,
   type AutoLineupConfig,
   type PeriodLineup,
+  type SubstitutionPair,
   type AutoLineupBasis,
   type PositionMode,
 } from '../../lib/autoLineup';
 import { getPositionCategory, FORMATS_WITHOUT_KEEPER } from '../../lib/constants';
+
+/**
+ * Rebuild a period's lineup + bench from the previous period's lineup + the subs array.
+ * Mutates the period in place.
+ */
+function rebuildPeriodLineup(allPeriods: PeriodLineup[], periodIdx: number) {
+  if (periodIdx === 0) return; // period 1 has no subs to rebuild from
+  const prev = allPeriods[periodIdx - 1];
+  const period = allPeriods[periodIdx];
+
+  // Start from previous lineup
+  const lineup = [...prev.lineup];
+  const subsApplied = new Set<number>();
+
+  for (const sub of period.subs) {
+    // Find the slot of the outgoing player
+    const slot = lineup.findIndex(p => p && playerKey(p) === playerKey(sub.out));
+    if (slot !== -1) {
+      lineup[slot] = sub.in;
+      subsApplied.add(playerKey(sub.in));
+    }
+  }
+
+  period.lineup = lineup;
+
+  // Rebuild bench: everyone not in lineup
+  const onFieldKeys = new Set(lineup.filter(Boolean).map(p => playerKey(p!)));
+  // Collect all players from prev lineup + prev bench + subs
+  const allPlayers = new Map<number, Player>();
+  for (const p of prev.lineup) { if (p) allPlayers.set(playerKey(p), p); }
+  for (const p of prev.bench) { allPlayers.set(playerKey(p), p); }
+  for (const s of period.subs) {
+    allPlayers.set(playerKey(s.in), s.in);
+    allPlayers.set(playerKey(s.out), s.out);
+  }
+  period.bench = Array.from(allPlayers.values()).filter(p => !onFieldKeys.has(playerKey(p)));
+}
 
 interface AutoLineupWizardProps {
   players: Player[];               // all available players for this match (present, not injured)
@@ -56,6 +95,7 @@ export default function AutoLineupWizard({
   // --- Preview state ---
   const [previewResult, setPreviewResult] = useState<PeriodLineup[] | null>(null);
   const [previewPeriod, setPreviewPeriod] = useState(1);
+  const [editingSubIndex, setEditingSubIndex] = useState<{ period: number; index: number; field: 'out' | 'in' } | null>(null);
 
   const handleGenerate = () => {
     const config: AutoLineupConfig = {
@@ -70,8 +110,41 @@ export default function AutoLineupWizard({
     const result = generateAutoLineup(players, config);
     setPreviewResult(result);
     setPreviewPeriod(1);
+    setEditingSubIndex(null);
     setStep('preview');
   };
+
+  /** Swap a player in a sub pair and recompute affected lineup/bench */
+  const handleEditSub = useCallback((periodIdx: number, subIdx: number, field: 'out' | 'in', newPlayer: Player) => {
+    if (!previewResult) return;
+    const updated = previewResult.map(p => ({
+      ...p,
+      lineup: [...p.lineup],
+      bench: [...p.bench],
+      subs: p.subs.map(s => ({ ...s })),
+      warnings: [...p.warnings],
+    }));
+
+    const period = updated[periodIdx];
+    const sub = period.subs[subIdx];
+
+    if (field === 'out') {
+      sub.out = newPlayer;
+    } else {
+      sub.in = newPlayer;
+    }
+
+    // Rebuild this period's lineup from previous period + updated subs
+    rebuildPeriodLineup(updated, periodIdx);
+
+    // Also rebuild all subsequent periods (their subs stay, but lineups shift)
+    for (let i = periodIdx + 1; i < updated.length; i++) {
+      rebuildPeriodLineup(updated, i);
+    }
+
+    setPreviewResult(updated);
+    setEditingSubIndex(null);
+  }, [previewResult]);
 
   const handleApply = () => {
     if (previewResult) {
@@ -243,19 +316,82 @@ export default function AutoLineupWizard({
               ))}
             </div>
 
-            {/* Wissels voor deze periode */}
+            {/* Wissels voor deze periode (editable) */}
             {currentPreview.subs.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wissels</p>
-                {currentPreview.subs.map((sub, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2 bg-gray-700/50 rounded-lg text-sm">
-                    <span className="text-red-400">↩</span>
-                    <span className="text-white font-medium">{sub.out.name}</span>
-                    <span className="text-gray-500">→</span>
-                    <span className="text-green-400">↪</span>
-                    <span className="text-white font-medium">{sub.in.name}</span>
-                  </div>
-                ))}
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wissels <span className="text-gray-500 normal-case">(klik om aan te passen)</span></p>
+                {currentPreview.subs.map((sub, i) => {
+                  const periodIdx = previewPeriod - 1;
+                  const prevPeriod = periodIdx > 0 ? previewResult![periodIdx - 1] : null;
+                  const isEditingOut = editingSubIndex?.period === previewPeriod && editingSubIndex?.index === i && editingSubIndex?.field === 'out';
+                  const isEditingIn = editingSubIndex?.period === previewPeriod && editingSubIndex?.index === i && editingSubIndex?.field === 'in';
+
+                  // Available "out" candidates: players on field in previous period, excluding already-subbed-out players in other subs
+                  const usedOutKeys = new Set(currentPreview.subs.filter((_, si) => si !== i).map(s => playerKey(s.out)));
+                  const outCandidates = prevPeriod
+                    ? prevPeriod.lineup.filter((p): p is Player => p !== null && !usedOutKeys.has(playerKey(p)))
+                    : [];
+
+                  // Available "in" candidates: players on bench in previous period, excluding already-subbed-in players in other subs
+                  const usedInKeys = new Set(currentPreview.subs.filter((_, si) => si !== i).map(s => playerKey(s.in)));
+                  const inCandidates = prevPeriod
+                    ? prevPeriod.bench.filter(p => !usedInKeys.has(playerKey(p)))
+                    : [];
+
+                  return (
+                    <div key={i} className="flex items-center gap-1.5 p-2 bg-gray-700/50 rounded-lg text-sm">
+                      <span className="text-red-400 text-xs">↩</span>
+                      {isEditingOut ? (
+                        <select
+                          autoFocus
+                          className="flex-1 bg-gray-800 border border-gray-600 rounded px-1 py-0.5 text-white text-sm focus:outline-none focus:border-yellow-500"
+                          value={playerKey(sub.out)}
+                          onChange={(e) => {
+                            const p = outCandidates.find(c => playerKey(c) === Number(e.target.value));
+                            if (p) handleEditSub(periodIdx, i, 'out', p);
+                          }}
+                          onBlur={() => setEditingSubIndex(null)}
+                        >
+                          {outCandidates.map(p => (
+                            <option key={playerKey(p)} value={playerKey(p)}>{p.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <button
+                          onClick={() => setEditingSubIndex({ period: previewPeriod, index: i, field: 'out' })}
+                          className="text-white font-medium hover:text-yellow-400 transition truncate"
+                        >
+                          {sub.out.name}
+                        </button>
+                      )}
+                      <span className="text-gray-500">→</span>
+                      <span className="text-green-400 text-xs">↪</span>
+                      {isEditingIn ? (
+                        <select
+                          autoFocus
+                          className="flex-1 bg-gray-800 border border-gray-600 rounded px-1 py-0.5 text-white text-sm focus:outline-none focus:border-yellow-500"
+                          value={playerKey(sub.in)}
+                          onChange={(e) => {
+                            const p = inCandidates.find(c => playerKey(c) === Number(e.target.value));
+                            if (p) handleEditSub(periodIdx, i, 'in', p);
+                          }}
+                          onBlur={() => setEditingSubIndex(null)}
+                        >
+                          {inCandidates.map(p => (
+                            <option key={playerKey(p)} value={playerKey(p)}>{p.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <button
+                          onClick={() => setEditingSubIndex({ period: previewPeriod, index: i, field: 'in' })}
+                          className="text-white font-medium hover:text-yellow-400 transition truncate"
+                        >
+                          {sub.in.name}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
