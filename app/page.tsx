@@ -860,15 +860,50 @@ export default function FootballApp() {
       setFieldOccupants(period1.lineup);
     }
 
-    // Period 2+ → sla op als period overrides
+    // Period 2+ → sla op als period overrides + wissels opslaan
+    const moments = computeSubMomentMinutes(result.length - 1, matchDuration);
     for (let i = 1; i < result.length; i++) {
       const pd = result[i];
       await applyPeriodOverride(selectedMatch.id, currentTeam.id, pd.period, pd.lineup);
+
+      // Sla wissels op in substitutions tabel (substitution_number = period - 1)
+      const subNumber = pd.period - 1;
+      const minute = moments[subNumber - 1] ?? 0;
+
+      // Verwijder bestaande wissels voor dit moment
+      await supabase
+        .from('substitutions')
+        .delete()
+        .eq('match_id', selectedMatch.id)
+        .eq('substitution_number', subNumber)
+        .eq('is_extra', false);
+
+      // Alleen complete wissels opslaan (in !== null)
+      const subsToInsert = pd.subs
+        .filter(s => s.in !== null)
+        .map(s => ({
+          match_id: selectedMatch.id,
+          substitution_number: subNumber,
+          minute,
+          player_out_id: s.out.id,
+          player_in_id: s.in!.id,
+          player_out_is_guest: Boolean(s.out.is_guest),
+          player_in_is_guest: Boolean(s.in!.is_guest),
+          custom_minute: null,
+          is_extra: false,
+        }));
+
+      if (subsToInsert.length > 0) {
+        await supabase.from('substitutions').insert(subsToInsert);
+      }
     }
+
+    // Herlaad wissels zodat SubstitutionCards ze toont
+    await fetchSubstitutions(selectedMatch.id);
 
     setShowAutoLineupWizard(false);
     toast.success('🤖 Auto-opstelling toegepast!');
-  }, [selectedMatch, currentTeam, setFieldOccupants, applyPeriodOverride, toast]);
+  }, [selectedMatch, currentTeam, matchDuration, setFieldOccupants, applyPeriodOverride, fetchSubstitutions, toast]);
 
   const handleFinalizeMatch = async (params: {
     calcMinutes: boolean;

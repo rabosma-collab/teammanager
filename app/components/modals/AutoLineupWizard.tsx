@@ -25,14 +25,12 @@ function rebuildPeriodLineup(allPeriods: PeriodLineup[], periodIdx: number) {
 
   // Start from previous lineup
   const lineup = [...prev.lineup];
-  const subsApplied = new Set<number>();
 
   for (const sub of period.subs) {
     // Find the slot of the outgoing player
     const slot = lineup.findIndex(p => p && playerKey(p) === playerKey(sub.out));
     if (slot !== -1) {
-      lineup[slot] = sub.in;
-      subsApplied.add(playerKey(sub.in));
+      lineup[slot] = sub.in ?? null; // null = open wissel
     }
   }
 
@@ -45,7 +43,9 @@ function rebuildPeriodLineup(allPeriods: PeriodLineup[], periodIdx: number) {
   for (const p of prev.lineup) { if (p) allPlayers.set(playerKey(p), p); }
   for (const p of prev.bench) { allPlayers.set(playerKey(p), p); }
   for (const s of period.subs) {
-    allPlayers.set(playerKey(s.in), s.in);
+    if (s.in) {
+      allPlayers.set(playerKey(s.in), s.in);
+    }
     allPlayers.set(playerKey(s.out), s.out);
   }
   period.bench = Array.from(allPlayers.values()).filter(p => !onFieldKeys.has(playerKey(p)));
@@ -325,6 +325,7 @@ export default function AutoLineupWizard({
                   const prevPeriod = periodIdx > 0 ? previewResult![periodIdx - 1] : null;
                   const isEditingOut = editingSubIndex?.period === previewPeriod && editingSubIndex?.index === i && editingSubIndex?.field === 'out';
                   const isEditingIn = editingSubIndex?.period === previewPeriod && editingSubIndex?.index === i && editingSubIndex?.field === 'in';
+                  const isOpenSub = sub.in === null;
 
                   // Available "out" candidates: players on field in previous period, excluding already-subbed-out players in other subs
                   const usedOutKeys = new Set(currentPreview.subs.filter((_, si) => si !== i).map(s => playerKey(s.out)));
@@ -333,13 +334,13 @@ export default function AutoLineupWizard({
                     : [];
 
                   // Available "in" candidates: players on bench in previous period, excluding already-subbed-in players in other subs
-                  const usedInKeys = new Set(currentPreview.subs.filter((_, si) => si !== i).map(s => playerKey(s.in)));
+                  const usedInKeys = new Set(currentPreview.subs.filter((_, si) => si !== i).filter(s => s.in !== null).map(s => playerKey(s.in!)));
                   const inCandidates = prevPeriod
                     ? prevPeriod.bench.filter(p => !usedInKeys.has(playerKey(p)))
                     : [];
 
                   return (
-                    <div key={i} className="flex items-center gap-1.5 p-2 bg-gray-700/50 rounded-lg text-sm">
+                    <div key={i} className={`flex items-center gap-1.5 p-2 rounded-lg text-sm ${isOpenSub ? 'bg-yellow-900/30 border border-yellow-700/50' : 'bg-gray-700/50'}`}>
                       <span className="text-red-400 text-xs">↩</span>
                       {isEditingOut ? (
                         <select
@@ -366,11 +367,36 @@ export default function AutoLineupWizard({
                       )}
                       <span className="text-gray-500">→</span>
                       <span className="text-green-400 text-xs">↪</span>
-                      {isEditingIn ? (
+                      {isOpenSub ? (
+                        isEditingIn ? (
+                          <select
+                            autoFocus
+                            className="flex-1 bg-gray-800 border border-yellow-600 rounded px-1 py-0.5 text-white text-sm focus:outline-none focus:border-yellow-500"
+                            value=""
+                            onChange={(e) => {
+                              const p = inCandidates.find(c => playerKey(c) === Number(e.target.value));
+                              if (p) handleEditSub(periodIdx, i, 'in', p);
+                            }}
+                            onBlur={() => setEditingSubIndex(null)}
+                          >
+                            <option value="" disabled>Kies speler...</option>
+                            {inCandidates.map(p => (
+                              <option key={playerKey(p)} value={playerKey(p)}>{p.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <button
+                            onClick={() => setEditingSubIndex({ period: previewPeriod, index: i, field: 'in' })}
+                            className="text-yellow-400 font-medium hover:text-yellow-300 transition italic"
+                          >
+                            Kies speler...
+                          </button>
+                        )
+                      ) : isEditingIn ? (
                         <select
                           autoFocus
                           className="flex-1 bg-gray-800 border border-gray-600 rounded px-1 py-0.5 text-white text-sm focus:outline-none focus:border-yellow-500"
-                          value={playerKey(sub.in)}
+                          value={playerKey(sub.in!)}
                           onChange={(e) => {
                             const p = inCandidates.find(c => playerKey(c) === Number(e.target.value));
                             if (p) handleEditSub(periodIdx, i, 'in', p);
@@ -386,7 +412,7 @@ export default function AutoLineupWizard({
                           onClick={() => setEditingSubIndex({ period: previewPeriod, index: i, field: 'in' })}
                           className="text-white font-medium hover:text-yellow-400 transition truncate"
                         >
-                          {sub.in.name}
+                          {sub.in!.name}
                         </button>
                       )}
                     </div>
