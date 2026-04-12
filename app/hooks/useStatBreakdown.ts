@@ -46,6 +46,7 @@ export function useStatBreakdown() {
     playerName: string,
     stat: string,
     matches: Match[],
+    displayTotal: number,
   ) => {
     if (!currentTeam) return;
 
@@ -61,7 +62,7 @@ export function useStatBreakdown() {
         const matchIds = finishedMatches.map(m => m.id);
 
         if (matchIds.length === 0) {
-          setData({ playerId, playerName, stat, total: 0, entries: [] });
+          setData({ playerId, playerName, stat, total: displayTotal, entries: [] });
           return;
         }
 
@@ -94,8 +95,7 @@ export function useStatBreakdown() {
         }
 
         entries.sort((a, b) => b.date.localeCompare(a.date));
-        const total = entries.reduce((sum, e) => sum + e.value, 0);
-        setData({ playerId, playerName, stat, total, entries });
+        setData({ playerId, playerName, stat, total: displayTotal, entries });
         return;
       }
 
@@ -127,8 +127,7 @@ export function useStatBreakdown() {
         }
 
         entries.sort((a, b) => b.date.localeCompare(a.date));
-        const total = entries.reduce((sum, e) => sum + e.value, 0);
-        setData({ playerId, playerName, stat, total, entries });
+        setData({ playerId, playerName, stat, total: displayTotal, entries });
         return;
       }
 
@@ -137,7 +136,7 @@ export function useStatBreakdown() {
         const matchIds = finishedMatches.map(m => m.id);
 
         if (matchIds.length === 0) {
-          setData({ playerId, playerName, stat, total: 0, entries: [] });
+          setData({ playerId, playerName, stat, total: displayTotal, entries: [] });
           return;
         }
 
@@ -175,8 +174,7 @@ export function useStatBreakdown() {
           });
 
           entries.sort((a, b) => b.date.localeCompare(a.date));
-          const total = entries.reduce((sum, e) => sum + e.value, 0);
-          setData({ playerId, playerName, stat, total, entries });
+          setData({ playerId, playerName, stat, total: displayTotal, entries });
         } else {
           // played_min: calculate minutes played per match from substitution data
           // This is complex — for now we aggregate from the substitutions
@@ -248,14 +246,13 @@ export function useStatBreakdown() {
           });
 
           entries.sort((a, b) => b.date.localeCompare(a.date));
-          const total = entries.reduce((sum, e) => sum + e.value, 0);
-          setData({ playerId, playerName, stat, total, entries });
+          setData({ playerId, playerName, stat, total: displayTotal, entries });
         }
         return;
       }
 
       // Fallback: no breakdown available
-      setData({ playerId, playerName, stat, total: 0, entries: [] });
+      setData({ playerId, playerName, stat, total: displayTotal, entries: [] });
     } catch (error) {
       console.error('Error fetching stat breakdown:', error);
       setData(null);
