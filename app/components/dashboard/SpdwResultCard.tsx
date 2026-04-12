@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { SpdwResult } from '../../lib/types';
 
 interface SpdwResultCardProps {
@@ -17,6 +18,16 @@ export default function SpdwResultCard({ result }: SpdwResultCardProps) {
   const { match, podium } = result;
   const prefix = match.home_away === 'Thuis' ? 'vs' : '@';
   const dateLabel = formatMatchDate(match.date);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const toggle = (id: number) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="bg-gray-800 rounded-xl border border-yellow-700/30 overflow-hidden">
@@ -38,28 +49,44 @@ export default function SpdwResultCard({ result }: SpdwResultCardProps) {
         {podium.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-2">Geen stemmen uitgebracht</p>
         ) : (
-          podium.map((entry) => (
-            <div key={entry.player_id} className="flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-base shrink-0">{MEDAL[entry.rank - 1]}</span>
-                <span
-                  className={
-                    entry.rank === 1
-                      ? 'text-yellow-400 font-bold text-sm truncate'
-                      : 'text-gray-200 text-sm truncate'
-                  }
-                >
-                  {entry.player_name}
-                </span>
+          podium.map((entry) => {
+            const isExpanded = expandedIds.has(entry.player_id);
+            return (
+              <div
+                key={entry.player_id}
+                className="rounded-lg cursor-pointer transition-colors hover:bg-gray-700/30"
+                onClick={() => toggle(entry.player_id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-base shrink-0">{MEDAL[entry.rank - 1]}</span>
+                    <span
+                      className={
+                        entry.rank === 1
+                          ? 'text-yellow-400 font-bold text-sm truncate'
+                          : 'text-gray-200 text-sm truncate'
+                      }
+                    >
+                      {entry.player_name}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <span className="text-gray-400 text-xs">
+                      {entry.vote_count} {entry.vote_count === 1 ? 'stem' : 'stemmen'}
+                    </span>
+                    <span className="text-gray-600 text-xs ml-2">+{entry.credits} cr.</span>
+                  </div>
+                </div>
+                {isExpanded && entry.voters.length > 0 && (
+                  <div className="pl-7 pb-1 pt-0.5">
+                    <p className="text-gray-500 text-xs">
+                      Gestemd door: {entry.voters.join(', ')}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="text-right shrink-0 ml-3">
-                <span className="text-gray-400 text-xs">
-                  {entry.vote_count} {entry.vote_count === 1 ? 'stem' : 'stemmen'}
-                </span>
-                <span className="text-gray-600 text-xs ml-2">+{entry.credits} cr.</span>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -80,6 +80,17 @@ export default function VotingSection({
   const toast = useToast();
   const [selectedVotes, setSelectedVotes] = useState<Record<number, number>>({});
   const [shareToasts, setShareToasts] = useState<Record<number, string | null>>({});
+  const [expandedPlayers, setExpandedPlayers] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (matchId: number, playerId: number) => {
+    const key = `${matchId}-${playerId}`;
+    setExpandedPlayers(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const handleShare = async (vm: VotingMatch) => {
     const text = buildShareText(vm);
@@ -212,7 +223,10 @@ export default function VotingSection({
                     return (
                       <>
                         {/* Winnaar spotlight */}
-                        <div className="text-center py-4 px-3 mb-4 rounded-xl bg-gradient-to-b from-yellow-900/40 to-amber-950/30 border border-yellow-600/40">
+                        <div
+                          className="text-center py-4 px-3 mb-4 rounded-xl bg-gradient-to-b from-yellow-900/40 to-amber-950/30 border border-yellow-600/40 cursor-pointer transition-colors hover:border-yellow-500/60"
+                          onClick={() => winners.forEach(w => toggleExpand(vm.match.id, w.player_id))}
+                        >
                           <div className="text-4xl mb-1">🏆</div>
                           <div className="text-yellow-500 font-black text-lg tracking-wide uppercase mb-1">Speler van de Week!</div>
                           <div className="text-white font-black text-2xl sm:text-3xl">
@@ -221,25 +235,53 @@ export default function VotingSection({
                           <div className="text-yellow-600/80 text-sm mt-1">
                             {winners[0].vote_count} {winners[0].vote_count === 1 ? 'stem' : 'stemmen'} &middot; +{POINTS_BY_RANK[0]} credits
                           </div>
+                          {winners.some(w => expandedPlayers.has(`${vm.match.id}-${w.player_id}`)) && (
+                            <div className="mt-3 pt-3 border-t border-yellow-700/30">
+                              {winners.map(w => (
+                                <div key={w.player_id}>
+                                  {winners.length > 1 && <p className="text-yellow-500/70 text-xs font-bold mb-1">{w.player_name}:</p>}
+                                  <p className="text-yellow-600/80 text-xs">
+                                    Gestemd door: {w.voters.length > 0 ? w.voters.join(', ') : 'Onbekend'}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {/* Top 2 en 3 */}
                         {rest.length > 0 && (
                           <div className="space-y-1.5">
-                            {rest.map(v => (
-                              <div key={v.player_id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-700/30">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-base">{getMedal(v.rank)}</span>
-                                  <span className="text-gray-200 text-sm font-medium">{v.player_name}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="text-gray-400 text-xs">{v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}</span>
-                                  {v.credits > 0 && (
-                                    <span className="text-yellow-700 text-xs font-bold">+{v.credits} cr.</span>
+                            {rest.map(v => {
+                              const isExpanded = expandedPlayers.has(`${vm.match.id}-${v.player_id}`);
+                              return (
+                                <div
+                                  key={v.player_id}
+                                  className="rounded-lg bg-gray-700/30 cursor-pointer transition-colors hover:bg-gray-700/50"
+                                  onClick={() => toggleExpand(vm.match.id, v.player_id)}
+                                >
+                                  <div className="flex items-center justify-between px-3 py-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-base">{getMedal(v.rank)}</span>
+                                      <span className="text-gray-200 text-sm font-medium">{v.player_name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-gray-400 text-xs">{v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}</span>
+                                      {v.credits > 0 && (
+                                        <span className="text-yellow-700 text-xs font-bold">+{v.credits} cr.</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {isExpanded && v.voters.length > 0 && (
+                                    <div className="px-3 pb-2 pl-9">
+                                      <p className="text-gray-500 text-xs">
+                                        Gestemd door: {v.voters.join(', ')}
+                                      </p>
+                                    </div>
                                   )}
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </>
@@ -310,14 +352,28 @@ export default function VotingSection({
                       {vm.votes.filter(v => v.vote_count > 0).map((v, _idx, arr) => {
                         const rank = getDenseRank(v.vote_count, arr);
                         const medal = getMedal(rank);
+                        const isExpanded = expandedPlayers.has(`${vm.match.id}-${v.player_id}`);
                         return (
-                          <div key={v.player_id} className="flex justify-between items-center p-1.5 rounded bg-gray-700/30">
-                            <span className={rank === 1 ? 'text-yellow-400 font-bold' : 'text-gray-300'}>
-                              {medal && `${medal} `}{v.player_name}
-                            </span>
-                            <span className="text-gray-400 text-xs">
-                              {v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}
-                            </span>
+                          <div
+                            key={v.player_id}
+                            className="rounded bg-gray-700/30 cursor-pointer transition-colors hover:bg-gray-700/50"
+                            onClick={() => toggleExpand(vm.match.id, v.player_id)}
+                          >
+                            <div className="flex justify-between items-center p-1.5">
+                              <span className={rank === 1 ? 'text-yellow-400 font-bold' : 'text-gray-300'}>
+                                {medal && `${medal} `}{v.player_name}
+                              </span>
+                              <span className="text-gray-400 text-xs">
+                                {v.vote_count} {v.vote_count === 1 ? 'stem' : 'stemmen'}
+                              </span>
+                            </div>
+                            {isExpanded && v.voters.length > 0 && (
+                              <div className="px-1.5 pb-1.5 pl-6">
+                                <p className="text-gray-500 text-xs">
+                                  Gestemd door: {v.voters.join(', ')}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
