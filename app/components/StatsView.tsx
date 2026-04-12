@@ -74,7 +74,9 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
 
   const handleStatClick = (playerId: number, playerName: string, stat: string) => {
     if (isEditing) return;
-    fetchBreakdown(playerId, playerName, stat, matches);
+    const player = players.find(p => p.id === playerId);
+    const displayTotal = player ? ((player as unknown as Record<string, number>)[stat] ?? 0) : 0;
+    fetchBreakdown(playerId, playerName, stat, matches, displayTotal);
   };
 
   const regularPlayers = useMemo(
