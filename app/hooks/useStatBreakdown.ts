@@ -160,9 +160,9 @@ export function useStatBreakdown() {
           }
 
           const entries: StatBreakdownEntry[] = [];
-          for (const [matchId, count] of subsByMatch) {
+          Array.from(subsByMatch.entries()).forEach(([matchId, count]) => {
             const match = matchMap.get(matchId);
-            if (!match) continue;
+            if (!match) return;
             entries.push({
               matchId: match.id,
               date: match.date,
@@ -172,7 +172,7 @@ export function useStatBreakdown() {
               goalsAgainst: match.goals_against ?? null,
               value: count,
             });
-          }
+          });
 
           entries.sort((a, b) => b.date.localeCompare(a.date));
           const total = entries.reduce((sum, e) => sum + e.value, 0);
@@ -183,8 +183,9 @@ export function useStatBreakdown() {
           const minutesByMatch = new Map<number, number>();
 
           // Group subs by match
-          const subsByMatch = new Map<number, typeof subs>();
-          for (const sub of subs || []) {
+          type SubRow = { match_id: number; minute: number; player_out_id: number; player_in_id: number };
+          const subsByMatch = new Map<number, SubRow[]>();
+          for (const sub of (subs || []) as SubRow[]) {
             const arr = subsByMatch.get(sub.match_id) ?? [];
             arr.push(sub);
             subsByMatch.set(sub.match_id, arr);
@@ -232,9 +233,9 @@ export function useStatBreakdown() {
           }
 
           const entries: StatBreakdownEntry[] = [];
-          for (const [matchId, mins] of minutesByMatch) {
+          Array.from(minutesByMatch.entries()).forEach(([matchId, mins]) => {
             const match = matchMap.get(matchId);
-            if (!match) continue;
+            if (!match) return;
             entries.push({
               matchId: match.id,
               date: match.date,
@@ -244,7 +245,7 @@ export function useStatBreakdown() {
               goalsAgainst: match.goals_against ?? null,
               value: mins,
             });
-          }
+          });
 
           entries.sort((a, b) => b.date.localeCompare(a.date));
           const total = entries.reduce((sum, e) => sum + e.value, 0);

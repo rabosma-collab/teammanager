@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { positionEmojis } from '../lib/constants';
-import type { Player, TeamSettings } from '../lib/types';
+import type { Player, Match, TeamSettings } from '../lib/types';
+import { useStatBreakdown } from '../hooks/useStatBreakdown';
+import StatBreakdown from './StatBreakdown';
 
 interface StatsViewProps {
   players: Player[];
+  matches: Match[];
   isAdmin: boolean;
   onUpdateStat: (id: number, field: string, value: string) => void;
   teamSettings?: TeamSettings | null;
@@ -59,7 +62,7 @@ interface EditingCell {
   value: number;
 }
 
-export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings }: StatsViewProps) {
+export default function StatsView({ players, matches, isAdmin, onUpdateStat, teamSettings }: StatsViewProps) {
   const [sortKey, setSortKey] = useState<SortKey>('goals');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [filterPosition, setFilterPosition] = useState<PositionFilter>('all');
@@ -67,6 +70,12 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [mobileStatField, setMobileStatField] = useState<string | null>(null);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const { data: breakdownData, loading: breakdownLoading, fetchBreakdown, close: closeBreakdown } = useStatBreakdown();
+
+  const handleStatClick = (playerId: number, playerName: string, stat: string) => {
+    if (isEditing) return;
+    fetchBreakdown(playerId, playerName, stat, matches);
+  };
 
   const regularPlayers = useMemo(
     () => players.filter(p => !p.is_guest && (filterPosition === 'all' || p.position === filterPosition)),
@@ -239,7 +248,8 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
             return (
               <div
                 key={player.id}
-                className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0"
+                className={`flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0${!isEditing && activeMobileStat ? ' cursor-pointer active:bg-gray-700/60' : ''}`}
+                onClick={() => !isEditing && activeMobileStat && handleStatClick(player.id, player.name, activeMobileStat)}
               >
                 <span className="text-gray-500 text-sm font-bold w-6 text-right shrink-0">
                   {index + 1}
@@ -264,6 +274,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
                   ) : (
                     <span className="text-xl font-black text-white tabular-nums w-8 text-right shrink-0">
                       {statValue}
+                      <span className="block text-[10px] text-gray-500 font-normal">details →</span>
                     </span>
                   )
                 )}
@@ -338,6 +349,7 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
                         playerId={player.id}
                         playerName={player.name}
                         onCellClick={handleCellClick}
+                        onStatClick={handleStatClick}
                       />
                     ))}
                   </tr>
@@ -367,6 +379,13 @@ export default function StatsView({ players, isAdmin, onUpdateStat, teamSettings
           onClose={() => setIsFilterSheetOpen(false)}
         />
       )}
+
+      {/* Stat breakdown overlay */}
+      <StatBreakdown
+        data={breakdownData}
+        loading={breakdownLoading}
+        onClose={closeBreakdown}
+      />
     </div>
   );
 }
@@ -376,13 +395,14 @@ function SortIndicator({ active, dir }: { active: boolean; dir: SortDir }) {
   return <span className="text-blue-400 text-xs ml-0.5">{dir === 'asc' ? '▲' : '▼'}</span>;
 }
 
-function StatCell({ isEditing, value, field, playerId, playerName, onCellClick }: {
+function StatCell({ isEditing, value, field, playerId, playerName, onCellClick, onStatClick }: {
   isEditing: boolean;
   value: number;
   field: string;
   playerId: number;
   playerName: string;
   onCellClick: (playerId: number, playerName: string, field: string, value: number) => void;
+  onStatClick: (playerId: number, playerName: string, stat: string) => void;
 }) {
   return (
     <td className="p-2 sm:p-4">
@@ -394,7 +414,13 @@ function StatCell({ isEditing, value, field, playerId, playerName, onCellClick }
           {value}
         </button>
       ) : (
-        <span className="text-sm sm:text-base">{value}</span>
+        <button
+          onClick={() => onStatClick(playerId, playerName, field)}
+          className="text-sm sm:text-base hover:text-yellow-400 transition-colors cursor-pointer"
+          title="Klik voor details"
+        >
+          {value}
+        </button>
       )}
     </td>
   );
