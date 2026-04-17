@@ -82,23 +82,37 @@ export function useLineup() {
         .delete()
         .eq('match_id', match.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Lineup save failed at DELETE step:', deleteError.message, deleteError.code, deleteError.details);
+        throw deleteError;
+      }
 
       // Save regular players to lineups table (guest players excluded — FK constraint)
+      // Deduplicate by player_id: keep only the first occurrence of each player
+      // (prevents unique constraint violations after auto-lineup + manual edits)
+      const seenPlayerIds = new Set<number>();
       const lineupData = fieldOccupants
         .map((player, position) => ({
           match_id: match.id,
           position,
           player_id: player && !player.is_guest ? player.id : null
         }))
-        .filter(item => item.player_id !== null);
+        .filter(item => {
+          if (item.player_id === null) return false;
+          if (seenPlayerIds.has(item.player_id)) return false;
+          seenPlayerIds.add(item.player_id);
+          return true;
+        });
 
       if (lineupData.length > 0) {
         const { error: insertError } = await supabase
           .from('lineups')
           .insert(lineupData);
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Lineup save failed at INSERT step:', insertError.message, insertError.code, insertError.details, 'Data:', JSON.stringify(lineupData));
+          throw insertError;
+        }
       }
 
       // Save guest player positions to guest_players.lineup_position
@@ -139,7 +153,10 @@ export function useLineup() {
         .eq('id', match.id)
         .eq('team_id', currentTeam.id);
 
-      if (formationError) throw formationError;
+      if (formationError) {
+        console.error('Lineup save failed at MATCH UPDATE step:', formationError.message, formationError.code, formationError.details);
+        throw formationError;
+      }
 
       const updatedMatch = {
         ...match,
@@ -161,7 +178,8 @@ export function useLineup() {
 
       return true;
     } catch (error) {
-      console.error('Error saving lineup:', error);
+      const e = error as { message?: string; code?: string; details?: string };
+      console.error('Error saving lineup:', e.message ?? error, e.code, e.details);
       return false;
     } finally {
       setSavingLineup(false);
