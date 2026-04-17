@@ -142,7 +142,11 @@ export function useLineup() {
       const editorName = await resolveCurrentTeamMemberName(currentTeam.id, currentUserId, currentPlayerId);
       const editedAt = new Date().toISOString();
 
-      const { error: formationError } = await supabase
+      // Try with editor tracking columns first; fall back without them if they don't exist yet
+      let formationError: { message?: string; code?: string; details?: string } | null = null;
+      let usedEditorColumns = true;
+
+      const fullUpdate = await supabase
         .from('matches')
         .update({
           formation,
@@ -153,6 +157,20 @@ export function useLineup() {
         .eq('id', match.id)
         .eq('team_id', currentTeam.id);
 
+      if (fullUpdate.error?.code === 'PGRST204') {
+        // Editor tracking columns don't exist yet — save without them
+        usedEditorColumns = false;
+        const fallback = await supabase
+          .from('matches')
+          .update({ formation, sub_moments: subMoments })
+          .eq('id', match.id)
+          .eq('team_id', currentTeam.id);
+
+        formationError = fallback.error;
+      } else {
+        formationError = fullUpdate.error;
+      }
+
       if (formationError) {
         console.error('Lineup save failed at MATCH UPDATE step:', formationError.message, formationError.code, formationError.details);
         throw formationError;
@@ -162,8 +180,10 @@ export function useLineup() {
         ...match,
         formation,
         sub_moments: subMoments,
-        lineup_last_edited_by_name: editorName,
-        lineup_last_edited_at: editedAt,
+        ...(usedEditorColumns ? {
+          lineup_last_edited_by_name: editorName,
+          lineup_last_edited_at: editedAt,
+        } : {}),
       };
       onMatchUpdate(updatedMatch);
 
