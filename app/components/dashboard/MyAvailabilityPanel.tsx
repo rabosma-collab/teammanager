@@ -98,12 +98,19 @@ function computeAllMatchTasks(
 
     if (trackVervoer && match.home_away !== 'Thuis') {
       const overrideIds = match.transport_player_ids ?? [];
-      const usedIds = new Set<number>();
-      const vervoerPlayers: Player[] = [];
       const eligibleList = [...available].sort(
         (a, b) => ((transportCounts.get(a.id) ?? 0) - (transportCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name)
       );
-
+      // Auto-selectie voor cumulatieve vooruitblik (negeert manuele overrides,
+      // zodat een handmatige wijziging niet cascadeert naar andere wedstrijden).
+      const autoUsedIds = new Set<number>();
+      for (let i = 0; i < vervoerCount; i++) {
+        const auto = eligibleList.find(p => !autoUsedIds.has(p.id)) ?? null;
+        if (auto) { autoUsedIds.add(auto.id); transportCounts.set(auto.id, (transportCounts.get(auto.id) ?? 0) + 1); }
+      }
+      // Weergave: respecteer overrides voor deze specifieke wedstrijd.
+      const usedIds = new Set<number>();
+      const vervoerPlayers: Player[] = [];
       for (let i = 0; i < vervoerCount; i++) {
         const overrideId = overrideIds[i] ?? null;
         if (overrideId) {
@@ -113,7 +120,6 @@ function computeAllMatchTasks(
         const auto = eligibleList.find(p => !usedIds.has(p.id)) ?? null;
         if (auto) { vervoerPlayers.push(auto); usedIds.add(auto.id); }
       }
-
       if (vervoerPlayers.length > 0) {
         tasks.push({
           emoji: '🚗',
@@ -121,9 +127,6 @@ function computeAllMatchTasks(
           playerName: vervoerPlayers.map(p => p.name).join(', '),
           isCurrentPlayer: vervoerPlayers.some(p => p.id === currentPlayerId),
         });
-        for (const p of vervoerPlayers) {
-          transportCounts.set(p.id, (transportCounts.get(p.id) ?? 0) + 1);
-        }
       }
     }
 

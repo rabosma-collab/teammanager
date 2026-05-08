@@ -287,13 +287,9 @@ export default function FootballApp() {
       const available = players.filter((p: Player) => !p.is_guest && !p.injured && !absentIds.has(p.id));
       const eligibleList = [...available].sort((a: Player, b: Player) => ((counts.get(a.id) ?? 0) - (counts.get(b.id) ?? 0)) || a.name.localeCompare(b.name));
       const usedIds = new Set<number>();
-      const overrideIds: number[] = match.transport_player_ids ?? [];
+      // Negeer manuele overrides (transport_player_ids) in de simulatie,
+      // zodat een handmatige wijziging niet doorwerkt in andere wedstrijden.
       for (let i = 0; i < vervoerCount; i++) {
-        const overrideId = overrideIds[i] ?? null;
-        if (overrideId) {
-          const op = available.find((p: Player) => p.id === overrideId && !usedIds.has(p.id)) ?? null;
-          if (op) { counts.set(op.id, (counts.get(op.id) ?? 0) + 1); usedIds.add(op.id); continue; }
-        }
         const auto = eligibleList.find((p: Player) => !usedIds.has(p.id)) ?? null;
         if (auto) { counts.set(auto.id, (counts.get(auto.id) ?? 0) + 1); usedIds.add(auto.id); }
       }
