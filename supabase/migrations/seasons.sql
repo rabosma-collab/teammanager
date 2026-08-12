@@ -135,7 +135,7 @@ BEGIN
       goals, assists, yellow_cards, red_cards, COALESCE(own_goals, 0),
       min, wash_count, consumption_count, COALESCE(transport_count, 0)
     FROM players
-    WHERE team_id = p_team_id AND is_guest IS NOT TRUE
+    WHERE team_id = p_team_id
     ON CONFLICT (player_id, season_id) DO UPDATE SET
       goals             = EXCLUDED.goals,
       assists           = EXCLUDED.assists,
@@ -165,7 +165,7 @@ BEGIN
     wash_count        = 0,
     consumption_count = 0,
     transport_count   = 0
-  WHERE team_id = p_team_id AND is_guest IS NOT TRUE;
+  WHERE team_id = p_team_id;
 
   -- Maak nieuw seizoen aan
   INSERT INTO seasons (team_id, name, start_date, is_active)

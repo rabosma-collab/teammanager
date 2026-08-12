@@ -33,14 +33,14 @@ export default function SeasonSettingsView() {
   const handleStartNewSeason = async () => {
     if (!newName.trim()) return;
     setSaving(true);
-    const id = await startNewSeason(newName.trim());
+    const { id, error } = await startNewSeason(newName.trim());
     setSaving(false);
     if (id) {
       toast.success(`Seizoen "${newName.trim()}" gestart!`);
       setShowConfirm(false);
       setNewName('');
     } else {
-      toast.error('Er ging iets mis bij het starten van het nieuwe seizoen.');
+      toast.error(error ?? 'Er ging iets mis bij het starten van het nieuwe seizoen.');
     }
   };
 
