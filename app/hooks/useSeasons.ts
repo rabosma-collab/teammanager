@@ -29,8 +29,8 @@ export function useSeasons() {
 
   const activeSeason = seasons.find(s => s.is_active) ?? null;
 
-  const startNewSeason = useCallback(async (name: string): Promise<number | null> => {
-    if (!currentTeam) return null;
+  const startNewSeason = useCallback(async (name: string): Promise<{ id: number | null; error: string | null }> => {
+    if (!currentTeam) return { id: null, error: 'Geen team geselecteerd.' };
     try {
       const { data, error } = await supabase
         .rpc('start_new_season', {
@@ -41,10 +41,11 @@ export function useSeasons() {
       if (error) throw error;
 
       await fetchSeasons();
-      return data as number;
+      return { id: data as number, error: null };
     } catch (error) {
       console.error('Error starting new season:', error);
-      return null;
+      const message = error instanceof Error ? error.message : 'Onbekende fout';
+      return { id: null, error: message };
     }
   }, [currentTeam, fetchSeasons]);
 
