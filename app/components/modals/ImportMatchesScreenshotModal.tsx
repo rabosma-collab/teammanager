@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 
 /** Antwoord van /api/import-matches per wedstrijd (velden kunnen null zijn). */
@@ -54,11 +54,7 @@ export default function ImportMatchesScreenshotModal({
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (!file) return;
-
+  const processImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setError('Kies een afbeelding (jpg, png, webp, etc.)');
       return;
@@ -110,7 +106,53 @@ export default function ImportMatchesScreenshotModal({
       setError('Er ging iets mis bij het verwerken van de afbeelding.');
       setStep('upload');
     }
+  }, [teamName]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (!file) return;
+    await processImageFile(file);
   };
+
+  // Plakken vanaf klembord (Ctrl/Cmd+V) tijdens de upload-stap.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (step !== 'upload') return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            void processImageFile(file);
+            return;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [step, processImageFile]);
+
+  // Klembord uitlezen via een knop (voor browsers/omgevingen waar Ctrl+V lastig is).
+  const handlePasteButton = useCallback(async () => {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((t) => t.startsWith('image/'));
+        if (type) {
+          const blob = await item.getType(type);
+          await processImageFile(new File([blob], 'plakken.png', { type: blob.type }));
+          return;
+        }
+      }
+      setError('Geen afbeelding op het klembord gevonden. Maak eerst een screenshot en kopieer die.');
+    } catch {
+      setError('Kon het klembord niet lezen. Gebruik Ctrl+V of kies een bestand.');
+    }
+  }, [processImageFile]);
 
   const updateRow = (id: string, patch: Partial<DraftRow>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -181,13 +223,14 @@ export default function ImportMatchesScreenshotModal({
           {step === 'upload' && (
             <div className="space-y-4">
               <p className="text-sm text-gray-400">
-                Upload een screenshot van je KNVB-wedstrijdschema. De wedstrijden worden automatisch
-                herkend; daarna kun je ze controleren en aanvullen voordat ze worden toegevoegd.
+                Upload een screenshot van je KNVB-wedstrijdschema, of plak er een vanaf je klembord
+                (Ctrl+V / Cmd+V). De wedstrijden worden automatisch herkend; daarna kun je ze
+                controleren en aanvullen voordat ze worden toegevoegd.
               </p>
               <label className="flex flex-col items-center justify-center gap-2 py-10 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-green-500 hover:bg-gray-700/30 transition">
                 <span className="text-4xl">🖼️</span>
                 <span className="text-sm font-bold text-gray-300">Klik om een screenshot te kiezen</span>
-                <span className="text-xs text-gray-500">PNG, JPG of WEBP · max 5 MB</span>
+                <span className="text-xs text-gray-500">of plak met Ctrl+V · PNG, JPG of WEBP · max 5 MB</span>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -196,6 +239,12 @@ export default function ImportMatchesScreenshotModal({
                   className="sr-only"
                 />
               </label>
+              <button
+                onClick={handlePasteButton}
+                className="w-full py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-bold transition"
+              >
+                📋 Plakken vanaf klembord
+              </button>
               <button onClick={onClose} className="w-full py-2 text-gray-400 hover:text-gray-200 text-sm transition">
                 Annuleren
               </button>
