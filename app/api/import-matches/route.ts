@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+// Sta langere verwerkingstijd toe: beeldherkenning + retries kan enkele seconden duren.
+// (Voorkomt dat Vercel de functie te vroeg afkapt bij een traag Gemini-antwoord.)
+export const maxDuration = 60;
+
 // Model met beeldherkenning (vision). "gemini-flash-latest" wijst altijd naar het
 // actuele Flash-model, zodat we niet vastzitten aan een specifieke (verouderde) versie.
 const GEMINI_MODEL = 'gemini-flash-latest';
@@ -116,34 +120,71 @@ export async function POST(req: NextRequest) {
 
   const prompt = buildPrompt((teamName || '').trim() || 'ons team');
 
-  let geminiRes: Response;
-  try {
-    geminiRes = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mime, data: imageBase64 } },
-            ],
-          },
+  let geminiRes: Response | null = null;
+  const requestBody = JSON.stringify({
+    contents: [
+      {
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mime, data: imageBase64 } },
         ],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0 },
-      }),
-    });
-  } catch (err) {
-    console.error('Gemini niet bereikbaar:', err);
+      },
+    ],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0 },
+  });
+
+  // Gemini kan af en toe tijdelijk falen (overbelasting, rate-limit, timeout).
+  // Probeer daarom meerdere keren met oplopende wachttijd voordat we opgeven.
+  const MAX_ATTEMPTS = 3;
+  const TIMEOUT_MS = 25000;
+  const TRANSIENT_STATUS = [408, 429, 500, 502, 503, 504];
+  let lastStatus = 0;
+  let lastDetail = '';
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      geminiRes = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      lastStatus = 0;
+      lastDetail = err instanceof Error ? err.message : String(err);
+      console.error(`Gemini niet bereikbaar (poging ${attempt}/${MAX_ATTEMPTS}):`, lastDetail);
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, attempt * 800));
+        continue;
+      }
+      return NextResponse.json(
+        { error: 'De beeldherkenning is tijdelijk niet bereikbaar. Probeer het later opnieuw.' },
+        { status: 502 }
+      );
+    }
+    clearTimeout(timer);
+
+    if (geminiRes.ok) break;
+
+    lastStatus = geminiRes.status;
+    lastDetail = await geminiRes.text().catch(() => '');
+    console.error(`Gemini fout (poging ${attempt}/${MAX_ATTEMPTS}):`, lastStatus, lastDetail);
+
+    // Bij tijdelijke fouten opnieuw proberen; bij andere fouten direct stoppen.
+    if (TRANSIENT_STATUS.includes(lastStatus) && attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, attempt * 800));
+      continue;
+    }
     return NextResponse.json(
-      { error: 'De beeldherkenning is tijdelijk niet bereikbaar. Probeer het later opnieuw.' },
+      { error: 'De screenshot kon niet worden verwerkt. Probeer het opnieuw.' },
       { status: 502 }
     );
   }
 
-  if (!geminiRes.ok) {
-    const detail = await geminiRes.text().catch(() => '');
-    console.error('Gemini fout:', geminiRes.status, detail);
+  if (!geminiRes || !geminiRes.ok) {
     return NextResponse.json(
       { error: 'De screenshot kon niet worden verwerkt. Probeer het opnieuw.' },
       { status: 502 }
