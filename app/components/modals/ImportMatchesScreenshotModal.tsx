@@ -8,6 +8,7 @@ interface ParsedMatch {
   date: string | null;
   opponent: string | null;
   home_away: 'Thuis' | 'Uit' | null;
+  match_type: 'competitie' | 'oefenwedstrijd' | 'beker' | null;
   match_time: string | null;
   location_details: string | null;
 }
@@ -98,7 +99,7 @@ export default function ImportMatchesScreenshotModal({
           date: m.date ?? '',
           opponent: m.opponent ?? '',
           home_away: m.home_away ?? 'Thuis',
-          match_type: 'competitie',
+          match_type: m.match_type ?? 'competitie',
           match_time: m.match_time ?? '',
           location_details: m.location_details ?? '',
         }))

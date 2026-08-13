@@ -17,6 +17,7 @@ interface ParsedMatch {
   date: string | null;
   opponent: string | null;
   home_away: 'Thuis' | 'Uit' | null;
+  match_type: 'competitie' | 'oefenwedstrijd' | 'beker' | null;
   match_time: string | null;
   location_details: string | null;
 }
@@ -34,10 +35,14 @@ function buildPrompt(teamName: string): string {
     `- match_time in formaat HH:MM (24-uurs). Laat null als niet zichtbaar.`,
     `- location_details: veld/locatie indien zichtbaar, anders null.`,
     `- opponent: alleen de naam van de tegenstander (zonder "${teamName}").`,
+    `- match_type: bepaal het soort wedstrijd op basis van tekst in de afbeelding:`,
+    `  "beker" bij bekerwedstrijden (bijv. "beker", "cup", "KNVB beker"),`,
+    `  "oefenwedstrijd" bij vriendschappelijke/oefenwedstrijden (bijv. "oefen", "vriendschappelijk", "toernooi"),`,
+    `  "competitie" bij reguliere competitiewedstrijden. Bij twijfel gebruik "competitie".`,
     `- Verzin niets. Laat een veld null als je het niet zeker uit de afbeelding kunt lezen.`,
     ``,
     `Geef UITSLUITEND een JSON-object terug met de vorm:`,
-    `{ "matches": [ { "date": "YYYY-MM-DD", "opponent": "string", "home_away": "Thuis"|"Uit"|null, "match_time": "HH:MM"|null, "location_details": "string"|null } ] }`,
+    `{ "matches": [ { "date": "YYYY-MM-DD", "opponent": "string", "home_away": "Thuis"|"Uit"|null, "match_type": "competitie"|"beker"|"oefenwedstrijd"|null, "match_time": "HH:MM"|null, "location_details": "string"|null } ] }`,
   ].join('\n');
 }
 
@@ -190,10 +195,15 @@ export async function POST(req: NextRequest) {
     .filter((m): m is Record<string, unknown> => !!m && typeof m === 'object')
     .map((m) => {
       const homeAway = m.home_away === 'Thuis' || m.home_away === 'Uit' ? m.home_away : null;
+      const matchType =
+        m.match_type === 'competitie' || m.match_type === 'oefenwedstrijd' || m.match_type === 'beker'
+          ? m.match_type
+          : null;
       return {
         date: normalizeDate(typeof m.date === 'string' ? m.date : null),
         opponent: typeof m.opponent === 'string' ? m.opponent.trim() || null : null,
         home_away: homeAway as 'Thuis' | 'Uit' | null,
+        match_type: matchType as 'competitie' | 'oefenwedstrijd' | 'beker' | null,
         match_time: normalizeTime(typeof m.match_time === 'string' ? m.match_time : null),
         location_details:
           typeof m.location_details === 'string' ? m.location_details.trim() || null : null,
