@@ -16,13 +16,23 @@ export default function ForgotPasswordPage() {
     setError(null);
     setLoading(true);
     try {
-      // Controleer eerst of het account alleen via Google is aangemaakt
-      const res = await fetch('/api/check-auth-provider', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const { provider } = await res.json();
+      // Controleer eerst of het account alleen via Google is aangemaakt.
+      // Deze check mag nooit het versturen van de resetlink blokkeren:
+      // als de check faalt, gaan we gewoon door.
+      let provider: string | undefined;
+      try {
+        const res = await fetch('/api/check-auth-provider', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          provider = data?.provider;
+        }
+      } catch {
+        // Netwerk- of parseerfout negeren; val terug op normaal versturen
+      }
 
       if (provider === 'google') {
         setIsGoogleOnly(true);
