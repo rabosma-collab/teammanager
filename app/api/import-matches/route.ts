@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-// Model met beeldherkenning (vision), gratis tier.
-const GEMINI_MODEL = 'gemini-2.0-flash';
+// Model met beeldherkenning (vision). "gemini-flash-latest" wijst altijd naar het
+// actuele Flash-model, zodat we niet vastzitten aan een specifieke (verouderde) versie.
+const GEMINI_MODEL = 'gemini-flash-latest';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Max grootte van de (base64) afbeelding die we accepteren (~5 MB ruw = ~6.8 MB base64).
@@ -147,7 +148,14 @@ export async function POST(req: NextRequest) {
   let text: string | undefined;
   try {
     const data = await geminiRes.json();
-    text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Denkende modellen kunnen meerdere parts teruggeven; pak alle tekstdelen.
+    const parts = data?.candidates?.[0]?.content?.parts;
+    if (Array.isArray(parts)) {
+      text = parts
+        .map((p: { text?: string }) => (typeof p?.text === 'string' ? p.text : ''))
+        .join('')
+        .trim() || undefined;
+    }
   } catch (err) {
     console.error('Gemini JSON parse-fout:', err);
     return NextResponse.json({ error: 'Onverwacht antwoord van de beeldherkenning.' }, { status: 502 });
