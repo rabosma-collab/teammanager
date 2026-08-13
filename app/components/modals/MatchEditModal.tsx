@@ -8,7 +8,7 @@ export interface MatchFormData {
   opponent: string;
   home_away: 'Thuis' | 'Uit';
   formation: string;
-  match_type: 'competitie' | 'oefenwedstrijd';
+  match_type: 'competitie' | 'oefenwedstrijd' | 'beker';
   assembly_time: string | null;
   match_time: string | null;
   location_details: string | null;
@@ -30,7 +30,7 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
   const [opponent, setOpponent] = useState(match?.opponent || '');
   const [homeAway, setHomeAway] = useState<'Thuis' | 'Uit'>(match?.home_away || 'Thuis');
   const [formation, setFormation] = useState(match?.formation || defaultFormation);
-  const [matchType, setMatchType] = useState<'competitie' | 'oefenwedstrijd'>(match?.match_type || 'competitie');
+  const [matchType, setMatchType] = useState<'competitie' | 'oefenwedstrijd' | 'beker'>(match?.match_type || 'competitie');
   const [assemblyTime, setAssemblyTime] = useState(match?.assembly_time || '');
   const [matchTime, setMatchTime] = useState(match?.match_time || '');
   const [locationDetails, setLocationDetails] = useState(match?.location_details || '');
@@ -137,6 +137,17 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
                 }`}
               >
                 🔵 Oefenwedstrijd
+              </button>
+              <button
+                type="button"
+                onClick={() => setMatchType('beker')}
+                className={`flex-1 py-2 rounded font-bold text-sm transition ${
+                  matchType === 'beker'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🏅 Beker
               </button>
             </div>
           </div>

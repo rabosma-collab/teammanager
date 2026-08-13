@@ -35,6 +35,12 @@ CREATE TABLE IF NOT EXISTS player_season_stats (
   UNIQUE (player_id, season_id)
 );
 
+-- 3b. Zorg dat later toegevoegde kolommen ook bestaan op bestaande tabellen
+-- (CREATE TABLE IF NOT EXISTS werkt bestaande tabellen niet bij)
+ALTER TABLE player_season_stats
+  ADD COLUMN IF NOT EXISTS own_goals int NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS transport_count int NOT NULL DEFAULT 0;
+
 -- 4. Retroactief seizoen aanmaken voor bestaande teams
 -- Voor elk bestaand team: maak "Seizoen 1" aan en koppel alle bestaande wedstrijden
 INSERT INTO seasons (team_id, name, start_date, is_active)

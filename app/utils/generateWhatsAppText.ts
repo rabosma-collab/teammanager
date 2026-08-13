@@ -69,7 +69,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
 
   // Header
   const homeAway = match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit';
-  const matchTypeLabel = match.match_type === 'oefenwedstrijd' ? ' (oefenwedstrijd)' : '';
+  const matchTypeLabel = match.match_type === 'oefenwedstrijd' ? ' (oefenwedstrijd)' : match.match_type === 'beker' ? ' (beker)' : '';
   lines.push(`⚽ *${teamName ? teamName.toUpperCase() : 'WEDSTRIJDINFO'}*`);
   lines.push('');
   lines.push(`📅 ${formatDate(match.date)}`);

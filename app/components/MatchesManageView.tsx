@@ -374,6 +374,11 @@ export default function MatchesManageView({
                         🔵 Oefenwedstrijd
                       </span>
                     )}
+                    {match.match_type === 'beker' && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-900/50 text-purple-400">
+                        🏅 Beker
+                      </span>
+                    )}
                     {isFinalized && (
                       <span className="ml-2 text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-400">
                         ✅ Afgerond

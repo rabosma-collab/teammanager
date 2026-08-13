@@ -54,12 +54,12 @@ export function useSeasons() {
     try {
       const { data, error } = await supabase
         .from('player_season_stats')
-        .select('*')
+        .select('*, player:players(name)')
         .eq('season_id', seasonId)
         .eq('team_id', currentTeam.id);
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as PlayerSeasonStats[];
     } catch (error) {
       console.error('Error fetching player season stats:', error);
       return [];
