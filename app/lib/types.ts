@@ -41,7 +41,7 @@ export interface Player {
     opponent: string;
     home_away: 'Thuis' | 'Uit';
     formation: string;
-    match_type: 'competitie' | 'oefenwedstrijd';
+    match_type: 'competitie' | 'oefenwedstrijd' | 'beker';
     substitution_scheme_id: number;
     sub_moments?: number | null;
     match_status: 'concept' | 'afgerond' | 'geannuleerd';
@@ -235,6 +235,7 @@ export interface Player {
     wash_count: number;
     consumption_count: number;
     transport_count: number;
+    player?: { name: string } | null;
   }
 
   export interface TeamContext {
