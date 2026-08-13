@@ -163,7 +163,7 @@ export function useMatches() {
   }, [selectedMatch]);
 
   const addMatch = useCallback(async (
-    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: 'competitie' | 'oefenwedstrijd'; assembly_time?: string | null; match_time?: string | null; location_details?: string | null; season_id?: number | null }
+    matchData: { date: string; opponent: string; home_away: string; formation: string; match_type?: 'competitie' | 'oefenwedstrijd' | 'beker'; assembly_time?: string | null; match_time?: string | null; location_details?: string | null; season_id?: number | null }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -192,7 +192,7 @@ export function useMatches() {
 
   const updateMatch = useCallback(async (
     id: number,
-    matchData: { date: string; opponent: string; home_away: 'Thuis' | 'Uit'; formation: string; match_type?: 'competitie' | 'oefenwedstrijd'; assembly_time?: string | null; match_time?: string | null; location_details?: string | null }
+    matchData: { date: string; opponent: string; home_away: 'Thuis' | 'Uit'; formation: string; match_type?: 'competitie' | 'oefenwedstrijd' | 'beker'; assembly_time?: string | null; match_time?: string | null; location_details?: string | null }
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 

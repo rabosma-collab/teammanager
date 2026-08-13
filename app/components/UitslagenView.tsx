@@ -8,6 +8,7 @@ import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import ImportMatchesModal from './modals/ImportMatchesModal';
+import ImportMatchesScreenshotModal from './modals/ImportMatchesScreenshotModal';
 import { displayScore, MATCH_REPORT_MAX_LENGTH } from '../lib/constants';
 
 interface UitslagenViewProps {
@@ -433,6 +434,7 @@ export default function UitslagenView({
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | 'new' | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showScreenshotImport, setShowScreenshotImport] = useState(false);
 
   // Cancel modal
   const [cancellingMatch, setCancellingMatch] = useState<Match | null>(null);
@@ -529,6 +531,12 @@ export default function UitslagenView({
                   >
                     📂 Importeer
                   </button>
+                  <button
+                    onClick={() => setShowScreenshotImport(true)}
+                    className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 rounded-lg text-xs font-bold transition"
+                  >
+                    📷 Screenshot
+                  </button>
                 </>
               )}
               <button
@@ -585,6 +593,9 @@ export default function UitslagenView({
                           <span>{match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit'}</span>
                           {match.match_type === 'oefenwedstrijd' && (
                             <span className="text-gray-500">· 🔵 Oefenwedstrijd</span>
+                          )}
+                          {match.match_type === 'beker' && (
+                            <span className="text-purple-400">· 🏅 Beker</span>
                           )}
                         </div>
 
@@ -704,6 +715,9 @@ export default function UitslagenView({
                         <span>{match.home_away === 'Thuis' ? '🏠 Thuis' : '✈️ Uit'}</span>
                         {match.match_type === 'oefenwedstrijd' && (
                           <span className="text-gray-500">· 🔵 Oefenwedstrijd</span>
+                        )}
+                        {match.match_type === 'beker' && (
+                          <span className="text-purple-400">· 🏅 Beker</span>
                         )}
                       </div>
                     </div>
@@ -884,6 +898,19 @@ export default function UitslagenView({
           seasonId={activeSeasonId}
           onImported={() => { onRefreshMatches(); setShowImport(false); }}
           onClose={() => setShowImport(false)}
+        />
+      )}
+
+      {showScreenshotImport && currentTeam && (
+        <ImportMatchesScreenshotModal
+          teamId={currentTeam.id}
+          teamName={currentTeam.name}
+          defaultFormation={defaultFormation}
+          seasonId={activeSeasonId}
+          trackMatchTime={trackMatchTime}
+          trackLocationDetails={trackLocationDetails}
+          onImported={() => { onRefreshMatches(); setShowScreenshotImport(false); toast.success('✅ Wedstrijden toegevoegd!'); }}
+          onClose={() => setShowScreenshotImport(false)}
         />
       )}
 

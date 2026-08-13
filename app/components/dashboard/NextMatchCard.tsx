@@ -245,6 +245,11 @@ export default function NextMatchCard({
               🔵 Oefenwedstrijd
             </span>
           )}
+          {match.match_type === 'beker' && (
+            <span className="text-xs px-2 py-1 rounded font-bold bg-purple-900/60 text-purple-300 border border-purple-700/50">
+              🏅 Beker
+            </span>
+          )}
           {isFinalized && (
             <span className="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded border border-gray-600">✅ Afgerond</span>
           )}
