@@ -8,6 +8,7 @@ interface ParsedMatch {
   date: string | null;
   opponent: string | null;
   home_away: 'Thuis' | 'Uit' | null;
+  match_type: 'competitie' | 'oefenwedstrijd' | 'beker' | null;
   match_time: string | null;
   location_details: string | null;
 }
@@ -18,6 +19,7 @@ interface DraftRow {
   date: string;
   opponent: string;
   home_away: 'Thuis' | 'Uit';
+  match_type: 'competitie' | 'oefenwedstrijd' | 'beker';
   match_time: string;
   location_details: string;
 }
@@ -97,6 +99,7 @@ export default function ImportMatchesScreenshotModal({
           date: m.date ?? '',
           opponent: m.opponent ?? '',
           home_away: m.home_away ?? 'Thuis',
+          match_type: m.match_type ?? 'competitie',
           match_time: m.match_time ?? '',
           location_details: m.location_details ?? '',
         }))
@@ -165,7 +168,7 @@ export default function ImportMatchesScreenshotModal({
   const addEmptyRow = () => {
     setRows((prev) => [
       ...prev,
-      { id: newRowId(), date: '', opponent: '', home_away: 'Thuis', match_time: '', location_details: '' },
+      { id: newRowId(), date: '', opponent: '', home_away: 'Thuis', match_type: 'competitie', match_time: '', location_details: '' },
     ]);
   };
 
@@ -184,7 +187,7 @@ export default function ImportMatchesScreenshotModal({
       opponent: r.opponent.trim(),
       home_away: r.home_away,
       formation: defaultFormation,
-      match_type: 'competitie',
+      match_type: r.match_type,
       match_status: 'concept',
       season_id: seasonId,
       match_time: r.match_time || null,
@@ -342,6 +345,39 @@ export default function ImportMatchesScreenshotModal({
                                 }`}
                               >
                                 ✈️
+                              </button>
+                            </div>
+                          </div>
+                          {/* Type wedstrijd */}
+                          <div className="col-span-2 sm:col-span-12">
+                            <label className="block text-[10px] uppercase tracking-wide text-gray-500 mb-0.5">Type</label>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => updateRow(r.id, { match_type: 'competitie' })}
+                                className={`flex-1 py-1.5 rounded text-xs font-bold ${
+                                  r.match_type === 'competitie' ? 'bg-yellow-500 text-gray-900' : 'bg-gray-700 text-gray-300'
+                                }`}
+                              >
+                                🏆 Competitie
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateRow(r.id, { match_type: 'beker' })}
+                                className={`flex-1 py-1.5 rounded text-xs font-bold ${
+                                  r.match_type === 'beker' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300'
+                                }`}
+                              >
+                                🏅 Beker
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateRow(r.id, { match_type: 'oefenwedstrijd' })}
+                                className={`flex-1 py-1.5 rounded text-xs font-bold ${
+                                  r.match_type === 'oefenwedstrijd' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+                                }`}
+                              >
+                                🔵 Oefen
                               </button>
                             </div>
                           </div>
