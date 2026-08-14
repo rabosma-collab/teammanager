@@ -120,7 +120,6 @@ export async function POST(req: NextRequest) {
 
   const prompt = buildPrompt((teamName || '').trim() || 'ons team');
 
-  let geminiRes: Response | null = null;
   const requestBody = JSON.stringify({
     contents: [
       {
@@ -130,22 +129,36 @@ export async function POST(req: NextRequest) {
         ],
       },
     ],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0 },
+    generationConfig: {
+      responseMimeType: 'application/json',
+      temperature: 0,
+      // Ruime limiet zodat het antwoord niet halverwege wordt afgekapt
+      // (afgekapte JSON is onleesbaar en veroorzaakt anders een storing).
+      maxOutputTokens: 8192,
+    },
   });
 
-  // Gemini kan af en toe tijdelijk falen (overbelasting, rate-limit, timeout).
-  // Probeer daarom meerdere keren met oplopende wachttijd voordat we opgeven.
-  const MAX_ATTEMPTS = 3;
-  const TIMEOUT_MS = 25000;
+  // Gemini kan af en toe tijdelijk falen: netwerkhikje, overbelasting (429/5xx),
+  // een timeout, of een 200-antwoord dat tóch leeg/afgekapt/onleesbaar is
+  // (denkmodellen doen dat soms). In al die gevallen proberen we het automatisch
+  // opnieuw, zodat de gebruiker zelf niets hoeft te doen.
+  const MAX_ATTEMPTS = 4;
+  const TIMEOUT_MS = 30000;
   const TRANSIENT_STATUS = [408, 429, 500, 502, 503, 504];
-  let lastStatus = 0;
-  let lastDetail = '';
+
+  const backoff = (attempt: number) =>
+    new Promise((r) => setTimeout(r, attempt * 700 + Math.floor(Math.random() * 300)));
+
+  let lastReason = 'onbekend';
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const isLast = attempt === MAX_ATTEMPTS;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    let res: Response;
     try {
-      geminiRes = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
+      res = await fetch(`${GEMINI_URL}?key=${encodeURIComponent(apiKey)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: requestBody,
@@ -153,86 +166,99 @@ export async function POST(req: NextRequest) {
       });
     } catch (err) {
       clearTimeout(timer);
-      lastStatus = 0;
-      lastDetail = err instanceof Error ? err.message : String(err);
-      console.error(`Gemini niet bereikbaar (poging ${attempt}/${MAX_ATTEMPTS}):`, lastDetail);
-      if (attempt < MAX_ATTEMPTS) {
-        await new Promise((r) => setTimeout(r, attempt * 800));
+      lastReason = err instanceof Error ? err.message : String(err);
+      console.error(`Gemini niet bereikbaar (poging ${attempt}/${MAX_ATTEMPTS}):`, lastReason);
+      if (!isLast) {
+        await backoff(attempt);
         continue;
       }
-      return NextResponse.json(
-        { error: 'De beeldherkenning is tijdelijk niet bereikbaar. Probeer het later opnieuw.' },
-        { status: 502 }
-      );
+      break;
     }
     clearTimeout(timer);
 
-    if (geminiRes.ok) break;
-
-    lastStatus = geminiRes.status;
-    lastDetail = await geminiRes.text().catch(() => '');
-    console.error(`Gemini fout (poging ${attempt}/${MAX_ATTEMPTS}):`, lastStatus, lastDetail);
-
-    // Bij tijdelijke fouten opnieuw proberen; bij andere fouten direct stoppen.
-    if (TRANSIENT_STATUS.includes(lastStatus) && attempt < MAX_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, attempt * 800));
-      continue;
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      lastReason = `HTTP ${res.status}`;
+      console.error(`Gemini fout (poging ${attempt}/${MAX_ATTEMPTS}):`, res.status, detail);
+      // Tijdelijke fout → opnieuw. Blijvende fout (bv. 400/401/403) → stoppen.
+      if (TRANSIENT_STATUS.includes(res.status) && !isLast) {
+        await backoff(attempt);
+        continue;
+      }
+      return NextResponse.json(
+        { error: 'De screenshot kon niet worden verwerkt. Probeer het opnieuw.' },
+        { status: 502 }
+      );
     }
-    return NextResponse.json(
-      { error: 'De screenshot kon niet worden verwerkt. Probeer het opnieuw.' },
-      { status: 502 }
-    );
-  }
 
-  if (!geminiRes || !geminiRes.ok) {
-    return NextResponse.json(
-      { error: 'De screenshot kon niet worden verwerkt. Probeer het opnieuw.' },
-      { status: 502 }
-    );
-  }
-
-  let text: string | undefined;
-  try {
-    const data = await geminiRes.json();
-    // Denkende modellen kunnen meerdere parts teruggeven; pak alle tekstdelen.
-    const parts = data?.candidates?.[0]?.content?.parts;
-    if (Array.isArray(parts)) {
-      text = parts
-        .map((p: { text?: string }) => (typeof p?.text === 'string' ? p.text : ''))
-        .join('')
-        .trim() || undefined;
+    // Antwoord uitlezen. Denkende modellen kunnen meerdere tekstdelen teruggeven.
+    let text: string | undefined;
+    try {
+      const data = await res.json();
+      const parts = data?.candidates?.[0]?.content?.parts;
+      if (Array.isArray(parts)) {
+        text = parts
+          .map((p: { text?: string }) => (typeof p?.text === 'string' ? p.text : ''))
+          .join('')
+          .trim() || undefined;
+      }
+    } catch (err) {
+      lastReason = `leesfout: ${err instanceof Error ? err.message : String(err)}`;
+      console.error(`Gemini antwoord onleesbaar (poging ${attempt}/${MAX_ATTEMPTS}):`, lastReason);
+      if (!isLast) {
+        await backoff(attempt);
+        continue;
+      }
+      break;
     }
-  } catch (err) {
-    console.error('Gemini JSON parse-fout:', err);
-    return NextResponse.json({ error: 'Onverwacht antwoord van de beeldherkenning.' }, { status: 502 });
+
+    // Probeer het antwoord te parsen. null = niet te parsen (bv. afgekapt) → opnieuw.
+    const matches = parseMatches(text);
+    if (matches === null) {
+      lastReason = 'leeg of onleesbaar antwoord';
+      console.error(`Gemini gaf geen bruikbaar antwoord (poging ${attempt}/${MAX_ATTEMPTS}).`);
+      if (!isLast) {
+        await backoff(attempt);
+        continue;
+      }
+      break;
+    }
+
+    // Geldig antwoord (ook een lege lijst is geldig, bv. onleesbare screenshot).
+    return NextResponse.json({ matches });
   }
 
-  if (!text) {
-    return NextResponse.json({ matches: [] });
-  }
+  console.error('Screenshot-import: alle pogingen mislukt. Laatste oorzaak:', lastReason);
+  return NextResponse.json(
+    { error: 'De screenshot kon niet worden verwerkt. Probeer het opnieuw.' },
+    { status: 502 }
+  );
+}
+
+// Zet de tekst uit Gemini om naar een lijst wedstrijden.
+// Retourneert null wanneer het antwoord niet te parsen is (leeg/afgekapt) → dan
+// loont het om het opnieuw te proberen. Een lege array betekent: geldig antwoord,
+// maar geen wedstrijden gevonden.
+function parseMatches(text: string | undefined): ParsedMatch[] | null {
+  if (!text) return null;
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
-    // Soms zit er tekst omheen; probeer het JSON-object eruit te vissen.
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json({ matches: [] });
-    }
+    if (!jsonMatch) return null;
     try {
       parsed = JSON.parse(jsonMatch[0]);
     } catch {
-      return NextResponse.json({ matches: [] });
+      return null;
     }
   }
 
   const rawMatches = (parsed as { matches?: unknown })?.matches;
-  if (!Array.isArray(rawMatches)) {
-    return NextResponse.json({ matches: [] });
-  }
+  if (!Array.isArray(rawMatches)) return null;
 
-  const matches: ParsedMatch[] = rawMatches
+  return rawMatches
     .filter((m): m is Record<string, unknown> => !!m && typeof m === 'object')
     .map((m) => {
       const homeAway = m.home_away === 'Thuis' || m.home_away === 'Uit' ? m.home_away : null;
@@ -252,6 +278,4 @@ export async function POST(req: NextRequest) {
     })
     // Rijen zonder enige bruikbare inhoud weglaten
     .filter((m) => m.date || m.opponent);
-
-  return NextResponse.json({ matches });
 }
