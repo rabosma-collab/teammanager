@@ -350,6 +350,34 @@ export function usePlayers() {
     }
   }, [currentTeam]);
 
+  const setPlayerStatus = useCallback(async (
+    playerId: number,
+    status: 'active' | 'guest' | 'former'
+  ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
+    const player = players.find(p => p.id === playerId);
+    if (!player || player.is_guest) return false;
+
+    try {
+      const { error } = await supabase
+        .from('players')
+        .update({ status })
+        .eq('id', playerId)
+        .eq('team_id', currentTeam.id);
+
+      if (error) throw error;
+
+      setPlayers(prev =>
+        prev.map(p => p.id === playerId ? { ...p, status } : p)
+      );
+      return true;
+    } catch (error) {
+      console.error('Error updating player status:', error);
+      return false;
+    }
+  }, [players, currentTeam]);
+
   const deletePlayer = useCallback(async (playerId: number): Promise<boolean> => {
     if (!currentTeam) return false;
 
@@ -440,6 +468,7 @@ export function usePlayers() {
     updateStat,
     addPlayer,
     updatePlayer,
+    setPlayerStatus,
     deletePlayer
   };
 }

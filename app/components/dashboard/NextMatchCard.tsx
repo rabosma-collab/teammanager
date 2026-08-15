@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import type { Match, Player, Substitution } from '../../lib/types';
-import { formationLabels, displayScore } from '../../lib/constants';
+import { formationLabels, displayScore, isSelectablePlayer } from '../../lib/constants';
 import { useTeamContext } from '../../contexts/TeamContext';
 import LineupStatusBadge from './LineupStatusBadge';
 import { generateWhatsAppText } from '../../utils/generateWhatsAppText';
@@ -152,7 +152,7 @@ export default function NextMatchCard({
 
   // Wie moet wassen: gebruik handmatige override als die beschikbaar is, anders laagste wash_count
   const wasbeurtEligible = players.filter(p =>
-    !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+    !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id)
   ).sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
   const wasbeurtOverridePlayer = match.wasbeurt_player_id
     ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest) ?? null
@@ -166,7 +166,7 @@ export default function NextMatchCard({
 
   // Wie moet consumpties meenemen
   const consumptiesEligible = players.filter(p =>
-    !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+    !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id)
   ).sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
   const consumptiesOverridePlayer = match.consumpties_player_id
     ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest) ?? null
@@ -180,7 +180,7 @@ export default function NextMatchCard({
 
   // Vervoer: N chauffeurs op basis van transport_count, met override
   const vervoerEligible = players.filter(p =>
-    !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+    !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id)
   ).sort((a, b) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name));
   const vervoerOverrideIds: number[] = match.transport_player_ids ?? [];
   const vervoerDisplayPlayers: (Player | null)[] = (() => {

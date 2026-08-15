@@ -1,5 +1,5 @@
 import type { Match, Player, Substitution } from '../lib/types';
-import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory } from '../lib/constants';
+import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory, isSelectablePlayer } from '../lib/constants';
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
 const POSITION_EMOJIS: Record<string, string> = {
@@ -140,7 +140,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
 
   if (trackWasbeurt) {
     const eligible = players
-      .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
       .sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
     const override = match.wasbeurt_player_id
       ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
@@ -151,7 +151,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
 
   if (trackConsumpties) {
     const eligible = players
-      .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
       .sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
     const override = match.consumpties_player_id
       ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
@@ -162,7 +162,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
 
   if (trackVervoer && isAwayMatch) {
     const eligible = players
-      .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+      .filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
       .sort((a, b) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name));
     const overrideIds: number[] = match.transport_player_ids ?? [];
     const chauffeurs: string[] = [];

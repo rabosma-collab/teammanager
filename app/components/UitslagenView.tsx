@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import ImportMatchesModal from './modals/ImportMatchesModal';
 import ImportMatchesScreenshotModal from './modals/ImportMatchesScreenshotModal';
-import { displayScore, MATCH_REPORT_MAX_LENGTH } from '../lib/constants';
+import { displayScore, MATCH_REPORT_MAX_LENGTH, isSelectablePlayer } from '../lib/constants';
 
 interface UitslagenViewProps {
   matches: Match[];
@@ -214,7 +214,7 @@ function computeUpcomingTasks(
 
   for (const match of matches) {
     const absentIds = new Set(absencesMap[match.id] ?? []);
-    const available = players.filter(p => !p.is_guest && !p.injured && !absentIds.has(p.id));
+    const available = players.filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !absentIds.has(p.id));
     const tasks: { emoji: string; name: string }[] = [];
 
     if (trackWasbeurt) {

@@ -30,6 +30,7 @@ export interface Player {
     bonus_draws?: number;
     preferred_position?: string | null;
     can_play_goalkeeper?: boolean;
+    status?: 'active' | 'guest' | 'former';
     is_guest?: boolean;
     guest_match_id?: number;
     lineup_position?: number | null;

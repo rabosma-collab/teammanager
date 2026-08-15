@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Match, Player } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
+import { isSelectablePlayer } from '../../lib/constants';
 import { useTeamContext } from '../../contexts/TeamContext';
 
 interface MyAvailabilityPanelProps {
@@ -61,7 +62,7 @@ function computeAllMatchTasks(
 
   for (const match of matches) {
     const absentIds = allAbsencesByMatch[match.id] ?? new Set<number>();
-    const available = players.filter(p => !p.is_guest && !p.injured && !absentIds.has(p.id));
+    const available = players.filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !absentIds.has(p.id));
     const tasks: TaskItem[] = [];
 
     if (trackWasbeurt) {

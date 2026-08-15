@@ -228,8 +228,10 @@ export function useLineup() {
     const bench = players.filter(p => {
       const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
       // Guest players are never in matchAbsences (different ID space)
+      // Reguliere spelers met status 'guest'/'former' vallen buiten de standaardselectie
       return !fieldKeys.has(key) &&
         !p.injured &&
+        (p.status ?? 'active') === 'active' &&
         (p.is_guest || !matchAbsences.includes(p.id));
     });
 
