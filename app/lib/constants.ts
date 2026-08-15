@@ -13,6 +13,16 @@ export const MATCH_REPORT_MAX_LENGTH = 4000;
 export const ANNOUNCEMENT_MAX_LENGTH = 4000;
 
 /**
+ * Bepaalt of een speler in de standaard wedstrijdselectie hoort.
+ * Gastspelers (guest_players-tabel, is_guest=true) hebben geen status en tellen als selecteerbaar.
+ * Reguliere spelers met status 'guest' of 'former' vallen buiten de standaardselectie,
+ * maar hun historie blijft bewaard.
+ */
+export function isSelectablePlayer(p: { status?: string }): boolean {
+  return (p.status ?? 'active') === 'active';
+}
+
+/**
  * Bereken de wisselmomenten (in minuten) voor N wisselmomenten in een wedstrijd van matchDuration minuten.
  * N momenten → verdeeld over N+1 gelijke stukken.
  * Voorbeeld: 3 momenten, 60 min → [15, 30, 45]

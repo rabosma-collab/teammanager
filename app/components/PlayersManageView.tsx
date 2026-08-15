@@ -40,6 +40,7 @@ interface PlayersManageViewProps {
   onAddPlayer: (data: PlayerFormData) => Promise<boolean>;
   onUpdatePlayer: (id: number, data: PlayerFormData) => Promise<boolean>;
   onDeletePlayer: (id: number) => Promise<boolean>;
+  onSetPlayerStatus: (id: number, status: 'active' | 'guest' | 'former') => Promise<boolean>;
   onRefresh: () => void;
   guestPool: GuestPoolEntry[];
   onAddToPool: (name: string) => Promise<boolean>;
@@ -52,6 +53,7 @@ export default function PlayersManageView({
   onAddPlayer,
   onUpdatePlayer,
   onDeletePlayer,
+  onSetPlayerStatus,
   onRefresh,
   guestPool,
   onAddToPool,
@@ -78,8 +80,12 @@ export default function PlayersManageView({
   const [newPoolName, setNewPoolName] = useState('');
   const [addingToPool, setAddingToPool] = useState(false);
   const [removingPoolId, setRemovingPoolId] = useState<number | null>(null);
+  const [changingStatusId, setChangingStatusId] = useState<number | null>(null);
 
   const regularPlayers = players.filter(p => !p.is_guest);
+  const activePlayers = regularPlayers.filter(p => (p.status ?? 'active') === 'active');
+  const guestPlayers = regularPlayers.filter(p => p.status === 'guest');
+  const formerPlayers = regularPlayers.filter(p => p.status === 'former');
 
   const fetchLinkStatus = useCallback(async () => {
     if (!currentTeam) return;
@@ -222,6 +228,20 @@ export default function PlayersManageView({
     const success = await onDeletePlayer(player.id);
     if (success) toast.success('✅ Speler verwijderd!');
     else toast.error('❌ Kon speler niet verwijderen');
+  };
+
+  const statusLabels: Record<'active' | 'guest' | 'former', string> = {
+    active: 'selectie',
+    guest: 'gastspelers',
+    former: 'oud-spelers',
+  };
+
+  const handleChangeStatus = async (player: Player, status: 'active' | 'guest' | 'former') => {
+    setChangingStatusId(player.id);
+    const success = await onSetPlayerStatus(player.id, status);
+    if (success) toast.success(`✅ ${player.name} verplaatst naar ${statusLabels[status]}`);
+    else toast.error('❌ Kon speler niet verplaatsen');
+    setChangingStatusId(null);
   };
 
   const handleInviteCreated = useCallback((_token: string) => {
@@ -476,7 +496,7 @@ export default function PlayersManageView({
       {/* Spelers per positie */}
       <div className="space-y-6">
         {positionOrder.map(position => {
-          const posPlayers = regularPlayers
+          const posPlayers = activePlayers
             .filter(p => p.position === position)
             .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -550,6 +570,17 @@ export default function PlayersManageView({
                           )}
 
                           <button onClick={() => setEditingPlayer(player)} className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold">✏️</button>
+                          <select
+                            value=""
+                            disabled={changingStatusId === player.id}
+                            onChange={e => { const v = e.target.value as 'guest' | 'former' | ''; if (v) handleChangeStatus(player, v); }}
+                            className="px-1.5 sm:px-2 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
+                            title="Speler verplaatsen naar gastspelers of oud-spelers"
+                          >
+                            <option value="">📤</option>
+                            <option value="guest">➡️ Naar gastspelers</option>
+                            <option value="former">➡️ Naar oud-spelers</option>
+                          </select>
                           <button onClick={() => handleDelete(player)} className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold">🗑️</button>
                         </div>
                       </div>
@@ -608,8 +639,78 @@ export default function PlayersManageView({
       </div>
 
       <div className="mt-6 text-center text-gray-500 text-sm">
-        Totaal: {regularPlayers.length} spelers
+        Totaal: {activePlayers.length} spelers
       </div>
+
+      {/* ── Gastspelers & Oud-spelers ── */}
+      {([
+        { key: 'guest' as const, title: '👤 Gastspelers', emoji: '👤', list: guestPlayers,
+          hint: 'Deze spelers staan niet in de standaardselectie, maar hun historie blijft bewaard.' },
+        { key: 'former' as const, title: '📦 Oud-spelers', emoji: '📦', list: formerPlayers,
+          hint: 'Voormalige spelers. Ze verschijnen niet meer in de selectie, maar hun statistieken blijven bewaard.' },
+      ]).map(section => (
+        section.list.length === 0 ? null : (
+          <div key={section.key} className="mt-10">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl sm:text-2xl font-bold">{section.title} <span className="text-sm opacity-70">({section.list.length})</span></h2>
+            </div>
+            <p className="text-sm text-gray-400 mb-3">{section.hint}</p>
+
+            <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+              {[...section.list].sort((a, b) => a.name.localeCompare(b.name)).map(player => (
+                <div
+                  key={player.id}
+                  className="flex items-center gap-3 p-3 sm:p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2 flex-wrap">
+                      {player.name}
+                      <span className="text-xs text-gray-500">{positionEmojis[player.position]} {player.position}</span>
+                    </div>
+                    <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
+                      <span>⚽{player.goals}</span>
+                      <span>🎯{player.assists}</span>
+                      <span>⏱️{player.min}min</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleChangeStatus(player, 'active')}
+                      disabled={changingStatusId === player.id}
+                      className="px-2 sm:px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
+                      title="Terug naar de selectie"
+                    >
+                      🔄 <span className="hidden sm:inline">Naar selectie</span>
+                    </button>
+                    {section.key === 'guest' ? (
+                      <button
+                        onClick={() => handleChangeStatus(player, 'former')}
+                        disabled={changingStatusId === player.id}
+                        className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
+                        title="Naar oud-spelers"
+                      >
+                        📦
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleChangeStatus(player, 'guest')}
+                        disabled={changingStatusId === player.id}
+                        className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
+                        title="Naar gastspelers"
+                      >
+                        👤
+                      </button>
+                    )}
+                    <button onClick={() => setEditingPlayer(player)} className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold">✏️</button>
+                    <button onClick={() => handleDelete(player)} className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold">🗑️</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      ))}
 
       {/* ── Stafleden ── */}
       <div className="mt-10">

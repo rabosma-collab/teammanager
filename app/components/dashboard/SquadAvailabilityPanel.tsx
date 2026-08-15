@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import type { Match, Player } from '../../lib/types';
-import { positionEmojis, positionOrder } from '../../lib/constants';
+import { positionEmojis, positionOrder, isSelectablePlayer } from '../../lib/constants';
 import InfoButton from '../InfoButton';
 import { useTeamContext } from '../../contexts/TeamContext';
 
@@ -63,7 +63,7 @@ export default function SquadAvailabilityPanel({
 
   const handleShareAvailability = async () => {
     const dateStr = formatShareDate(match.date);
-    const regularPlayers = players.filter(p => !p.is_guest);
+    const regularPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p));
     const matchGuests = players.filter(p => p.is_guest && p.guest_match_id === match.id);
 
     const available = regularPlayers.filter(p => !p.injured && !matchAbsences.includes(p.id));
@@ -99,7 +99,7 @@ export default function SquadAvailabilityPanel({
     }
   };
 
-  const regularPlayers = players.filter(p => !p.is_guest);
+  const regularPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p));
   const matchGuests = players.filter(p => p.is_guest && p.guest_match_id === match.id);
 
   if (regularPlayers.length === 0 && matchGuests.length === 0) return null;

@@ -1,5 +1,5 @@
 import type { Match, Player, Substitution, PositionInstruction } from '../lib/types';
-import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory } from '../lib/constants';
+import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory, isSelectablePlayer } from '../lib/constants';
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
 const POSITION_EMOJIS: Record<string, string> = {
@@ -40,13 +40,13 @@ export function generateMatchPdf(data: MatchPdfData): void {
   })).filter(g => g.players.length > 0);
 
   const bankPlayers = players.filter(
-    p => !p.is_guest && !fieldIds.has(p.id) && !p.injured && !matchAbsences.includes(p.id)
+    p => !p.is_guest && isSelectablePlayer(p) && !fieldIds.has(p.id) && !p.injured && !matchAbsences.includes(p.id)
   );
-  const absentPlayers = players.filter(p => !p.is_guest && matchAbsences.includes(p.id));
-  const injuredPlayers = players.filter(p => !p.is_guest && p.injured);
+  const absentPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p) && matchAbsences.includes(p.id));
+  const injuredPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p) && p.injured);
 
   const eligibleForWash = players
-    .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+    .filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
     .sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
   const overrideWasbeurt = match.wasbeurt_player_id
     ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
@@ -54,7 +54,7 @@ export function generateMatchPdf(data: MatchPdfData): void {
   const wasbeurtSpeler = overrideWasbeurt ?? eligibleForWash[0] ?? null;
 
   const eligibleForConsumpties = players
-    .filter(p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+    .filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
     .sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
   const overrideConsumpties = match.consumpties_player_id
     ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null

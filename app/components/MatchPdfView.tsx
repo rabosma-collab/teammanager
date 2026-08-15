@@ -2,7 +2,7 @@
 
 import React, { forwardRef } from 'react';
 import type { Match, Player, Substitution, PositionInstruction, SubstitutionScheme } from '../lib/types';
-import { formationLabels, positionEmojis, getPositionCategory, displayScore } from '../lib/constants';
+import { formationLabels, positionEmojis, getPositionCategory, displayScore, isSelectablePlayer } from '../lib/constants';
 
 interface MatchPdfViewProps {
   match: Match;
@@ -42,16 +42,16 @@ const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function Matc
   // Bankspelers: niet op het veld, niet afwezig, niet geblesseerd
   const fieldIds = new Set(fieldPlayers.map(p => p.id));
   const bankPlayers = players.filter(
-    p => !p.is_guest && !fieldIds.has(p.id) && !p.injured && !matchAbsences.includes(p.id)
+    p => !p.is_guest && isSelectablePlayer(p) && !fieldIds.has(p.id) && !p.injured && !matchAbsences.includes(p.id)
   );
 
   // Afwezigen & geblesseerden
-  const absentPlayers = players.filter(p => !p.is_guest && matchAbsences.includes(p.id));
-  const injuredPlayers = players.filter(p => !p.is_guest && p.injured);
+  const absentPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p) && matchAbsences.includes(p.id));
+  const injuredPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p) && p.injured);
 
   // Wasbeurt: gebruik handmatige override als die beschikbaar is, anders laagste wash_count
   const eligibleForWash = players.filter(
-    p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+    p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id)
   ).sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
   const overrideWasbeurt = match.wasbeurt_player_id
     ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
@@ -60,7 +60,7 @@ const MatchPdfView = forwardRef<HTMLDivElement, MatchPdfViewProps>(function Matc
 
   // Consumpties: gebruik handmatige override als die beschikbaar is, anders laagste consumption_count
   const eligibleForConsumpties = players.filter(
-    p => !p.is_guest && !p.injured && !matchAbsences.includes(p.id)
+    p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id)
   ).sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
   const overrideConsumpties = match.consumpties_player_id
     ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
