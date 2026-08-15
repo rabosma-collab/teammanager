@@ -25,7 +25,7 @@ const snapBenchCenterToCursor: Modifier = ({ activatorEvent, active, activeNodeR
     y: transform.y + (touch.clientY - activeNodeRect.top - overlayH / 2),
   };
 };
-import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes, computeLineupForPeriod } from './lib/constants';
+import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes, computeLineupForPeriod, isSelectablePlayer } from './lib/constants';
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
@@ -146,7 +146,7 @@ export default function FootballApp() {
   const {
     players, fetchPlayers,
     toggleInjury, guestPool, fetchGuestPool, addToPool, removeFromPool, addGuestPlayer, removeGuestPlayer, updateStat,
-    addPlayer, updatePlayer, deletePlayer
+    addPlayer, updatePlayer, setPlayerStatus, deletePlayer
   } = usePlayers();
 
   const {
@@ -237,7 +237,7 @@ export default function FootballApp() {
 
   // Wasbeurt berekening voor PitchView toolbar
   const wasbeurtEligible = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
       .sort((a: Player, b: Player) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name)),
     [players, matchAbsences]
   );
@@ -250,13 +250,13 @@ export default function FootballApp() {
     ? (wasbeurtOverridePlayer.injured || matchAbsences.includes(wasbeurtOverridePlayer.id))
     : false;
   const wasbeurtAllPlayers = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
+    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p)).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
     [players]
   );
 
   // Consumpties berekening voor PitchView toolbar
   const consumptiesEligible = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
       .sort((a: Player, b: Player) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name)),
     [players, matchAbsences]
   );
@@ -269,7 +269,7 @@ export default function FootballApp() {
     ? (consumptiesOverridePlayer.injured || matchAbsences.includes(consumptiesOverridePlayer.id))
     : false;
   const consumptiesAllPlayers = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
+    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p)).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
     [players]
   );
 
@@ -284,7 +284,7 @@ export default function FootballApp() {
       if (match.id === selectedMatch.id) break;
       if (match.home_away === 'Thuis') continue;
       const absentIds = new Set(upcomingAbsencesMap[match.id] ?? []);
-      const available = players.filter((p: Player) => !p.is_guest && !p.injured && !absentIds.has(p.id));
+      const available = players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p) && !p.injured && !absentIds.has(p.id));
       const eligibleList = [...available].sort((a: Player, b: Player) => ((counts.get(a.id) ?? 0) - (counts.get(b.id) ?? 0)) || a.name.localeCompare(b.name));
       const usedIds = new Set<number>();
       // Negeer manuele overrides (transport_player_ids) in de simulatie,
@@ -298,13 +298,13 @@ export default function FootballApp() {
   }, [selectedMatch?.id, upcomingConceptMatches, upcomingAbsencesMap, players, vervoerCount, teamSettings?.track_vervoer]);
 
   const vervoerEligible = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && !p.injured && !matchAbsences.includes(p.id))
+    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
       .sort((a: Player, b: Player) => ((vervoerEffectiveCounts.get(a.id) ?? a.transport_count) - (vervoerEffectiveCounts.get(b.id) ?? b.transport_count)) || a.name.localeCompare(b.name)),
     [players, matchAbsences, vervoerEffectiveCounts]
   );
   const vervoerOverrideIds: number[] = selectedMatch?.transport_player_ids ?? [];
   const vervoerAllPlayers = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
+    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p)).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
     [players]
   );
   // Bereken welke speler per slot daadwerkelijk getoond wordt (override → eligible)
@@ -424,7 +424,7 @@ export default function FootballApp() {
     const fieldKeys = new Set(lineupBeforeSwap.filter(Boolean).map(p => `${p!.is_guest ? 'g' : 'r'}_${p!.id}`));
     return players.filter(p => {
       const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
-      return !fieldKeys.has(key) && !p.injured && (p.is_guest || !matchAbsences.includes(p.id));
+      return !fieldKeys.has(key) && !p.injured && isSelectablePlayer(p) && (p.is_guest || !matchAbsences.includes(p.id));
     });
   }, [selectedPeriod, fieldOccupants, substitutions, players, benchPlayers, matchAbsences]);
 
@@ -1222,7 +1222,7 @@ export default function FootballApp() {
 
       {showAutoLineupWizard && teamSettings && (
         <AutoLineupWizard
-          players={players.filter(p => !p.injured && !matchAbsences.includes(p.id))}
+          players={players.filter(p => !p.injured && isSelectablePlayer(p) && !matchAbsences.includes(p.id))}
           settings={teamSettings}
           gameFormat={gameFormat}
           formation={formation}
@@ -1459,6 +1459,7 @@ export default function FootballApp() {
             onAddPlayer={addPlayer}
             onUpdatePlayer={updatePlayer}
             onDeletePlayer={deletePlayer}
+            onSetPlayerStatus={setPlayerStatus}
             onRefresh={() => selectedMatch ? fetchPlayers(selectedMatch.id) : fetchPlayers()}
             guestPool={guestPool}
             onAddToPool={addToPool}
@@ -1612,7 +1613,7 @@ export default function FootballApp() {
             {/* Wedstrijd & formatie selectors */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6 justify-center">
               <MatchDropdown
-                matches={matches}
+                matches={activeSeasonMatches}
                 selectedMatch={selectedMatch}
                 onSelect={(match) => {
                   setSelectedMatch(match);
