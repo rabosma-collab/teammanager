@@ -122,7 +122,7 @@ export default function TakenEditModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 max-w-lg w-full shadow-xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h3 className="font-bold text-white text-base">🧺 Taken — {match.opponent}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white text-lg leading-none" aria-label="Sluiten">✕</button>
