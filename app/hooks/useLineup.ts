@@ -4,6 +4,7 @@ import type { Player, Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
 import { logActivity } from '../lib/logActivity';
 import { resolveCurrentTeamMemberName } from '../lib/memberDisplayName';
+import { isSelectablePlayer } from '../lib/constants';
 
 export function useLineup() {
   const { currentTeam, currentUserId, currentPlayerId } = useTeamContext();
@@ -231,7 +232,7 @@ export function useLineup() {
       // Reguliere spelers met status 'guest'/'former' vallen buiten de standaardselectie
       return !fieldKeys.has(key) &&
         !p.injured &&
-        (p.status ?? 'active') === 'active' &&
+        isSelectablePlayer(p) &&
         (p.is_guest || !matchAbsences.includes(p.id));
     });
 

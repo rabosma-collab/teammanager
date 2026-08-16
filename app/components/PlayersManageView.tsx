@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { positionOrder, positionEmojis } from '../lib/constants';
+import { positionOrder, positionEmojis, isSelectablePlayer } from '../lib/constants';
 import type { Player } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -83,7 +83,7 @@ export default function PlayersManageView({
   const [changingStatusId, setChangingStatusId] = useState<number | null>(null);
 
   const regularPlayers = players.filter(p => !p.is_guest);
-  const activePlayers = regularPlayers.filter(p => (p.status ?? 'active') === 'active');
+  const activePlayers = regularPlayers.filter(isSelectablePlayer);
   const guestPlayers = regularPlayers.filter(p => p.status === 'guest');
   const formerPlayers = regularPlayers.filter(p => p.status === 'former');
 
