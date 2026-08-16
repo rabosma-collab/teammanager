@@ -156,7 +156,7 @@ export default function FootballApp() {
     addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateTransportPlayers, updateMatchReport, cancelMatch, deleteMatch
   } = useMatches();
 
-  const { seasons, activeSeason, fetchSeasons } = useSeasons();
+  const { seasons, activeSeason, fetchSeasons, fetchPlayerSeasonStats } = useSeasons();
 
   const {
     fieldOccupants, setFieldOccupants,
@@ -1525,9 +1525,6 @@ export default function FootballApp() {
             onDeleteMatch={deleteMatch}
             currentPlayerId={teamPlayerId}
             onToggleAbsence={toggleAbsence}
-            onUpdateWasbeurt={updateWasbeurtPlayer}
-            onUpdateConsumpties={updateConsumptiesPlayer}
-            onUpdateVervoer={updateTransportPlayers}
           />
         </div>
       ) : view === 'dashboard' ? (
@@ -1616,7 +1613,7 @@ export default function FootballApp() {
             {/* Wedstrijd & formatie selectors */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6 justify-center">
               <MatchDropdown
-                matches={activeSeasonMatches}
+                matches={matches}
                 selectedMatch={selectedMatch}
                 onSelect={(match) => {
                   setSelectedMatch(match);
@@ -2008,7 +2005,7 @@ export default function FootballApp() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <StatsView players={players} matches={activeSeasonMatches} isAdmin={isManager} onUpdateStat={updateStat} teamSettings={teamSettings} />
+          <StatsView players={players} matches={activeSeasonMatches} isAdmin={isManager} onUpdateStat={updateStat} teamSettings={teamSettings} seasons={seasons} fetchPlayerSeasonStats={fetchPlayerSeasonStats} />
         </div>
       )}
       </div>{/* end key={view} views wrapper */}

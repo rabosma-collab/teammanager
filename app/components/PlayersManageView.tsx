@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { positionOrder, positionEmojis, isSelectablePlayer } from '../lib/constants';
+import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -83,7 +83,7 @@ export default function PlayersManageView({
   const [changingStatusId, setChangingStatusId] = useState<number | null>(null);
 
   const regularPlayers = players.filter(p => !p.is_guest);
-  const activePlayers = regularPlayers.filter(isSelectablePlayer);
+  const activePlayers = regularPlayers.filter(p => (p.status ?? 'active') === 'active');
   const guestPlayers = regularPlayers.filter(p => p.status === 'guest');
   const formerPlayers = regularPlayers.filter(p => p.status === 'former');
 
@@ -523,65 +523,85 @@ export default function PlayersManageView({
                       className="border-b border-gray-700 last:border-b-0"
                     >
                       {/* Speler hoofdrij */}
-                      <div className="flex items-center gap-3 p-3 sm:p-4 hover:bg-gray-700/50">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2 flex-wrap">
-                            {player.name}
-                            {isLinked ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-900/40 border border-green-700/50 rounded-full text-xs text-green-400 font-medium">
-                                ✅ {accounts.length > 1 ? `${accounts.length} accounts` : 'Gekoppeld'}
-                              </span>
-                            ) : invite ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs text-yellow-400 font-medium">
-                                ⏳ Uitgenodigd
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-900/40 border border-red-700/50 rounded-full text-xs text-red-400 font-medium">
-                                🔴 Niet gekoppeld
-                              </span>
-                            )}
+                      <div className="p-3 sm:p-4 hover:bg-gray-700/50">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm sm:text-base flex items-center gap-2 flex-wrap">
+                              <span className="truncate">{player.name}</span>
+                              {isLinked ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-900/40 border border-green-700/50 rounded-full text-xs text-green-400 font-medium">
+                                  ✅ {accounts.length > 1 ? `${accounts.length} accounts` : 'Gekoppeld'}
+                                </span>
+                              ) : invite ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-900/40 border border-yellow-700/50 rounded-full text-xs text-yellow-400 font-medium">
+                                  ⏳ Uitgenodigd
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-900/40 border border-red-700/50 rounded-full text-xs text-red-400 font-medium">
+                                  🔴 Niet gekoppeld
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
+                              <span>⚽{player.goals}</span>
+                              <span>🎯{player.assists}</span>
+                              <span>⏱️{player.min}min</span>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
-                            <span>⚽{player.goals}</span>
-                            <span>🎯{player.assists}</span>
-                            <span>⏱️{player.min}min</span>
-                          </div>
+                          {player.injured && <span className="text-red-500 text-sm flex-shrink-0" title="Geblesseerd">🏥</span>}
                         </div>
 
-                        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                          {player.injured && <span className="text-red-500 text-sm" title="Geblesseerd">🏥</span>}
-
+                        {/* Actieknoppen */}
+                        <div className="flex items-center gap-1.5 mt-2">
                           {/* Uitnodigingsknop: altijd zichtbaar (ook bij gekoppeld, voor extra accounts) */}
                           {invite && !isLinked ? (
                             <button
                               onClick={() => handleCopyLink(player.id)}
-                              className={`px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm font-bold transition-colors ${isCopied ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'}`}
+                              className={`px-2.5 py-1.5 rounded text-sm font-bold transition-colors ${isCopied ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'}`}
+                              title="Uitnodigingslink kopiëren"
                             >
                               {isCopied ? '✅' : '📋'}
                             </button>
                           ) : (
                             <button
                               onClick={() => setInvitingPlayer(player)}
-                              className="px-2 sm:px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-xs sm:text-sm font-bold"
+                              className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-sm font-bold"
                               title={isLinked ? 'Extra account uitnodigen' : 'Uitnodigen'}
                             >
                               📧
                             </button>
                           )}
 
-                          <button onClick={() => setEditingPlayer(player)} className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold">✏️</button>
-                          <select
-                            value=""
-                            disabled={changingStatusId === player.id}
-                            onChange={e => { const v = e.target.value as 'guest' | 'former' | ''; if (v) handleChangeStatus(player, v); }}
-                            className="px-1.5 sm:px-2 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
-                            title="Speler verplaatsen naar gastspelers of oud-spelers"
+                          <button
+                            onClick={() => setEditingPlayer(player)}
+                            className="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold"
+                            title="Bewerken"
                           >
-                            <option value="">📤</option>
-                            <option value="guest">➡️ Naar gastspelers</option>
-                            <option value="former">➡️ Naar oud-spelers</option>
-                          </select>
-                          <button onClick={() => handleDelete(player)} className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold">🗑️</button>
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleChangeStatus(player, 'guest')}
+                            disabled={changingStatusId === player.id}
+                            className="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded text-sm font-bold"
+                            title="Naar gastspelers"
+                          >
+                            👤
+                          </button>
+                          <button
+                            onClick={() => handleChangeStatus(player, 'former')}
+                            disabled={changingStatusId === player.id}
+                            className="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded text-sm font-bold"
+                            title="Naar oud-spelers"
+                          >
+                            📦
+                          </button>
+                          <button
+                            onClick={() => handleDelete(player)}
+                            className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm font-bold ml-auto"
+                            title="Verwijderen"
+                          >
+                            🗑️
+                          </button>
                         </div>
                       </div>
 
@@ -660,12 +680,12 @@ export default function PlayersManageView({
               {[...section.list].sort((a, b) => a.name.localeCompare(b.name)).map(player => (
                 <div
                   key={player.id}
-                  className="flex items-center gap-3 p-3 sm:p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50"
+                  className="p-3 sm:p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50"
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm sm:text-base truncate flex items-center gap-2 flex-wrap">
-                      {player.name}
-                      <span className="text-xs text-gray-500">{positionEmojis[player.position]} {player.position}</span>
+                  <div className="min-w-0">
+                    <div className="font-bold text-sm sm:text-base flex items-center gap-2 flex-wrap">
+                      <span className="truncate">{player.name}</span>
+                      <span className="text-xs text-gray-500 flex-shrink-0">{positionEmojis[player.position]} {player.position}</span>
                     </div>
                     <div className="text-xs text-gray-400 flex gap-3 mt-0.5">
                       <span>⚽{player.goals}</span>
@@ -674,11 +694,11 @@ export default function PlayersManageView({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 mt-2">
                     <button
                       onClick={() => handleChangeStatus(player, 'active')}
                       disabled={changingStatusId === player.id}
-                      className="px-2 sm:px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
+                      className="px-2.5 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded text-sm font-bold"
                       title="Terug naar de selectie"
                     >
                       🔄 <span className="hidden sm:inline">Naar selectie</span>
@@ -687,7 +707,7 @@ export default function PlayersManageView({
                       <button
                         onClick={() => handleChangeStatus(player, 'former')}
                         disabled={changingStatusId === player.id}
-                        className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
+                        className="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded text-sm font-bold"
                         title="Naar oud-spelers"
                       >
                         📦
@@ -696,14 +716,14 @@ export default function PlayersManageView({
                       <button
                         onClick={() => handleChangeStatus(player, 'guest')}
                         disabled={changingStatusId === player.id}
-                        className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded text-xs sm:text-sm font-bold"
+                        className="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded text-sm font-bold"
                         title="Naar gastspelers"
                       >
                         👤
                       </button>
                     )}
-                    <button onClick={() => setEditingPlayer(player)} className="px-2 sm:px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs sm:text-sm font-bold">✏️</button>
-                    <button onClick={() => handleDelete(player)} className="px-2 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-xs sm:text-sm font-bold">🗑️</button>
+                    <button onClick={() => setEditingPlayer(player)} className="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold" title="Bewerken">✏️</button>
+                    <button onClick={() => handleDelete(player)} className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm font-bold ml-auto" title="Verwijderen">🗑️</button>
                   </div>
                 </div>
               ))}
