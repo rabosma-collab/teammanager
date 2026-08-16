@@ -15,11 +15,12 @@ export const ANNOUNCEMENT_MAX_LENGTH = 4000;
 /**
  * Bepaalt of een speler in de standaard wedstrijdselectie hoort.
  * Gastspelers (guest_players-tabel, is_guest=true) hebben geen status en tellen als selecteerbaar.
- * Reguliere spelers met status 'guest' of 'former' vallen buiten de standaardselectie,
- * maar hun historie blijft bewaard.
+ * Alleen spelers die expliciet naar 'guest' of 'former' zijn verplaatst vallen buiten de
+ * standaardselectie. Alle overige waarden (waaronder de oude 'aanwezig'-statuskolom en null)
+ * tellen als selecteerbaar, zodat legacy-data de selectie niet leegmaakt.
  */
 export function isSelectablePlayer(p: { status?: string }): boolean {
-  return (p.status ?? 'active') === 'active';
+  return p.status !== 'guest' && p.status !== 'former';
 }
 
 /**
