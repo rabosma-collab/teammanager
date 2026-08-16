@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { positionEmojis } from '../lib/constants';
-import type { Player, Match, TeamSettings } from '../lib/types';
+import type { Player, Match, TeamSettings, Season, PlayerSeasonStats } from '../lib/types';
 import { useStatBreakdown } from '../hooks/useStatBreakdown';
 import StatBreakdown from './StatBreakdown';
 
@@ -10,6 +10,8 @@ interface StatsViewProps {
   isAdmin: boolean;
   onUpdateStat: (id: number, field: string, value: string) => void;
   teamSettings?: TeamSettings | null;
+  seasons?: Season[];
+  fetchPlayerSeasonStats?: (seasonId: number) => Promise<PlayerSeasonStats[]>;
 }
 
 type SortKey = 'name' | 'position' | 'injured' | 'goals' | 'assists' | 'wash_count' | 'consumption_count' | 'transport_count' | 'yellow_cards' | 'red_cards' | 'min' | 'played_min';
@@ -62,7 +64,7 @@ interface EditingCell {
   value: number;
 }
 
-export default function StatsView({ players, matches, isAdmin, onUpdateStat, teamSettings }: StatsViewProps) {
+export default function StatsView({ players, matches, isAdmin, onUpdateStat, teamSettings, seasons = [], fetchPlayerSeasonStats }: StatsViewProps) {
   const [sortKey, setSortKey] = useState<SortKey>('goals');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [filterPosition, setFilterPosition] = useState<PositionFilter>('all');
@@ -72,16 +74,57 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const { data: breakdownData, loading: breakdownLoading, fetchBreakdown, close: closeBreakdown } = useStatBreakdown();
 
+  const activeSeasonId = useMemo(() => seasons.find(s => s.is_active)?.id ?? null, [seasons]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
+  const [archivedStats, setArchivedStats] = useState<Record<number, PlayerSeasonStats[]>>({});
+  const [loadingArchive, setLoadingArchive] = useState(false);
+
+  const viewingSeasonId = selectedSeasonId ?? activeSeasonId;
+  const isArchived = viewingSeasonId != null && viewingSeasonId !== activeSeasonId;
+  const effectiveIsAdmin = isAdmin && !isArchived;
+
+  useEffect(() => {
+    if (!isArchived || viewingSeasonId == null || !fetchPlayerSeasonStats) return;
+    if (archivedStats[viewingSeasonId]) return;
+    let cancelled = false;
+    setLoadingArchive(true);
+    fetchPlayerSeasonStats(viewingSeasonId)
+      .then(stats => { if (!cancelled) setArchivedStats(prev => ({ ...prev, [viewingSeasonId]: stats })); })
+      .finally(() => { if (!cancelled) setLoadingArchive(false); });
+    return () => { cancelled = true; };
+  }, [isArchived, viewingSeasonId, fetchPlayerSeasonStats, archivedStats]);
+
+  useEffect(() => {
+    if (isArchived) { setIsEditing(false); setEditingCell(null); }
+  }, [isArchived]);
+
+  const displayPlayers = useMemo<Player[]>(() => {
+    if (!isArchived || viewingSeasonId == null) return players;
+    const stats = archivedStats[viewingSeasonId];
+    if (!stats) return [];
+    const posById = new Map(players.map(p => [p.id, p.position] as const));
+    return stats.map(s => ({
+      id: s.player_id,
+      name: s.player?.name ?? 'Onbekend',
+      position: posById.get(s.player_id) ?? '',
+      goals: s.goals, assists: s.assists,
+      wash_count: s.wash_count, consumption_count: s.consumption_count, transport_count: s.transport_count,
+      yellow_cards: s.yellow_cards, red_cards: s.red_cards, own_goals: s.own_goals,
+      min: s.min, played_min: 0, injured: false,
+      pac: 0, sho: 0, pas: 0, dri: 0, def: 0, is_guest: false,
+    }) as Player);
+  }, [isArchived, viewingSeasonId, players, archivedStats]);
+
   const handleStatClick = (playerId: number, playerName: string, stat: string) => {
-    if (isEditing) return;
-    const player = players.find(p => p.id === playerId);
+    if (isEditing || isArchived) return;
+    const player = displayPlayers.find(p => p.id === playerId);
     const displayTotal = player ? ((player as unknown as Record<string, number>)[stat] ?? 0) : 0;
     fetchBreakdown(playerId, playerName, stat, matches, displayTotal);
   };
 
   const regularPlayers = useMemo(
-    () => players.filter(p => !p.is_guest && (filterPosition === 'all' || p.position === filterPosition)),
-    [players, filterPosition]
+    () => displayPlayers.filter(p => !p.is_guest && (filterPosition === 'all' || p.position === filterPosition)),
+    [displayPlayers, filterPosition]
   );
 
   const sortedPlayers = useMemo(() => {
@@ -138,7 +181,7 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
   const trackGoals          = teamSettings?.track_goals          ?? true;
   const trackAssists        = teamSettings?.track_assists        ?? true;
   const trackMinutes        = teamSettings?.track_minutes        ?? true;
-  const trackPlayedMinutes  = teamSettings?.track_played_minutes ?? false;
+  const trackPlayedMinutes  = !isArchived && (teamSettings?.track_played_minutes ?? false);
   const trackCards          = teamSettings?.track_cards          ?? false;
   const trackWasbeurt       = teamSettings?.track_wasbeurt       ?? true;
   const trackConsumpties    = teamSettings?.track_consumpties    ?? true;
@@ -209,7 +252,7 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
             </svg>
           </button>
         </div>
-        {isAdmin && (
+        {effectiveIsAdmin && (
           <button
             onClick={toggleEditMode}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition ${
@@ -222,6 +265,24 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
           </button>
         )}
       </div>
+
+      {/* ── Seizoenselectie ── */}
+      {seasons.length > 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <select
+            value={viewingSeasonId ?? ''}
+            onChange={e => setSelectedSeasonId(e.target.value ? Number(e.target.value) : null)}
+            className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          >
+            {seasons.map(s => (
+              <option key={s.id} value={s.id}>{s.name}{s.is_active ? ' (huidig)' : ''}</option>
+            ))}
+          </select>
+          {isArchived && (
+            <span className="text-xs text-gray-400">Archief · alleen-lezen{loadingArchive ? ' · laden…' : ''}</span>
+          )}
+        </div>
+      )}
 
       {/* ── Mobiel: stat-pills (wrappend, geen scroll) ── */}
       {statFields.length > 1 && (
@@ -250,8 +311,8 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
             return (
               <div
                 key={player.id}
-                className={`flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0${!isEditing && activeMobileStat ? ' cursor-pointer active:bg-gray-700/60' : ''}`}
-                onClick={() => !isEditing && activeMobileStat && handleStatClick(player.id, player.name, activeMobileStat)}
+                className={`flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0${!isEditing && !isArchived && activeMobileStat ? ' cursor-pointer active:bg-gray-700/60' : ''}`}
+                onClick={() => !isEditing && !isArchived && activeMobileStat && handleStatClick(player.id, player.name, activeMobileStat)}
               >
                 <span className="text-gray-500 text-sm font-bold w-6 text-right shrink-0">
                   {index + 1}
@@ -276,7 +337,7 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
                   ) : (
                     <span className="text-xl font-black text-white tabular-nums w-8 text-right shrink-0">
                       {statValue}
-                      <span className="block text-[10px] text-gray-500 font-normal">details →</span>
+                      {!isArchived && <span className="block text-[10px] text-gray-500 font-normal">details →</span>}
                     </span>
                   )
                 )}
@@ -346,6 +407,7 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
                       <StatCell
                         key={field}
                         isEditing={isEditing}
+                        interactive={!isArchived}
                         value={player[field] ?? 0}
                         field={field}
                         playerId={player.id}
@@ -397,8 +459,9 @@ function SortIndicator({ active, dir }: { active: boolean; dir: SortDir }) {
   return <span className="text-blue-400 text-xs ml-0.5">{dir === 'asc' ? '▲' : '▼'}</span>;
 }
 
-function StatCell({ isEditing, value, field, playerId, playerName, onCellClick, onStatClick }: {
+function StatCell({ isEditing, interactive, value, field, playerId, playerName, onCellClick, onStatClick }: {
   isEditing: boolean;
+  interactive: boolean;
   value: number;
   field: string;
   playerId: number;
@@ -415,7 +478,7 @@ function StatCell({ isEditing, value, field, playerId, playerName, onCellClick, 
         >
           {value}
         </button>
-      ) : (
+      ) : interactive ? (
         <button
           onClick={() => onStatClick(playerId, playerName, field)}
           className="text-sm sm:text-base hover:text-yellow-400 transition-colors cursor-pointer"
@@ -423,6 +486,8 @@ function StatCell({ isEditing, value, field, playerId, playerName, onCellClick, 
         >
           {value}
         </button>
+      ) : (
+        <span className="text-sm sm:text-base">{value}</span>
       )}
     </td>
   );
