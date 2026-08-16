@@ -1525,6 +1525,9 @@ export default function FootballApp() {
             onDeleteMatch={deleteMatch}
             currentPlayerId={teamPlayerId}
             onToggleAbsence={toggleAbsence}
+            onUpdateWasbeurt={updateWasbeurtPlayer}
+            onUpdateConsumpties={updateConsumptiesPlayer}
+            onUpdateVervoer={updateTransportPlayers}
           />
         </div>
       ) : view === 'dashboard' ? (
