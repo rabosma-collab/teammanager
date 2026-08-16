@@ -9,7 +9,9 @@ import { supabase } from '../lib/supabase';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import ImportMatchesModal from './modals/ImportMatchesModal';
 import ImportMatchesScreenshotModal from './modals/ImportMatchesScreenshotModal';
-import { displayScore, MATCH_REPORT_MAX_LENGTH, isSelectablePlayer } from '../lib/constants';
+import TakenEditModal from './modals/TakenEditModal';
+import { displayScore, MATCH_REPORT_MAX_LENGTH } from '../lib/constants';
+import { computeUpcomingTasks } from '../lib/taskAssignment';
 
 interface UitslagenViewProps {
   matches: Match[];
@@ -29,6 +31,9 @@ interface UitslagenViewProps {
   onCancelMatch: (id: number, goalsFor: number | null, goalsAgainst: number | null) => Promise<boolean>;
   onDeleteMatch: (id: number) => Promise<boolean>;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
+  onUpdateWasbeurt: (matchId: number, playerId: number | null) => Promise<boolean>;
+  onUpdateConsumpties: (matchId: number, playerId: number | null) => Promise<boolean>;
+  onUpdateVervoer: (matchId: number, playerIds: number[]) => Promise<boolean>;
 }
 
 // ─── Hulpfuncties ─────────────────────────────────────────────
@@ -194,86 +199,6 @@ function TakenBadges({ tasks }: { tasks: { emoji: string; name: string }[] }) {
   );
 }
 
-// ─── Sequentiële taakberekening voor aankomende wedstrijden ───
-function computeUpcomingTasks(
-  matches: Match[],
-  players: Player[],
-  absencesMap: Record<number, number[]>,
-  teamSettings: TeamSettings | null
-): Record<number, { emoji: string; name: string }[]> {
-  const trackWasbeurt = teamSettings?.track_wasbeurt ?? true;
-  const trackConsumpties = teamSettings?.track_consumpties ?? true;
-  const trackVervoer = teamSettings?.track_vervoer ?? true;
-  const vervoerCount = teamSettings?.vervoer_count ?? 3;
-
-  const washCounts = new Map<number, number>(players.filter(p => !p.is_guest).map(p => [p.id, p.wash_count]));
-  const consumptionCounts = new Map<number, number>(players.filter(p => !p.is_guest).map(p => [p.id, p.consumption_count]));
-  const transportCounts = new Map<number, number>(players.filter(p => !p.is_guest).map(p => [p.id, p.transport_count]));
-
-  const result: Record<number, { emoji: string; name: string }[]> = {};
-
-  for (const match of matches) {
-    const absentIds = new Set(absencesMap[match.id] ?? []);
-    const available = players.filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !absentIds.has(p.id));
-    const tasks: { emoji: string; name: string }[] = [];
-
-    if (trackWasbeurt) {
-      const overrideId = match.wasbeurt_player_id ?? null;
-      let player = overrideId ? (available.find(p => p.id === overrideId) ?? null) : null;
-      if (!player) {
-        player = [...available].sort((a, b) => ((washCounts.get(a.id) ?? 0) - (washCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
-      }
-      if (player) {
-        tasks.push({ emoji: '🧺', name: player.name });
-        washCounts.set(player.id, (washCounts.get(player.id) ?? 0) + 1);
-      }
-    }
-
-    if (trackConsumpties) {
-      const overrideId = match.consumpties_player_id ?? null;
-      let player = overrideId ? (available.find(p => p.id === overrideId) ?? null) : null;
-      if (!player) {
-        player = [...available].sort((a, b) => ((consumptionCounts.get(a.id) ?? 0) - (consumptionCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
-      }
-      if (player) {
-        tasks.push({ emoji: '🥤', name: player.name });
-        consumptionCounts.set(player.id, (consumptionCounts.get(player.id) ?? 0) + 1);
-      }
-    }
-
-    if (trackVervoer && match.home_away !== 'Thuis') {
-      const overrideIds = match.transport_player_ids ?? [];
-      const eligibleList = [...available].sort((a, b) => ((transportCounts.get(a.id) ?? 0) - (transportCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name));
-      // Auto-selectie voor cumulatieve vooruitblik (negeert manuele overrides,
-      // zodat een handmatige wijziging niet cascadeert naar andere wedstrijden).
-      const autoUsedIds = new Set<number>();
-      for (let i = 0; i < vervoerCount; i++) {
-        const auto = eligibleList.find(p => !autoUsedIds.has(p.id)) ?? null;
-        if (auto) { autoUsedIds.add(auto.id); transportCounts.set(auto.id, (transportCounts.get(auto.id) ?? 0) + 1); }
-      }
-      // Weergave: respecteer overrides voor deze specifieke wedstrijd.
-      const usedIds = new Set<number>();
-      const vervoerPlayers: Player[] = [];
-      for (let i = 0; i < vervoerCount; i++) {
-        const overrideId = overrideIds[i] ?? null;
-        if (overrideId) {
-          const op = available.find(p => p.id === overrideId && !usedIds.has(p.id)) ?? null;
-          if (op) { vervoerPlayers.push(op); usedIds.add(op.id); continue; }
-        }
-        const auto = eligibleList.find(p => !usedIds.has(p.id)) ?? null;
-        if (auto) { vervoerPlayers.push(auto); usedIds.add(auto.id); }
-      }
-      if (vervoerPlayers.length > 0) {
-        vervoerPlayers.forEach((p, i) => tasks.push({ emoji: i === 0 ? '🚗' : '🚙', name: p.name }));
-      }
-    }
-
-    result[match.id] = tasks;
-  }
-
-  return result;
-}
-
 function formatTime(timeStr: string): string {
   return timeStr.slice(0, 5);
 }
@@ -286,6 +211,7 @@ export default function UitslagenView({
   onUpdateMatchReport, onUpdateMatchScore,
   onAddMatch, onUpdateMatch, onCancelMatch, onDeleteMatch,
   onToggleAbsence,
+  onUpdateWasbeurt, onUpdateConsumpties, onUpdateVervoer,
 }: UitslagenViewProps) {
   const { isManager, currentTeam } = useTeamContext();
   const toast = useToast();
@@ -298,6 +224,10 @@ export default function UitslagenView({
   const trackAssemblyTime  = teamSettings?.track_assembly_time  ?? false;
   const trackMatchTime     = teamSettings?.track_match_time     ?? false;
   const trackLocationDetails = teamSettings?.track_location_details ?? false;
+  const trackWasbeurt   = teamSettings?.track_wasbeurt   ?? true;
+  const trackConsumpties = teamSettings?.track_consumpties ?? true;
+  const trackVervoer    = teamSettings?.track_vervoer    ?? true;
+  const anyTaskTracked  = trackWasbeurt || trackConsumpties || trackVervoer;
 
   // ── Seizoen selector ──────────────────────────────────────
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(activeSeasonId);
@@ -433,6 +363,7 @@ export default function UitslagenView({
   // ── Beheer state ─────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | 'new' | null>(null);
+  const [editingTasksMatchId, setEditingTasksMatchId] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showScreenshotImport, setShowScreenshotImport] = useState(false);
 
@@ -619,6 +550,13 @@ export default function UitslagenView({
                       {/* Beheer-knoppen (edit mode) */}
                       {isManager && isEditMode && (
                         <div className="flex gap-1 flex-shrink-0">
+                          {anyTaskTracked && (
+                            <button
+                              onClick={() => setEditingTasksMatchId(match.id)}
+                              className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+                              title="Taken aanpassen"
+                            >🧺</button>
+                          )}
                           <button
                             onClick={() => setEditingMatch(match)}
                             className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
@@ -890,6 +828,25 @@ export default function UitslagenView({
           onClose={() => setEditingMatch(null)}
         />
       )}
+
+      {editingTasksMatchId !== null && (() => {
+        const idx = upcomingMatches.findIndex(m => m.id === editingTasksMatchId);
+        if (idx === -1) return null;
+        return (
+          <TakenEditModal
+            match={upcomingMatches[idx]}
+            precedingMatches={upcomingMatches.slice(0, idx)}
+            laterMatches={upcomingMatches.slice(idx + 1)}
+            players={players}
+            absencesMap={absencesMap}
+            teamSettings={teamSettings}
+            onUpdateWasbeurt={onUpdateWasbeurt}
+            onUpdateConsumpties={onUpdateConsumpties}
+            onUpdateVervoer={onUpdateVervoer}
+            onClose={() => setEditingTasksMatchId(null)}
+          />
+        );
+      })()}
 
       {showImport && currentTeam && (
         <ImportMatchesModal
