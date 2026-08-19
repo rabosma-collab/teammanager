@@ -7,11 +7,11 @@ import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
+import TakenEditModal from './modals/TakenEditModal';
 import ImportMatchesModal from './modals/ImportMatchesModal';
 import ImportMatchesScreenshotModal from './modals/ImportMatchesScreenshotModal';
-import TakenEditModal from './modals/TakenEditModal';
 import { displayScore, MATCH_REPORT_MAX_LENGTH } from '../lib/constants';
-import { computeUpcomingTasks } from '../lib/taskAssignment';
+import { computeUpcomingTasks, upcomingConceptMatches } from '../lib/taskAssignment';
 
 interface UitslagenViewProps {
   matches: Match[];
@@ -199,6 +199,8 @@ function TakenBadges({ tasks }: { tasks: { emoji: string; name: string }[] }) {
   );
 }
 
+// ─── Sequentiële taakberekening: zie app/lib/taskAssignment.ts (gedeeld met Home) ───
+
 function formatTime(timeStr: string): string {
   return timeStr.slice(0, 5);
 }
@@ -224,10 +226,6 @@ export default function UitslagenView({
   const trackAssemblyTime  = teamSettings?.track_assembly_time  ?? false;
   const trackMatchTime     = teamSettings?.track_match_time     ?? false;
   const trackLocationDetails = teamSettings?.track_location_details ?? false;
-  const trackWasbeurt   = teamSettings?.track_wasbeurt   ?? true;
-  const trackConsumpties = teamSettings?.track_consumpties ?? true;
-  const trackVervoer    = teamSettings?.track_vervoer    ?? true;
-  const anyTaskTracked  = trackWasbeurt || trackConsumpties || trackVervoer;
 
   // ── Seizoen selector ──────────────────────────────────────
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(activeSeasonId);
@@ -250,8 +248,7 @@ export default function UitslagenView({
 
   // ── Gesplitste lijsten ────────────────────────────────────
   const upcomingMatches = useMemo(
-    () => matches.filter(m => m.match_status === 'concept')
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    () => upcomingConceptMatches(matches),
     [matches]
   );
   const finishedMatches = useMemo(
@@ -295,6 +292,7 @@ export default function UitslagenView({
   // ── Stats ────────────────────────────────────────────────
   const [statsMap, setStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editingTakenMatch, setEditingTakenMatch] = useState<Match | null>(null);
   const [editingStatsId, setEditingStatsId] = useState<number | null>(null);
   const [editingReportId, setEditingReportId] = useState<number | null>(null);
   const [reportDraft, setReportDraft] = useState('');
@@ -363,7 +361,6 @@ export default function UitslagenView({
   // ── Beheer state ─────────────────────────────────────────
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | 'new' | null>(null);
-  const [editingTasksMatchId, setEditingTasksMatchId] = useState<number | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showScreenshotImport, setShowScreenshotImport] = useState(false);
 
@@ -550,13 +547,11 @@ export default function UitslagenView({
                       {/* Beheer-knoppen (edit mode) */}
                       {isManager && isEditMode && (
                         <div className="flex gap-1 flex-shrink-0">
-                          {anyTaskTracked && (
-                            <button
-                              onClick={() => setEditingTasksMatchId(match.id)}
-                              className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
-                              title="Taken aanpassen"
-                            >🧺</button>
-                          )}
+                          <button
+                            onClick={() => setEditingTakenMatch(match)}
+                            className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
+                            title="Taken"
+                          >🧺</button>
                           <button
                             onClick={() => setEditingMatch(match)}
                             className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm transition"
@@ -816,6 +811,24 @@ export default function UitslagenView({
       </div>
 
       {/* ── Modals ── */}
+      {editingTakenMatch && (() => {
+        const idx = upcomingMatches.findIndex(m => m.id === editingTakenMatch.id);
+        return (
+          <TakenEditModal
+            match={editingTakenMatch}
+            precedingMatches={idx >= 0 ? upcomingMatches.slice(0, idx) : []}
+            laterMatches={idx >= 0 ? upcomingMatches.slice(idx + 1) : []}
+            players={players}
+            absencesMap={absencesMap}
+            teamSettings={teamSettings}
+            onUpdateWasbeurt={onUpdateWasbeurt}
+            onUpdateConsumpties={onUpdateConsumpties}
+            onUpdateVervoer={onUpdateVervoer}
+            onClose={() => setEditingTakenMatch(null)}
+          />
+        );
+      })()}
+
       {editingMatch !== null && (
         <MatchEditModal
           match={editingMatch === 'new' ? null : editingMatch}
@@ -828,25 +841,6 @@ export default function UitslagenView({
           onClose={() => setEditingMatch(null)}
         />
       )}
-
-      {editingTasksMatchId !== null && (() => {
-        const idx = upcomingMatches.findIndex(m => m.id === editingTasksMatchId);
-        if (idx === -1) return null;
-        return (
-          <TakenEditModal
-            match={upcomingMatches[idx]}
-            precedingMatches={upcomingMatches.slice(0, idx)}
-            laterMatches={upcomingMatches.slice(idx + 1)}
-            players={players}
-            absencesMap={absencesMap}
-            teamSettings={teamSettings}
-            onUpdateWasbeurt={onUpdateWasbeurt}
-            onUpdateConsumpties={onUpdateConsumpties}
-            onUpdateVervoer={onUpdateVervoer}
-            onClose={() => setEditingTasksMatchId(null)}
-          />
-        );
-      })()}
 
       {showImport && currentTeam && (
         <ImportMatchesModal

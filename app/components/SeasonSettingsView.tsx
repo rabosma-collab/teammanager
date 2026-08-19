@@ -106,6 +106,9 @@ export default function SeasonSettingsView() {
             De huidige spelersstats (goals, assists, kaarten, minuten) worden opgeslagen als seizoensarchief en daarna gereset naar 0.
             FIFA-stats en credits blijven ongewijzigd.
           </p>
+          <p className="text-xs text-yellow-400/90 bg-yellow-500/10 rounded-lg px-3 py-2">
+            Let op: de huidige wedstrijden verhuizen naar dit seizoen (het archief). Ze verdwijnen niet — je vindt ze terug via de seizoenkiezer bovenaan het Uitslagen- en Statistieken-scherm. Het nieuwe seizoen begint zonder wedstrijden.
+          </p>
           <div>
             <label className="text-xs text-gray-400 block mb-1">Naam nieuw seizoen</label>
             <input

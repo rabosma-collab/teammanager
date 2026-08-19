@@ -236,6 +236,7 @@ export interface Player {
     wash_count: number;
     consumption_count: number;
     transport_count: number;
+    played_min: number;
     player?: { name: string } | null;
   }
 

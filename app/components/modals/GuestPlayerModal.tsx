@@ -3,14 +3,17 @@ import { positionOrder, positionEmojis } from '../../lib/constants';
 import { useToast } from '../../contexts/ToastContext';
 import DraggableModal from './DraggableModal';
 import type { GuestPoolEntry } from '../../hooks/usePlayers';
+import type { Player } from '../../lib/types';
 
 interface GuestPlayerModalProps {
   guestPool: GuestPoolEntry[];
+  rosterGuests: Player[];
   onAdd: (name: string, position: string) => void;
+  onSelectRosterGuest: (player: Player) => void;
   onClose: () => void;
 }
 
-export default function GuestPlayerModal({ guestPool, onAdd, onClose }: GuestPlayerModalProps) {
+export default function GuestPlayerModal({ guestPool, rosterGuests, onAdd, onSelectRosterGuest, onClose }: GuestPlayerModalProps) {
   const toast = useToast();
   const [name, setName] = useState('');
   const [position, setPosition] = useState('Verdediger');
@@ -34,6 +37,28 @@ export default function GuestPlayerModal({ guestPool, onAdd, onClose }: GuestPla
           <h2 className="text-xl font-bold">👤 Gastspeler toevoegen</h2>
           <button onClick={onClose} className="text-2xl hover:text-red-500">✕</button>
         </div>
+
+        {rosterGuests.length > 0 && (
+          <div className="mb-4">
+            <label className="block text-sm font-bold mb-2 text-gray-300">Teamleden op gast-status</label>
+            <p className="text-xs text-gray-500 mb-2">Hun statistieken lopen door op hun eigen profiel.</p>
+            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+              {rosterGuests.map(player => (
+                <button
+                  key={player.id}
+                  onClick={() => onSelectRosterGuest(player)}
+                  className="flex items-center justify-between px-3 py-2 rounded text-left text-sm bg-gray-700 hover:bg-gray-600 text-gray-200"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="truncate">{player.name}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">{positionEmojis[player.position]} {player.position}</span>
+                  </span>
+                  <span className="text-xs px-2 py-0.5 bg-green-900/40 border border-green-700/50 rounded-full text-green-400 font-medium flex-shrink-0 ml-2">teamlid</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {guestPool.length > 0 && (
           <div className="mb-4">

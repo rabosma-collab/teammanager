@@ -29,6 +29,36 @@ export function useSeasons() {
 
   const activeSeason = seasons.find(s => s.is_active) ?? null;
 
+  // Geeft het actieve seizoen terug, of maakt er een aan zodat een wedstrijd nooit zonder seizoen ontstaat.
+  const ensureActiveSeason = useCallback(async (): Promise<number | null> => {
+    if (!currentTeam) return null;
+    try {
+      const { data: activeRows } = await supabase
+        .from('seasons')
+        .select('id')
+        .eq('team_id', currentTeam.id)
+        .eq('is_active', true)
+        .limit(1);
+      if (activeRows && activeRows.length > 0) return activeRows[0].id as number;
+
+      const now = new Date();
+      const y = now.getFullYear();
+      const name = now.getMonth() + 1 >= 7 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+      const { data, error } = await supabase
+        .from('seasons')
+        .insert({ team_id: currentTeam.id, name, start_date: now.toISOString().slice(0, 10), is_active: true })
+        .select('id')
+        .single();
+      if (error || !data) throw error ?? new Error('Kon seizoen niet aanmaken');
+
+      await fetchSeasons();
+      return data.id as number;
+    } catch (error) {
+      console.error('Error ensuring active season:', error);
+      return null;
+    }
+  }, [currentTeam, fetchSeasons]);
+
   const startNewSeason = useCallback(async (name: string): Promise<{ id: number | null; error: string | null }> => {
     if (!currentTeam) return { id: null, error: 'Geen team geselecteerd.' };
     try {
@@ -72,6 +102,7 @@ export function useSeasons() {
     loading,
     fetchSeasons,
     startNewSeason,
+    ensureActiveSeason,
     fetchPlayerSeasonStats,
   };
 }

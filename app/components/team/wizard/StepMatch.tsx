@@ -78,6 +78,16 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
 
   const validCsvMatches = csvParsed?.filter(m => !m.error) ?? [];
 
+  const getActiveSeasonId = async (): Promise<number | null> => {
+    const { data } = await supabase
+      .from('seasons')
+      .select('id')
+      .eq('team_id', teamId)
+      .eq('is_active', true)
+      .limit(1);
+    return (data?.[0]?.id as number | undefined) ?? null;
+  };
+
   const handleAddMatch = () => {
     if (!date) { setAddError('Kies een datum'); return; }
     if (!opponent.trim()) { setAddError('Vul een tegenstander in'); return; }
@@ -91,10 +101,11 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
     if (!matchList.length) return;
     setSaving(true);
     setSaveError(null);
+    const seasonId = await getActiveSeasonId();
     const rows = matchList.map(m => ({
       team_id: teamId, date: m.date, opponent: m.opponent,
       home_away: m.home_away, formation: defaultFormation,
-      match_status: 'concept',
+      match_status: 'concept', season_id: seasonId,
     }));
     const { error } = await supabase.from('matches').insert(rows);
     setSaving(false);
@@ -120,10 +131,11 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
     if (!validCsvMatches.length) return true;
     setCsvImporting(true);
     setCsvError(null);
+    const seasonId = await getActiveSeasonId();
     const rows = validCsvMatches.map(m => ({
       team_id: teamId, date: m.date, opponent: m.opponent,
       home_away: m.home_away, formation: defaultFormation,
-      match_status: 'concept',
+      match_status: 'concept', season_id: seasonId,
     }));
     const { error } = await supabase.from('matches').insert(rows);
     setCsvImporting(false);

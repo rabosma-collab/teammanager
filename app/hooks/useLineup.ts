@@ -217,7 +217,8 @@ export function useLineup() {
 
   const getBenchPlayers = useCallback((
     players: Player[],
-    matchAbsences: number[]
+    matchAbsences: number[],
+    guestSelections: number[] = []
   ): Player[] => {
     // Use composite key (is_guest flag + id) to avoid ID collision between tables
     const fieldKeys = new Set<string>(
@@ -229,10 +230,12 @@ export function useLineup() {
     const bench = players.filter(p => {
       const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
       // Guest players are never in matchAbsences (different ID space)
-      // Reguliere spelers met status 'guest'/'former' vallen buiten de standaardselectie
+      // Reguliere spelers met status 'guest'/'former' vallen buiten de standaardselectie,
+      // behalve gast-teamleden die voor deze wedstrijd expliciet zijn geselecteerd.
+      const includable = isSelectablePlayer(p) || (p.status === 'guest' && guestSelections.includes(p.id));
       return !fieldKeys.has(key) &&
         !p.injured &&
-        isSelectablePlayer(p) &&
+        includable &&
         (p.is_guest || !matchAbsences.includes(p.id));
     });
 

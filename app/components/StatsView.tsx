@@ -110,7 +110,7 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
       goals: s.goals, assists: s.assists,
       wash_count: s.wash_count, consumption_count: s.consumption_count, transport_count: s.transport_count,
       yellow_cards: s.yellow_cards, red_cards: s.red_cards, own_goals: s.own_goals,
-      min: s.min, played_min: 0, injured: false,
+      min: s.min, played_min: s.played_min ?? 0, injured: false,
       pac: 0, sho: 0, pas: 0, dri: 0, def: 0, is_guest: false,
     }) as Player);
   }, [isArchived, viewingSeasonId, players, archivedStats]);
