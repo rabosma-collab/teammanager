@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS player_season_stats (
 -- (CREATE TABLE IF NOT EXISTS werkt bestaande tabellen niet bij)
 ALTER TABLE player_season_stats
   ADD COLUMN IF NOT EXISTS own_goals int NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS transport_count int NOT NULL DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS transport_count int NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS played_min int NOT NULL DEFAULT 0;
 
 -- 4. Retroactief seizoen aanmaken voor bestaande teams
 -- Voor elk bestaand team: maak "Seizoen 1" aan en koppel alle bestaande wedstrijden
@@ -134,12 +135,12 @@ BEGIN
     INSERT INTO player_season_stats (
       player_id, season_id, team_id,
       goals, assists, yellow_cards, red_cards, own_goals,
-      min, wash_count, consumption_count, transport_count
+      min, wash_count, consumption_count, transport_count, played_min
     )
     SELECT
       id, v_old_season_id, p_team_id,
       goals, assists, yellow_cards, red_cards, COALESCE(own_goals, 0),
-      min, wash_count, consumption_count, COALESCE(transport_count, 0)
+      min, wash_count, consumption_count, COALESCE(transport_count, 0), COALESCE(played_min, 0)
     FROM players
     WHERE team_id = p_team_id
     ON CONFLICT (player_id, season_id) DO UPDATE SET
@@ -151,7 +152,8 @@ BEGIN
       min               = EXCLUDED.min,
       wash_count        = EXCLUDED.wash_count,
       consumption_count = EXCLUDED.consumption_count,
-      transport_count   = EXCLUDED.transport_count;
+      transport_count   = EXCLUDED.transport_count,
+      played_min        = EXCLUDED.played_min;
 
     -- Sluit het oude seizoen af
     UPDATE seasons
@@ -170,7 +172,8 @@ BEGIN
     min               = 0,
     wash_count        = 0,
     consumption_count = 0,
-    transport_count   = 0
+    transport_count   = 0,
+    played_min        = 0
   WHERE team_id = p_team_id;
 
   -- Maak nieuw seizoen aan
