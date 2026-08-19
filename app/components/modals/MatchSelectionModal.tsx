@@ -1,5 +1,5 @@
 import React from 'react';
-import { positionOrder, positionEmojis } from '../../lib/constants';
+import { positionOrder, positionEmojis, isSelectablePlayer } from '../../lib/constants';
 import type { Player, Match, Substitution } from '../../lib/types';
 import { useTeamContext } from '../../contexts/TeamContext';
 
@@ -12,6 +12,8 @@ interface MatchSelectionModalProps {
   substitutions?: Substitution[];
   onToggleInjury: (playerId: number) => Promise<void>;
   onToggleAbsence: (playerId: number) => Promise<void>;
+  guestSelections: number[];
+  onToggleGuestSelection: (playerId: number) => Promise<void>;
   onRemoveGuest: (playerId: number) => Promise<void>;
   onAddGuest: () => void;
   onClose: () => void;
@@ -25,6 +27,8 @@ export default function MatchSelectionModal({
   isManager,
   onToggleInjury,
   onToggleAbsence,
+  guestSelections,
+  onToggleGuestSelection,
   onRemoveGuest,
   onAddGuest,
   onClose,
@@ -44,12 +48,13 @@ export default function MatchSelectionModal({
       pos,
       players: players
         .filter((p: Player) => p.position === pos)
+        .filter((p: Player) => isSelectablePlayer(p) || p.is_guest || (p.status === 'guest' && guestSelections.includes(p.id)))
         .sort((a: Player, b: Player) => {
           if (b.min !== a.min) return b.min - a.min;
           return a.name.localeCompare(b.name);
         }),
     })).filter(g => g.players.length > 0);
-  }, [players]);
+  }, [players, guestSelections]);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -93,6 +98,7 @@ export default function MatchSelectionModal({
                   const isInjured = player.injured;
                   const isAbsent = matchAbsences.includes(player.id);
                   const isOnField = onFieldIds.has(player.id);
+                  const isRosterGuest = !player.is_guest && player.status === 'guest';
                   const unavailable = isInjured || isAbsent;
                   return (
                     <div
@@ -114,7 +120,7 @@ export default function MatchSelectionModal({
                         <span className={`font-bold text-sm ${unavailable ? 'opacity-60' : ''}`}>
                           {player.name}
                         </span>
-                        {player.is_guest && (
+                        {(player.is_guest || isRosterGuest) && (
                           <span className="text-purple-400 text-xs ml-1">(Gast)</span>
                         )}
                       </div>
@@ -136,7 +142,7 @@ export default function MatchSelectionModal({
                       </div>
 
                       {/* Manager acties */}
-                      {isManager && !player.is_guest && (
+                      {isManager && !player.is_guest && !isRosterGuest && (
                         <div className="flex gap-1 flex-shrink-0">
                           <button
                             onClick={() => onToggleInjury(player.id)}
@@ -160,6 +166,31 @@ export default function MatchSelectionModal({
                               title={isAbsent ? 'Beschikbaar' : 'Afwezig'}
                             >
                               {isAbsent ? '✅' : '❌'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {isManager && isRosterGuest && (
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => onToggleInjury(player.id)}
+                            className={`px-2 py-1 rounded text-xs font-bold ${
+                              isInjured
+                                ? 'bg-green-700 hover:bg-green-600'
+                                : 'bg-red-800/60 hover:bg-red-700'
+                            }`}
+                            title={isInjured ? 'Hersteld' : 'Geblesseerd'}
+                          >
+                            {isInjured ? '✅' : '🏥'}
+                          </button>
+                          {selectedMatch && (
+                            <button
+                              onClick={() => onToggleGuestSelection(player.id)}
+                              className="px-2 py-1 rounded text-xs bg-red-800/60 hover:bg-red-700 font-bold"
+                              title="Uit deze wedstrijd halen"
+                            >
+                              🗑️
                             </button>
                           )}
                         </div>

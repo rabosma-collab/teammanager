@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import type { Match, Player, Substitution } from '../../lib/types';
-import { formationLabels, displayScore, isSelectablePlayer } from '../../lib/constants';
+import type { TaskBadge } from '../../lib/taskAssignment';
+import { formationLabels, displayScore } from '../../lib/constants';
 import { useTeamContext } from '../../contexts/TeamContext';
 import LineupStatusBadge from './LineupStatusBadge';
 import { generateWhatsAppText } from '../../utils/generateWhatsAppText';
@@ -10,6 +11,7 @@ import { generateWhatsAppText } from '../../utils/generateWhatsAppText';
 interface NextMatchCardProps {
   match: Match | null;
   matchAbsences: number[];
+  taskBadges: TaskBadge[];
   fieldOccupants: (Player | null)[];
   currentPlayerId: number | null;
   isManager: boolean;
@@ -60,6 +62,7 @@ function getMatchCardTitle(match: Match): string {
 export default function NextMatchCard({
   match,
   matchAbsences,
+  taskBadges,
   fieldOccupants,
   currentPlayerId,
   isManager,
@@ -106,6 +109,7 @@ export default function NextMatchCard({
       trackAssemblyTime,
       trackMatchTime,
       trackLocationDetails,
+      taskBadges,
       appUrl: 'https://tmvoetbal.nl',
     });
 
@@ -149,59 +153,6 @@ export default function NextMatchCard({
 
   const isInjured = currentPlayer?.injured ?? false;
   const isAbsent = currentPlayerId ? matchAbsences.includes(currentPlayerId) : false;
-
-  // Wie moet wassen: gebruik handmatige override als die beschikbaar is, anders laagste wash_count
-  const wasbeurtEligible = players.filter(p =>
-    !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id)
-  ).sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
-  const wasbeurtOverridePlayer = match.wasbeurt_player_id
-    ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest) ?? null
-    : null;
-  const wasbeurtOverrideUnavailable = wasbeurtOverridePlayer
-    ? (wasbeurtOverridePlayer.injured || matchAbsences.includes(wasbeurtOverridePlayer.id))
-    : false;
-  const nextWasbeurt = (!wasbeurtOverridePlayer || wasbeurtOverrideUnavailable)
-    ? wasbeurtEligible[0] ?? null
-    : wasbeurtOverridePlayer;
-
-  // Wie moet consumpties meenemen
-  const consumptiesEligible = players.filter(p =>
-    !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id)
-  ).sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
-  const consumptiesOverridePlayer = match.consumpties_player_id
-    ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest) ?? null
-    : null;
-  const consumptiesOverrideUnavailable = consumptiesOverridePlayer
-    ? (consumptiesOverridePlayer.injured || matchAbsences.includes(consumptiesOverridePlayer.id))
-    : false;
-  const nextConsumpties = (!consumptiesOverridePlayer || consumptiesOverrideUnavailable)
-    ? consumptiesEligible[0] ?? null
-    : consumptiesOverridePlayer;
-
-  // Vervoer: N chauffeurs op basis van transport_count, met override
-  const vervoerEligible = players.filter(p =>
-    !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id)
-  ).sort((a, b) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name));
-  const vervoerOverrideIds: number[] = match.transport_player_ids ?? [];
-  const vervoerDisplayPlayers: (Player | null)[] = (() => {
-    const result: (Player | null)[] = [];
-    const usedIds = new Set<number>();
-    for (let i = 0; i < vervoerCount; i++) {
-      const overrideId = vervoerOverrideIds[i] ?? null;
-      if (overrideId) {
-        const op = players.find(p => p.id === overrideId && !p.is_guest) ?? null;
-        if (op && !op.injured && !matchAbsences.includes(op.id)) {
-          result.push(op);
-          usedIds.add(op.id);
-          continue;
-        }
-      }
-      const auto = vervoerEligible.find(p => !usedIds.has(p.id)) ?? null;
-      result.push(auto);
-      if (auto) usedIds.add(auto.id);
-    }
-    return result;
-  })();
 
   // Toon knoppen alleen voor spelers (niet-manager of manager met spelerrecord) bij niet-afgeronde wedstrijden
   const showPlayerButtons = !!(currentPlayerId && !isFinalized && currentPlayer);
@@ -294,27 +245,11 @@ export default function NextMatchCard({
             )}
           </div>
         ) : null}
-        {!isFinalized && (trackWasbeurt || trackConsumpties || trackVervoer) && (
+        {!isFinalized && taskBadges.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {trackWasbeurt && nextWasbeurt && (
-              <span className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
-                🧺 <span className="font-medium text-white">{nextWasbeurt.name}</span>
-                {wasbeurtOverrideUnavailable && wasbeurtOverridePlayer && (
-                  <span className="text-yellow-400 ml-1">⚠️</span>
-                )}
-              </span>
-            )}
-            {trackConsumpties && nextConsumpties && (
-              <span className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
-                🥤 <span className="font-medium text-white">{nextConsumpties.name}</span>
-                {consumptiesOverrideUnavailable && consumptiesOverridePlayer && (
-                  <span className="text-yellow-400 ml-1">⚠️</span>
-                )}
-              </span>
-            )}
-            {trackVervoer && !isThuis && vervoerDisplayPlayers.map((p, i) => p && (
+            {taskBadges.map((b, i) => (
               <span key={i} className="inline-flex items-center gap-1 text-xs bg-gray-700/60 rounded-full px-2.5 py-1 text-gray-300">
-                {i === 0 ? '🚗' : '🚙'} <span className="font-medium text-white">{p.name}</span>
+                {b.emoji} <span className="font-medium text-white">{b.name}</span>
               </span>
             ))}
           </div>

@@ -6,6 +6,7 @@ import { getPositionCategory, GAME_FORMATS, computeSubMomentMinutes } from '../l
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import { logActivity } from '../lib/logActivity';
+import { computeUpcomingTasks, upcomingConceptMatches } from '../lib/taskAssignment';
 import PersonalCard from './dashboard/PersonalCard';
 import NextMatchCard from './dashboard/NextMatchCard';
 import SquadAvailabilityPanel from './dashboard/SquadAvailabilityPanel';
@@ -128,6 +129,36 @@ export default function DashboardView({
 
   // Lokale afwezigheidslijst voor de dashboardMatch (onafhankelijk van pitch-view)
   const [dashboardAbsences, setDashboardAbsences] = useState<number[]>([]);
+
+  // Alle aankomende concept-wedstrijden (datum >= vandaag) — zelfde bron/logica als de Wedstrijden-tab
+  const upcomingForTasks = useMemo(() => upcomingConceptMatches(matches), [matches]);
+  const [taskAbsencesByMatch, setTaskAbsencesByMatch] = useState<Record<number, number[]>>({});
+  useEffect(() => {
+    if (!currentTeam || upcomingForTasks.length === 0) { setTaskAbsencesByMatch({}); return; }
+    const ids = upcomingForTasks.map(m => m.id);
+    supabase
+      .from('match_absences')
+      .select('match_id, player_id')
+      .in('match_id', ids)
+      .then(({ data }: { data: { match_id: number; player_id: number }[] | null }) => {
+        const map: Record<number, number[]> = {};
+        for (const row of data ?? []) {
+          if (!map[row.match_id]) map[row.match_id] = [];
+          map[row.match_id].push(row.player_id);
+        }
+        setTaskAbsencesByMatch(map);
+      });
+  }, [upcomingForTasks.map(m => m.id).join(','), currentTeam?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const upcomingTasksByMatch = useMemo(
+    () => computeUpcomingTasks(upcomingForTasks, players, taskAbsencesByMatch, {
+      track_wasbeurt: trackWasbeurt,
+      track_consumpties: trackConsumpties,
+      track_vervoer: trackVervoer,
+      vervoer_count: vervoerCount,
+    }),
+    [upcomingForTasks, players, taskAbsencesByMatch, trackWasbeurt, trackConsumpties, trackVervoer, vervoerCount]
+  );
 
   // Match-instructie voor de ingelogde speler
   const [matchInstructions, setMatchInstructions] = useState<PositionInstruction[]>([]);
@@ -263,6 +294,15 @@ export default function DashboardView({
     const success = await onToggleAbsence(playerId, matchId);
     if (success) {
       const freshAbsences = await refreshAbsences();
+      // Houd de sequentiële taken-afwezigheden in sync met de wijziging
+      const { data: taskAbs } = await supabase
+        .from('match_absences')
+        .select('player_id')
+        .eq('match_id', matchId);
+      setTaskAbsencesByMatch(prev => ({
+        ...prev,
+        [matchId]: taskAbs?.map((a: { player_id: number }) => a.player_id) ?? [],
+      }));
       // Log alleen voor de dashboardMatch (alleen daar hebben we accurate afwezigheidsdata)
       if (currentTeam && dashboardMatch && matchId === dashboardMatch.id) {
         const player = players.find(p => p.id === playerId);
@@ -440,6 +480,7 @@ export default function DashboardView({
           <NextMatchCard
             match={dashboardMatch}
             matchAbsences={dashboardAbsences}
+            taskBadges={dashboardMatch ? (upcomingTasksByMatch[dashboardMatch.id] ?? []) : []}
             fieldOccupants={dashboardOccupants}
             currentPlayerId={currentPlayerId}
             isManager={isManager}
@@ -498,11 +539,7 @@ export default function DashboardView({
               futureMatches={futureMatches}
               currentPlayerId={currentPlayerId}
               onToggleAbsence={handleToggleAbsence}
-              players={players}
-              trackWasbeurt={trackWasbeurt}
-              trackConsumpties={trackConsumpties}
-              trackVervoer={trackVervoer}
-              vervoerCount={vervoerCount}
+              tasksByMatch={upcomingTasksByMatch}
             />
           </div>
         )}

@@ -1,5 +1,6 @@
 import type { Match, Player, Substitution } from '../lib/types';
-import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory, isSelectablePlayer } from '../lib/constants';
+import type { TaskBadge } from '../lib/taskAssignment';
+import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory } from '../lib/constants';
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
 const POSITION_EMOJIS: Record<string, string> = {
@@ -25,6 +26,7 @@ export interface WhatsAppTextData {
   trackAssemblyTime?: boolean;
   trackMatchTime?: boolean;
   trackLocationDetails?: boolean;
+  taskBadges?: TaskBadge[];
   appUrl?: string;
 }
 
@@ -50,16 +52,12 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
     gameFormat,
     substitutions = [],
     subMomentMinutes = [],
-    trackWasbeurt = true,
-    trackConsumpties = true,
-    trackVervoer = true,
-    vervoerCount = 3,
     trackAssemblyTime = false,
     trackMatchTime = false,
     trackLocationDetails = false,
+    taskBadges = [],
     appUrl,
   } = data;
-  const isAwayMatch = match.home_away !== 'Thuis';
 
   const fmt = gameFormat ?? DEFAULT_GAME_FORMAT;
   const getFormationLabel = (formation: string) =>
@@ -135,51 +133,14 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
     }
   }
 
-  // Wasbeurt / consumpties
+  // Taken — voorberekend zodat het overeenkomt met Home en Wedstrijden
   const taskLines: string[] = [];
-
-  if (trackWasbeurt) {
-    const eligible = players
-      .filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
-      .sort((a, b) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name));
-    const override = match.wasbeurt_player_id
-      ? players.find(p => p.id === match.wasbeurt_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
-      : null;
-    const wasbeurtSpeler = override ?? eligible[0] ?? null;
-    if (wasbeurtSpeler) taskLines.push(`🧺 Wasbeurt: *${wasbeurtSpeler.name}*`);
-  }
-
-  if (trackConsumpties) {
-    const eligible = players
-      .filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
-      .sort((a, b) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name));
-    const override = match.consumpties_player_id
-      ? players.find(p => p.id === match.consumpties_player_id && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null
-      : null;
-    const consumptiesSpeler = override ?? eligible[0] ?? null;
-    if (consumptiesSpeler) taskLines.push(`🥤 Consumpties: *${consumptiesSpeler.name}*`);
-  }
-
-  if (trackVervoer && isAwayMatch) {
-    const eligible = players
-      .filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
-      .sort((a, b) => (a.transport_count - b.transport_count) || a.name.localeCompare(b.name));
-    const overrideIds: number[] = match.transport_player_ids ?? [];
-    const chauffeurs: string[] = [];
-    for (let i = 0; i < vervoerCount; i++) {
-      const overrideId = overrideIds[i] ?? null;
-      let player = null;
-      if (overrideId) {
-        player = players.find(p => p.id === overrideId && !p.is_guest && !p.injured && !matchAbsences.includes(p.id)) ?? null;
-      }
-      if (!player) {
-        const usedIds = new Set(chauffeurs.map(n => players.find(p => p.name === n)?.id).filter(Boolean));
-        player = eligible.find(p => !usedIds.has(p.id)) ?? null;
-      }
-      if (player) chauffeurs.push(player.name);
-    }
-    if (chauffeurs.length > 0) taskLines.push(`🚗 Vervoer: *${chauffeurs.join(', ')}*`);
-  }
+  const washBadge = taskBadges.find(b => b.emoji === '🧺');
+  const consumptionBadge = taskBadges.find(b => b.emoji === '🥤');
+  const driverBadges = taskBadges.filter(b => b.emoji === '🚗' || b.emoji === '🚙');
+  if (washBadge) taskLines.push(`🧺 Wasbeurt: *${washBadge.name}*`);
+  if (consumptionBadge) taskLines.push(`🥤 Consumpties: *${consumptionBadge.name}*`);
+  if (driverBadges.length > 0) taskLines.push(`🚗 Vervoer: *${driverBadges.map(b => b.name).join(', ')}*`);
 
   if (taskLines.length > 0) {
     lines.push('');

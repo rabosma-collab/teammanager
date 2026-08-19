@@ -215,6 +215,17 @@ export default function TeamSetupWizard() {
       ...DEFAULT_SETTINGS,
     });
 
+    // Direct een actief seizoen aanmaken zodat wedstrijden nooit zonder seizoen ontstaan
+    const now = new Date();
+    const y = now.getFullYear();
+    const seasonName = now.getMonth() + 1 >= 7 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+    await supabase.from('seasons').insert({
+      team_id: newTeamId,
+      name: seasonName,
+      start_date: now.toISOString().slice(0, 10),
+      is_active: true,
+    });
+
     setTeamId(newTeamId);
     setStep1Loading(false);
     setStep(2);

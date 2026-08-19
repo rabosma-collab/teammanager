@@ -13,6 +13,7 @@ interface RealtimeSyncOptions {
   onLineupChange: (matchId: number, players: Player[], playerCount: number) => void;
   onSubstitutionsChange: (matchId: number) => void;
   onAbsencesChange: (matchId: number) => void;
+  onGuestSelectionsChange: (matchId: number) => void;
   onPeriodOverridesChange: (matchId: number, players: Player[]) => void;
 }
 
@@ -22,7 +23,7 @@ interface RealtimeSyncOptions {
  *
  * Vereist: zet Realtime aan voor de relevante tabellen in het Supabase Dashboard
  * onder Database → Replication (of via de Table Editor → Realtime toggle).
- * Tabellen: players, matches, lineups, substitutions, match_absences, lineup_period_overrides
+ * Tabellen: players, matches, lineups, substitutions, match_absences, match_guest_selections, lineup_period_overrides
  */
 export function useRealtimeSync({
   currentTeam,
@@ -35,6 +36,7 @@ export function useRealtimeSync({
   onLineupChange,
   onSubstitutionsChange,
   onAbsencesChange,
+  onGuestSelectionsChange,
   onPeriodOverridesChange,
 }: RealtimeSyncOptions) {
   // Refs zodat callbacks altijd actueel zijn zonder re-subscriben
@@ -51,6 +53,7 @@ export function useRealtimeSync({
     onLineupChange,
     onSubstitutionsChange,
     onAbsencesChange,
+    onGuestSelectionsChange,
     onPeriodOverridesChange,
   });
   callbacks.current = {
@@ -59,6 +62,7 @@ export function useRealtimeSync({
     onLineupChange,
     onSubstitutionsChange,
     onAbsencesChange,
+    onGuestSelectionsChange,
     onPeriodOverridesChange,
   };
 
@@ -109,6 +113,11 @@ export function useRealtimeSync({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'match_absences', filter: `match_id=eq.${matchId}` },
         () => callbacks.current.onAbsencesChange(matchId)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'match_guest_selections', filter: `match_id=eq.${matchId}` },
+        () => callbacks.current.onGuestSelectionsChange(matchId)
       )
       .on(
         'postgres_changes',

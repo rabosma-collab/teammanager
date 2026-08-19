@@ -10,14 +10,18 @@ export function useMatches() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [matchAbsences, setMatchAbsences] = useState<number[]>([]);
+  // Gast-teamleden (status 'guest') die per wedstrijd tóch meedoen
+  const [matchGuestSelections, setMatchGuestSelections] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const fetchMatchesIdRef = useRef(0);
   const fetchAbsencesIdRef = useRef(0);
+  const fetchGuestSelectionsIdRef = useRef(0);
 
   useEffect(() => {
     setMatches([]);
     setSelectedMatch(null);
     setMatchAbsences([]);
+    setMatchGuestSelections([]);
     setLoading(true);
   }, [currentTeam?.id]);
 
@@ -88,6 +92,63 @@ export function useMatches() {
       setMatchAbsences(data?.map((a: { player_id: number }) => a.player_id) || []);
     } catch {
       // state ongewijzigd laten bij fetch-fout
+    }
+  }, [currentTeam]);
+
+  const fetchGuestSelections = useCallback(async (matchId: number) => {
+    if (!currentTeam) return;
+
+    const fetchId = ++fetchGuestSelectionsIdRef.current;
+
+    try {
+      const { data, error } = await supabase
+        .from('match_guest_selections')
+        .select('player_id')
+        .eq('match_id', matchId);
+
+      if (fetchId !== fetchGuestSelectionsIdRef.current) return;
+      if (error) throw error;
+      setMatchGuestSelections(data?.map((g: { player_id: number }) => g.player_id) || []);
+    } catch {
+      // state ongewijzigd laten bij fetch-fout
+    }
+  }, [currentTeam]);
+
+  const toggleGuestSelection = useCallback(async (
+    playerId: number,
+    matchId: number
+  ): Promise<boolean> => {
+    if (!currentTeam) return false;
+
+    const { data: existing } = await supabase
+      .from('match_guest_selections')
+      .select('player_id')
+      .eq('match_id', matchId)
+      .eq('player_id', playerId)
+      .maybeSingle();
+    const isSelected = !!existing;
+
+    try {
+      if (isSelected) {
+        const { error } = await supabase
+          .from('match_guest_selections')
+          .delete()
+          .eq('match_id', matchId)
+          .eq('player_id', playerId);
+
+        if (error) throw error;
+        setMatchGuestSelections(prev => prev.filter(id => id !== playerId));
+      } else {
+        const { error } = await supabase
+          .from('match_guest_selections')
+          .insert({ match_id: matchId, player_id: playerId, team_id: currentTeam.id });
+
+        if (error) throw error;
+        setMatchGuestSelections(prev => [...prev, playerId]);
+      }
+      return true;
+    } catch {
+      return false;
     }
   }, [currentTeam]);
 
@@ -543,10 +604,13 @@ export function useMatches() {
     selectedMatch,
     setSelectedMatch,
     matchAbsences,
+    matchGuestSelections,
     loading,
     fetchMatches,
     fetchAbsences,
     toggleAbsence,
+    fetchGuestSelections,
+    toggleGuestSelection,
     isMatchEditable,
     addMatch,
     updateMatch,

@@ -1,27 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Match, Player } from '../../lib/types';
+import React, { useState, useEffect, useCallback } from 'react';
+import type { Match } from '../../lib/types';
+import type { TaskBadge } from '../../lib/taskAssignment';
 import { supabase } from '../../lib/supabase';
-import { isSelectablePlayer } from '../../lib/constants';
 import { useTeamContext } from '../../contexts/TeamContext';
 
 interface MyAvailabilityPanelProps {
   futureMatches: Match[];
   currentPlayerId: number;
   onToggleAbsence: (playerId: number, matchId: number) => Promise<boolean>;
-  players?: Player[];
-  trackWasbeurt?: boolean;
-  trackConsumpties?: boolean;
-  trackVervoer?: boolean;
-  vervoerCount?: number;
+  tasksByMatch: Record<number, TaskBadge[]>;
 }
 
-interface TaskItem {
+interface TaskRow {
+  key: string;
   emoji: string;
-  label: string;
-  playerName: string;
-  isCurrentPlayer: boolean;
+  names: string;
+  mine: boolean;
 }
 
 function formatShortDate(dateStr: string): string {
@@ -32,109 +28,21 @@ function formatShortDate(dateStr: string): string {
   });
 }
 
-/**
- * Berekent taken voor alle wedstrijden sequentieel:
- * na elke wedstrijd worden de virtuele tellers opgehoogd,
- * zodat elke volgende wedstrijd de volgende speler in de rij toont.
- */
-function computeAllMatchTasks(
-  matches: Match[],
-  players: Player[],
-  currentPlayerId: number,
-  allAbsencesByMatch: Record<number, Set<number>>,
-  trackWasbeurt: boolean,
-  trackConsumpties: boolean,
-  trackVervoer: boolean,
-  vervoerCount: number
-): Record<number, TaskItem[]> {
-  // Virtuele tellers starten vanuit de huidige waarden
-  const washCounts = new Map<number, number>(
-    players.filter(p => !p.is_guest).map(p => [p.id, p.wash_count])
-  );
-  const consumptionCounts = new Map<number, number>(
-    players.filter(p => !p.is_guest).map(p => [p.id, p.consumption_count])
-  );
-  const transportCounts = new Map<number, number>(
-    players.filter(p => !p.is_guest).map(p => [p.id, p.transport_count])
-  );
-
-  const result: Record<number, TaskItem[]> = {};
-
-  for (const match of matches) {
-    const absentIds = allAbsencesByMatch[match.id] ?? new Set<number>();
-    const available = players.filter(p => !p.is_guest && isSelectablePlayer(p) && !p.injured && !absentIds.has(p.id));
-    const tasks: TaskItem[] = [];
-
-    if (trackWasbeurt) {
-      const overrideId = match.wasbeurt_player_id ?? null;
-      let player: Player | null = null;
-      if (overrideId) {
-        player = available.find(p => p.id === overrideId) ?? null;
-      }
-      if (!player) {
-        player = [...available]
-          .sort((a, b) => ((washCounts.get(a.id) ?? 0) - (washCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
-      }
-      if (player) {
-        tasks.push({ emoji: '🧺', label: 'Wasbeurt', playerName: player.name, isCurrentPlayer: player.id === currentPlayerId });
-        washCounts.set(player.id, (washCounts.get(player.id) ?? 0) + 1);
-      }
-    }
-
-    if (trackConsumpties) {
-      const overrideId = match.consumpties_player_id ?? null;
-      let player: Player | null = null;
-      if (overrideId) {
-        player = available.find(p => p.id === overrideId) ?? null;
-      }
-      if (!player) {
-        player = [...available]
-          .sort((a, b) => ((consumptionCounts.get(a.id) ?? 0) - (consumptionCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
-      }
-      if (player) {
-        tasks.push({ emoji: '🥤', label: 'Consumpties', playerName: player.name, isCurrentPlayer: player.id === currentPlayerId });
-        consumptionCounts.set(player.id, (consumptionCounts.get(player.id) ?? 0) + 1);
-      }
-    }
-
-    if (trackVervoer && match.home_away !== 'Thuis') {
-      const overrideIds = match.transport_player_ids ?? [];
-      const eligibleList = [...available].sort(
-        (a, b) => ((transportCounts.get(a.id) ?? 0) - (transportCounts.get(b.id) ?? 0)) || a.name.localeCompare(b.name)
-      );
-      // Auto-selectie voor cumulatieve vooruitblik (negeert manuele overrides,
-      // zodat een handmatige wijziging niet cascadeert naar andere wedstrijden).
-      const autoUsedIds = new Set<number>();
-      for (let i = 0; i < vervoerCount; i++) {
-        const auto = eligibleList.find(p => !autoUsedIds.has(p.id)) ?? null;
-        if (auto) { autoUsedIds.add(auto.id); transportCounts.set(auto.id, (transportCounts.get(auto.id) ?? 0) + 1); }
-      }
-      // Weergave: respecteer overrides voor deze specifieke wedstrijd.
-      const usedIds = new Set<number>();
-      const vervoerPlayers: Player[] = [];
-      for (let i = 0; i < vervoerCount; i++) {
-        const overrideId = overrideIds[i] ?? null;
-        if (overrideId) {
-          const op = available.find(p => p.id === overrideId && !usedIds.has(p.id)) ?? null;
-          if (op) { vervoerPlayers.push(op); usedIds.add(op.id); continue; }
-        }
-        const auto = eligibleList.find(p => !usedIds.has(p.id)) ?? null;
-        if (auto) { vervoerPlayers.push(auto); usedIds.add(auto.id); }
-      }
-      if (vervoerPlayers.length > 0) {
-        tasks.push({
-          emoji: '🚗',
-          label: 'Vervoer',
-          playerName: vervoerPlayers.map(p => p.name).join(', '),
-          isCurrentPlayer: vervoerPlayers.some(p => p.id === currentPlayerId),
-        });
-      }
-    }
-
-    result[match.id] = tasks;
-  }
-
-  return result;
+// Groepeert de gedeelde badges naar weergaverijen (vervoer samengevoegd, eigen taak gemarkeerd).
+function toTaskRows(badges: TaskBadge[], currentPlayerId: number): TaskRow[] {
+  const rows: TaskRow[] = [];
+  const wash = badges.find(b => b.emoji === '🧺');
+  const consumption = badges.find(b => b.emoji === '🥤');
+  const drivers = badges.filter(b => b.emoji === '🚗' || b.emoji === '🚙');
+  if (wash) rows.push({ key: 'was', emoji: '🧺', names: wash.name, mine: wash.playerIds.includes(currentPlayerId) });
+  if (consumption) rows.push({ key: 'cons', emoji: '🥤', names: consumption.name, mine: consumption.playerIds.includes(currentPlayerId) });
+  if (drivers.length > 0) rows.push({
+    key: 'vervoer',
+    emoji: '🚗',
+    names: drivers.map(d => d.name).join(', '),
+    mine: drivers.some(d => d.playerIds.includes(currentPlayerId)),
+  });
+  return rows;
 }
 
 const DEFAULT_VISIBLE = 3;
@@ -143,17 +51,12 @@ export default function MyAvailabilityPanel({
   futureMatches,
   currentPlayerId,
   onToggleAbsence,
-  players = [],
-  trackWasbeurt = false,
-  trackConsumpties = false,
-  trackVervoer = false,
-  vervoerCount = 3,
+  tasksByMatch,
 }: MyAvailabilityPanelProps) {
   const { currentTeam } = useTeamContext();
   const teamColor = currentTeam?.color || '#f59e0b';
 
   const [absencesByMatch, setAbsencesByMatch] = useState<Record<number, boolean>>({});
-  const [allAbsencesByMatch, setAllAbsencesByMatch] = useState<Record<number, Set<number>>>({});
   const [loadingMatchId, setLoadingMatchId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -164,19 +67,12 @@ export default function MyAvailabilityPanel({
       .from('match_absences')
       .select('match_id, player_id')
       .in('match_id', matchIds)
+      .eq('player_id', currentPlayerId)
       .then(({ data }: { data: { match_id: number; player_id: number }[] | null }) => {
         const myMap: Record<number, boolean> = {};
-        const allMap: Record<number, Set<number>> = {};
-        for (const id of matchIds) {
-          myMap[id] = false;
-          allMap[id] = new Set();
-        }
-        for (const row of data ?? []) {
-          allMap[row.match_id].add(row.player_id);
-          if (row.player_id === currentPlayerId) myMap[row.match_id] = true;
-        }
+        for (const id of matchIds) myMap[id] = false;
+        for (const row of data ?? []) myMap[row.match_id] = true;
         setAbsencesByMatch(myMap);
-        setAllAbsencesByMatch(allMap);
       });
   }, [futureMatches.map(m => m.id).join(','), currentPlayerId]);
 
@@ -186,36 +82,11 @@ export default function MyAvailabilityPanel({
       const success = await onToggleAbsence(currentPlayerId, matchId);
       if (success) {
         setAbsencesByMatch(prev => ({ ...prev, [matchId]: !prev[matchId] }));
-        setAllAbsencesByMatch(prev => {
-          const updated = new Set(prev[matchId] ?? []);
-          if (updated.has(currentPlayerId)) {
-            updated.delete(currentPlayerId);
-          } else {
-            updated.add(currentPlayerId);
-          }
-          return { ...prev, [matchId]: updated };
-        });
       }
     } finally {
       setLoadingMatchId(null);
     }
   }, [currentPlayerId, onToggleAbsence]);
-
-  // Sequentiële taakberekening voor alle wedstrijden tegelijk
-  const hasTasks = trackWasbeurt || trackConsumpties || trackVervoer;
-  const tasksByMatch = useMemo(() => {
-    if (!hasTasks || players.length === 0) return {};
-    return computeAllMatchTasks(
-      futureMatches,
-      players,
-      currentPlayerId,
-      allAbsencesByMatch,
-      trackWasbeurt,
-      trackConsumpties,
-      trackVervoer,
-      vervoerCount
-    );
-  }, [futureMatches, players, currentPlayerId, allAbsencesByMatch, trackWasbeurt, trackConsumpties, trackVervoer, vervoerCount, hasTasks]);
 
   if (futureMatches.length === 0) return null;
 
@@ -233,7 +104,7 @@ export default function MyAvailabilityPanel({
           const isAbsent = absencesByMatch[match.id] ?? false;
           const isLoading = loadingMatchId === match.id;
           const isThuis = match.home_away === 'Thuis';
-          const tasks = isAbsent ? [] : (tasksByMatch[match.id] ?? []);
+          const taskRows = isAbsent ? [] : toTaskRows(tasksByMatch[match.id] ?? [], currentPlayerId);
 
           return (
             <div
@@ -276,13 +147,13 @@ export default function MyAvailabilityPanel({
                 </button>
               </div>
 
-              {tasks.length > 0 && (
+              {taskRows.length > 0 && (
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 ml-8">
-                  {tasks.map(task => (
-                    <span key={task.label} className="text-xs text-gray-400">
-                      {task.emoji}{' '}
-                      <span className={task.isCurrentPlayer ? 'text-yellow-300 font-semibold' : 'text-gray-300'}>
-                        {task.playerName}
+                  {taskRows.map(row => (
+                    <span key={row.key} className="text-xs text-gray-400">
+                      {row.emoji}{' '}
+                      <span className={row.mine ? 'text-yellow-300 font-semibold' : 'text-gray-300'}>
+                        {row.names}
                       </span>
                     </span>
                   ))}

@@ -1,7 +1,17 @@
 import type { Match, Player, TeamSettings } from './types';
 import { isSelectablePlayer } from './constants';
 
-export interface TaskBadge { emoji: string; name: string; }
+export interface TaskBadge { emoji: string; name: string; playerIds: number[]; }
+export type TaskSettings = Pick<TeamSettings, 'track_wasbeurt' | 'track_consumpties' | 'track_vervoer' | 'vervoer_count'>;
+
+// Geordende set aankomende concept-wedstrijden (datum >= vandaag): bron van waarheid voor taken.
+export function upcomingConceptMatches(matches: Match[]): Match[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return matches
+    .filter(m => m.match_status === 'concept' && new Date(m.date) >= today)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
 
 export interface EffectiveCounts {
   wash: Map<number, number>;
@@ -33,7 +43,7 @@ function stepMatch(
   counts: EffectiveCounts,
   players: Player[],
   absencesMap: Record<number, number[]>,
-  teamSettings: TeamSettings | null
+  teamSettings: TaskSettings | null
 ): TaskBadge[] {
   const trackWasbeurt = teamSettings?.track_wasbeurt ?? true;
   const trackConsumpties = teamSettings?.track_consumpties ?? true;
@@ -50,7 +60,7 @@ function stepMatch(
       player = [...available].sort((a, b) => ((counts.wash.get(a.id) ?? 0) - (counts.wash.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
     }
     if (player) {
-      tasks.push({ emoji: '🧺', name: player.name });
+      tasks.push({ emoji: '🧺', name: player.name, playerIds: [player.id] });
       counts.wash.set(player.id, (counts.wash.get(player.id) ?? 0) + 1);
     }
   }
@@ -62,7 +72,7 @@ function stepMatch(
       player = [...available].sort((a, b) => ((counts.consumption.get(a.id) ?? 0) - (counts.consumption.get(b.id) ?? 0)) || a.name.localeCompare(b.name))[0] ?? null;
     }
     if (player) {
-      tasks.push({ emoji: '🥤', name: player.name });
+      tasks.push({ emoji: '🥤', name: player.name, playerIds: [player.id] });
       counts.consumption.set(player.id, (counts.consumption.get(player.id) ?? 0) + 1);
     }
   }
@@ -88,7 +98,7 @@ function stepMatch(
       const auto = eligibleList.find(p => !usedIds.has(p.id)) ?? null;
       if (auto) { vervoerPlayers.push(auto); usedIds.add(auto.id); }
     }
-    vervoerPlayers.forEach((p, i) => tasks.push({ emoji: i === 0 ? '🚗' : '🚙', name: p.name }));
+    vervoerPlayers.forEach((p, i) => tasks.push({ emoji: i === 0 ? '🚗' : '🚙', name: p.name, playerIds: [p.id] }));
   }
 
   return tasks;
@@ -99,7 +109,7 @@ export function computeUpcomingTasks(
   matches: Match[],
   players: Player[],
   absencesMap: Record<number, number[]>,
-  teamSettings: TeamSettings | null
+  teamSettings: TaskSettings | null
 ): Record<number, TaskBadge[]> {
   const counts = initCounts(players);
   const result: Record<number, TaskBadge[]> = {};
@@ -114,7 +124,7 @@ export function computeEffectiveCountsBefore(
   precedingMatches: Match[],
   players: Player[],
   absencesMap: Record<number, number[]>,
-  teamSettings: TeamSettings | null
+  teamSettings: TaskSettings | null
 ): EffectiveCounts {
   const counts = initCounts(players);
   for (const match of precedingMatches) {

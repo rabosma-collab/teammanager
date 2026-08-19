@@ -151,12 +151,12 @@ export default function FootballApp() {
 
   const {
     matches, setMatches, selectedMatch, setSelectedMatch,
-    matchAbsences, loading, fetchMatches, fetchAbsences,
-    toggleAbsence, isMatchEditable,
+    matchAbsences, matchGuestSelections, loading, fetchMatches, fetchAbsences,
+    toggleAbsence, fetchGuestSelections, toggleGuestSelection, isMatchEditable,
     addMatch, updateMatch, updateMatchScore, publishLineup, updateWasbeurtPlayer, updateConsumptiesPlayer, updateTransportPlayers, updateMatchReport, cancelMatch, deleteMatch
   } = useMatches();
 
-  const { seasons, activeSeason, fetchSeasons, fetchPlayerSeasonStats } = useSeasons();
+  const { seasons, activeSeason, fetchSeasons, ensureActiveSeason, fetchPlayerSeasonStats } = useSeasons();
 
   const {
     fieldOccupants, setFieldOccupants,
@@ -359,7 +359,7 @@ export default function FootballApp() {
   );
 
   const benchPlayers = useMemo(() => {
-    const raw = getBenchPlayers(players, matchAbsences);
+    const raw = getBenchPlayers(players, matchAbsences, matchGuestSelections);
     // Final dedup safety: by player id
     const seen = new Map<number, Player>();
     for (const p of raw) {
@@ -370,7 +370,7 @@ export default function FootballApp() {
       console.error(`[page] benchPlayers dedup removed ${raw.length - result.length} duplicates!`, raw.map(p => `${p.id}:${p.name}`));
     }
     return result;
-  }, [getBenchPlayers, players, matchAbsences]);
+  }, [getBenchPlayers, players, matchAbsences, matchGuestSelections]);
   const unavailablePlayers = useMemo(() => ({
     injured: players.filter(p => p.injured),
     // Guest players are never in matchAbsences (different ID space from guest_players table)
@@ -413,9 +413,10 @@ export default function FootballApp() {
     );
     return players.filter(p => {
       const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
-      return !fieldKeys.has(key) && !p.injured && (p.is_guest || !matchAbsences.includes(p.id));
+      const includable = isSelectablePlayer(p) || (p.status === 'guest' && matchGuestSelections.includes(p.id));
+      return !fieldKeys.has(key) && !p.injured && includable && (p.is_guest || !matchAbsences.includes(p.id));
     });
-  }, [selectedPeriod, displayedOccupants, players, benchPlayers, matchAbsences]);
+  }, [selectedPeriod, displayedOccupants, players, benchPlayers, matchAbsences, matchGuestSelections]);
 
   // Bank vóór het wisselmoment (voor de swap modal: wie kan er ingewisseld worden?)
   const benchPlayersForSwap = useMemo(() => {
@@ -461,6 +462,7 @@ export default function FootballApp() {
         setSubMoments(derivedMoments);
       }
       fetchAbsences(selectedMatch.id);
+      fetchGuestSelections(selectedMatch.id);
       fetchSubstitutions(selectedMatch.id);
       fetchPlayers(selectedMatch.id);
       setIsEditingLineup(false);
@@ -471,7 +473,7 @@ export default function FootballApp() {
       // No match selected yet, fetch players without match context
       fetchPlayers();
     }
-  }, [selectedMatch?.id, fetchAbsences, fetchSubstitutions, fetchPlayers]);
+  }, [selectedMatch?.id, fetchAbsences, fetchGuestSelections, fetchSubstitutions, fetchPlayers]);
 
   // Herbereken formatie wanneer gameFormat laadt (teamSettings kan na selectedMatch binnenkomen)
   useEffect(() => {
@@ -499,6 +501,7 @@ export default function FootballApp() {
     onLineupChange: loadLineup,
     onSubstitutionsChange: fetchSubstitutions,
     onAbsencesChange: fetchAbsences,
+    onGuestSelectionsChange: fetchGuestSelections,
     onPeriodOverridesChange: fetchPeriodOverrides,
   });
 
@@ -523,9 +526,10 @@ export default function FootballApp() {
   useEffect(() => {
     if (view === 'pitch' && selectedMatch) {
       fetchAbsences(selectedMatch.id);
+      fetchGuestSelections(selectedMatch.id);
       if (players.length > 0) loadLineup(selectedMatch.id, players, playerCount);
     }
-  }, [view, selectedMatch?.id, players, fetchAbsences, loadLineup, playerCount]);
+  }, [view, selectedMatch?.id, players, fetchAbsences, fetchGuestSelections, loadLineup, playerCount]);
 
   // Haal afwezigheid op voor alle aankomende concept-wedstrijden (nodig voor cumulatieve vervoer/wasbeurt/consumpties berekening)
   useEffect(() => {
@@ -1217,7 +1221,22 @@ export default function FootballApp() {
       )}
 
       {showGuestModal && isManager && (
-        <GuestPlayerModal guestPool={guestPool} onAdd={handleAddGuest} onClose={() => setShowGuestModal(false)} />
+        <GuestPlayerModal
+          guestPool={guestPool}
+          rosterGuests={players.filter(p => !p.is_guest && p.status === 'guest' && !matchGuestSelections.includes(p.id))}
+          onAdd={handleAddGuest}
+          onSelectRosterGuest={async (player) => {
+            if (!selectedMatch) return;
+            const success = await toggleGuestSelection(player.id, selectedMatch.id);
+            if (success) {
+              setShowGuestModal(false);
+              toast.success(`✅ ${player.name} toegevoegd aan deze wedstrijd`);
+            } else {
+              toast.error('❌ Kon gastspeler niet toevoegen');
+            }
+          }}
+          onClose={() => setShowGuestModal(false)}
+        />
       )}
 
       {showAutoLineupWizard && teamSettings && (
@@ -1241,6 +1260,10 @@ export default function FootballApp() {
           selectedMatch={selectedMatch}
           isManager={isManager}
           substitutions={substitutions}
+          guestSelections={matchGuestSelections}
+          onToggleGuestSelection={async (playerId) => {
+            if (selectedMatch) await toggleGuestSelection(playerId, selectedMatch.id);
+          }}
           onToggleInjury={async (playerId) => {
             const success = await toggleInjury(playerId);
             if (success) {
@@ -1519,7 +1542,12 @@ export default function FootballApp() {
             onRefreshMatches={fetchMatches}
             onUpdateMatchReport={updateMatchReport}
             onUpdateMatchScore={updateMatchScore}
-            onAddMatch={(data) => addMatch({ ...data, season_id: activeSeason?.id ?? null })}
+            onAddMatch={async (data) => {
+              const seasonId = activeSeason?.id ?? await ensureActiveSeason();
+              const ok = await addMatch({ ...data, season_id: seasonId });
+              if (ok && !activeSeason) await fetchSeasons();
+              return ok;
+            }}
             onUpdateMatch={updateMatch}
             onCancelMatch={cancelMatch}
             onDeleteMatch={deleteMatch}
