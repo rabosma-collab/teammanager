@@ -70,39 +70,8 @@ export function usePlayers() {
       }
       let allPlayers: Player[] = Array.from(byId.values());
 
-      if (matchId) {
-        const { data: guestPlayers, error: guestError } = await supabase
-          .from('guest_players')
-          .select('*')
-          .eq('match_id', matchId)
-          .eq('team_id', currentTeam.id);
-
-        // If a newer fetch was started, discard this result
-        if (currentFetchId !== fetchIdRef.current) return [];
-
-        if (!guestError && guestPlayers) {
-          const guestSeen = new Set<string>();
-          const uniqueGuests = guestPlayers.filter((g: { name: string }) => {
-            const nameLower = g.name.toLowerCase().trim();
-            // Only deduplicate guest players among themselves; allow guests to share a name
-            // with a regular squad member (by design — guests may join even when everyone is present)
-            if (guestSeen.has(nameLower)) {
-              return false;
-            }
-            guestSeen.add(nameLower);
-            return true;
-          });
-
-          allPlayers = [
-            ...allPlayers,
-            ...uniqueGuests.map((g: any) => ({
-              ...g,
-              is_guest: true,
-              guest_match_id: g.match_id
-            }))
-          ];
-        }
-      }
+      // Gastspelers zijn reguliere players-rijen met status='guest' (Model A);
+      // ze worden per wedstrijd geselecteerd via match_guest_selections.
 
       // Final safety: deduplicate within same type (regular vs guest) by name.
       // A guest and a regular player with the same name are intentionally allowed to coexist.
@@ -184,63 +153,35 @@ export function usePlayers() {
     if (!trimmedName) return false;
 
     const nameLower = trimmedName.toLowerCase();
-    // Only block duplicate guest player names (not regular players — guests may share a name with a squad member)
-    if (players.some(p => p.is_guest && p.name.toLowerCase().trim() === nameLower)) {
-      toast.warning(`⚠️ Er is al een gastspeler met de naam "${trimmedName}"`);
+    // Een gast is een players-rij met status='guest'. Bestaat die naam al, dan is het
+    // dezelfde gast: die moet via de lijst "Eerder meegedaan" worden geselecteerd.
+    if (players.some(p => p.status === 'guest' && p.name.toLowerCase().trim() === nameLower)) {
+      toast.warning(`⚠️ Er bestaat al een gastspeler "${trimmedName}". Kies hem uit de lijst.`);
       return false;
     }
 
     try {
-      const { error } = await supabase
-        .from('guest_players')
+      const { data: inserted, error } = await supabase
+        .from('players')
         .insert({
           name: trimmedName,
           position,
-          match_id: matchId,
           team_id: currentTeam.id,
-          goals: 0,
-          assists: 0,
-          wash_count: 0,
-          min: 0,
-          injured: false
+          status: 'guest',
+          injured: false,
+          goals: 0, assists: 0, min: 0, wash_count: 0,
+          pac: 0, sho: 0, pas: 0, dri: 0, def: 0,
         })
-        .select();
+        .select('id')
+        .single();
 
       if (error) throw error;
 
-      // Upsert in pool: nieuw toevoegen of times_played verhogen via RPC
-      const now = new Date().toISOString();
-      const { data: existingPool } = await supabase
-        .from('guest_player_pool')
-        .select('id, times_played')
-        .eq('team_id', currentTeam.id)
-        .eq('name', trimmedName)
-        .maybeSingle();
-
-      if (existingPool) {
-        await supabase
-          .from('guest_player_pool')
-          .update({ times_played: existingPool.times_played + 1, last_used: now })
-          .eq('id', existingPool.id);
-      } else {
-        await supabase
-          .from('guest_player_pool')
-          .insert({ team_id: currentTeam.id, name: trimmedName, times_played: 1, last_used: now });
-      }
-
-      // Lokale pool bijwerken
-      setGuestPool(prev => {
-        const existing = prev.find(e => e.name.toLowerCase() === trimmedName.toLowerCase());
-        if (existing) {
-          return prev
-            .map(e => e.name.toLowerCase() === trimmedName.toLowerCase()
-              ? { ...e, times_played: e.times_played + 1, last_used: now }
-              : e
-            )
-            .sort((a, b) => b.last_used.localeCompare(a.last_used));
-        }
-        return [{ id: existingPool?.id ?? 0, name: trimmedName, times_played: 1, last_used: now }, ...prev];
-      });
+      // Direct voor deze wedstrijd selecteren
+      const { error: selError } = await supabase
+        .from('match_guest_selections')
+        .insert({ team_id: currentTeam.id, match_id: matchId, player_id: inserted.id });
+      if (selError && selError.code !== '23505') throw selError; // 23505 = al geselecteerd
 
       return true;
     } catch (error) {

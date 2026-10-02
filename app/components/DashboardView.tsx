@@ -236,24 +236,14 @@ export default function DashboardView({
     }
     const playerCount = GAME_FORMATS[gameFormat]?.players ?? 11;
     (async () => {
-      const [lineupResult, guestResult] = await Promise.all([
-        supabase.from('lineups').select('position, player_id').eq('match_id', dashboardMatch.id),
-        supabase.from('guest_players').select('id, lineup_position').eq('match_id', dashboardMatch.id).not('lineup_position', 'is', null),
-      ]);
+      const lineupResult = await supabase
+        .from('lineups').select('position, player_id').eq('match_id', dashboardMatch.id);
       const lineup: (Player | null)[] = Array(playerCount).fill(null);
       if (lineupResult.data) {
         for (const entry of lineupResult.data) {
           if (entry.position >= 0 && entry.position < playerCount && entry.player_id) {
-            const player = players.find((p: Player) => p.id === entry.player_id && !p.is_guest);
+            const player = players.find((p: Player) => p.id === entry.player_id);
             if (player) lineup[entry.position] = player;
-          }
-        }
-      }
-      if (guestResult.data) {
-        for (const guest of guestResult.data) {
-          if (guest.lineup_position >= 0 && guest.lineup_position < playerCount) {
-            const player = players.find((p: Player) => p.id === guest.id && p.is_guest);
-            if (player) lineup[guest.lineup_position] = player;
           }
         }
       }
