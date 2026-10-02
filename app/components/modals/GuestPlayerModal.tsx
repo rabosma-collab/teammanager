@@ -30,6 +30,11 @@ export default function GuestPlayerModal({ guestPool, rosterGuests, onAdd, onSel
     setName(entry.name);
   };
 
+  // Oude pool-namen die nog niet als gastspeler bestaan (na migratie meestal leeg)
+  const poolSuggestions = guestPool.filter(
+    e => !rosterGuests.some(g => g.name.toLowerCase().trim() === e.name.toLowerCase().trim())
+  );
+
   return (
     <DraggableModal onClose={onClose} className="w-[calc(100vw-2rem)] max-w-md">
       <div className="p-6">
@@ -40,8 +45,8 @@ export default function GuestPlayerModal({ guestPool, rosterGuests, onAdd, onSel
 
         {rosterGuests.length > 0 && (
           <div className="mb-4">
-            <label className="block text-sm font-bold mb-2 text-gray-300">Teamleden op gast-status</label>
-            <p className="text-xs text-gray-500 mb-2">Hun statistieken lopen door op hun eigen profiel.</p>
+            <label className="block text-sm font-bold mb-2 text-gray-300">Eerder meegedaan</label>
+            <p className="text-xs text-gray-500 mb-2">Kies een bestaande gastspeler; zijn statistieken lopen door.</p>
             <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
               {rosterGuests.map(player => (
                 <button
@@ -53,18 +58,18 @@ export default function GuestPlayerModal({ guestPool, rosterGuests, onAdd, onSel
                     <span className="truncate">{player.name}</span>
                     <span className="text-xs text-gray-400 flex-shrink-0">{positionEmojis[player.position]} {player.position}</span>
                   </span>
-                  <span className="text-xs px-2 py-0.5 bg-green-900/40 border border-green-700/50 rounded-full text-green-400 font-medium flex-shrink-0 ml-2">teamlid</span>
+                  <span className="text-xs px-2 py-0.5 bg-purple-900/40 border border-purple-700/50 rounded-full text-purple-300 font-medium flex-shrink-0 ml-2">gast</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {guestPool.length > 0 && (
+        {poolSuggestions.length > 0 && (
           <div className="mb-4">
-            <label className="block text-sm font-bold mb-2 text-gray-300">Eerder meegedaan</label>
+            <label className="block text-sm font-bold mb-2 text-gray-300">Oude namen</label>
             <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-              {guestPool.map(entry => (
+              {poolSuggestions.map(entry => (
                 <button
                   key={entry.id}
                   onClick={() => handlePoolSelect(entry)}
@@ -91,7 +96,7 @@ export default function GuestPlayerModal({ guestPool, rosterGuests, onAdd, onSel
               onChange={(e) => setName(e.target.value)}
               placeholder="Voer naam in..."
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
-              autoFocus={guestPool.length === 0}
+              autoFocus={poolSuggestions.length === 0 && rosterGuests.length === 0}
             />
           </div>
 
