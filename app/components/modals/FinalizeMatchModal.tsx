@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { MATCH_REPORT_MAX_LENGTH } from '../../lib/constants';
+import { MATCH_REPORT_MAX_LENGTH, isSelectablePlayer } from '../../lib/constants';
 import type { Match, Player, TeamSettings } from '../../lib/types';
 
 interface PlayerTally {
@@ -15,14 +15,14 @@ interface CardEntry {
   card_type: 'yellow' | 'red';
 }
 
-// Samengestelde sleutel zodat gast- en reguliere speler-id's niet botsen
 function playerKey(p: Player): string {
-  return `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+  return `r_${p.id}`;
 }
 
 interface FinalizeMatchModalProps {
   match: Match;
   players: Player[]; // alle spelers incl. gasten
+  guestSelections: number[]; // players.id van gasten die voor deze wedstrijd geselecteerd zijn
   teamSettings: TeamSettings | null;
   teamName: string;
   onFinalize: (params: {
@@ -68,6 +68,7 @@ function TallyCounter({
 export default function FinalizeMatchModal({
   match,
   players,
+  guestSelections,
   teamSettings,
   teamName,
   onFinalize,
@@ -113,12 +114,15 @@ export default function FinalizeMatchModal({
   const [saving, setSaving] = useState(false);
 
   const selectablePlayers = useMemo(
-    () => [...players].sort((a, b) => {
-      // Gasten onderaan, daarna op naam
-      if (!!a.is_guest !== !!b.is_guest) return a.is_guest ? 1 : -1;
-      return a.name.localeCompare(b.name);
-    }),
-    [players]
+    () => players
+      .filter(p => isSelectablePlayer(p) || (p.status === 'guest' && guestSelections.includes(p.id)))
+      .sort((a, b) => {
+        // Gasten onderaan, daarna op naam
+        const aGuest = a.status === 'guest', bGuest = b.status === 'guest';
+        if (aGuest !== bGuest) return aGuest ? 1 : -1;
+        return a.name.localeCompare(b.name);
+      }),
+    [players, guestSelections]
   );
 
   const playerByKey = useMemo(() => {
@@ -143,7 +147,7 @@ export default function FinalizeMatchModal({
 
   // Berekend overzicht van stats per speler voor bevestig-stap
   const computedStats = useMemo(() => {
-    type Entry = { key: string; player_id?: number; guest_player_id?: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number };
+    type Entry = { key: string; player_id?: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number };
     const map = new Map<string, Entry>();
 
     const ensure = (key: string) => {
@@ -151,8 +155,7 @@ export default function FinalizeMatchModal({
         const p = playerByKey.get(key);
         map.set(key, {
           key,
-          player_id:       p && !p.is_guest ? p.id : undefined,
-          guest_player_id: p && p.is_guest  ? p.id : undefined,
+          player_id: p?.id,
           goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, own_goals: 0,
         });
       }
@@ -184,7 +187,7 @@ export default function FinalizeMatchModal({
   const getDisplayName = (key: string) => {
     const p = playerByKey.get(key);
     if (!p) return key;
-    return p.is_guest ? `${p.name} (gast)` : p.name;
+    return p.status === 'guest' ? `${p.name} (gast)` : p.name;
   };
 
   const goNext = () => setStepIndex(i => Math.min(i + 1, steps.length - 1));
@@ -363,7 +366,7 @@ export default function FinalizeMatchModal({
                     }`}
                   >
                     <span className={`flex-1 min-w-[3rem] text-sm truncate ${hasAny ? 'font-bold text-white' : 'text-gray-400'}`}>
-                      {player.name}{player.is_guest && <span className="text-purple-400 font-normal"> (gast)</span>}
+                      {player.name}{player.status === 'guest' && <span className="text-purple-400 font-normal"> (gast)</span>}
                     </span>
                     <div className="w-[72px] flex justify-center shrink-0">
                       <TallyCounter
@@ -422,7 +425,7 @@ export default function FinalizeMatchModal({
                     >
                       <option value="">Selecteer speler…</option>
                       {selectablePlayers.map(p => (
-                        <option key={playerKey(p)} value={playerKey(p)}>{p.name}{p.is_guest ? ' (gast)' : ''}</option>
+                        <option key={playerKey(p)} value={playerKey(p)}>{p.name}{p.status === 'guest' ? ' (gast)' : ''}</option>
                       ))}
                     </select>
                     <select

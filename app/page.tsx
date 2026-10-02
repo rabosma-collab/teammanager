@@ -1352,6 +1352,7 @@ export default function FootballApp() {
         <FinalizeMatchModal
           match={selectedMatch}
           players={players}
+          guestSelections={matchGuestSelections}
           teamSettings={teamSettings}
           teamName={currentTeam?.name ?? 'Wij'}
           onFinalize={handleFinalizeMatch}
