@@ -360,10 +360,11 @@ export default function FootballApp() {
 
   const benchPlayers = useMemo(() => {
     const raw = getBenchPlayers(players, matchAbsences, matchGuestSelections);
-    // Final dedup safety: by player id
-    const seen = new Map<number, Player>();
+    // Final dedup safety: composite key so guest/regular ids can't collide
+    const seen = new Map<string, Player>();
     for (const p of raw) {
-      if (!seen.has(p.id)) seen.set(p.id, p);
+      const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+      if (!seen.has(key)) seen.set(key, p);
     }
     const result = Array.from(seen.values());
     if (result.length !== raw.length) {
@@ -909,7 +910,7 @@ export default function FootballApp() {
     calcMinutes: boolean;
     goalsFor: number | null;
     goalsAgainst: number | null;
-    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>;
+    stats: Array<{ player_id?: number; guest_player_id?: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>;
     matchReport: string | null;
   }) => {
     if (!selectedMatch || !canFinalizeMatch()) return;

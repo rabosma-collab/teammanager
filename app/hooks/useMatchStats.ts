@@ -17,7 +17,7 @@ export function useMatchStats() {
     try {
       const { data, error } = await supabase
         .from('match_player_stats')
-        .select(`*, players!player_id (name)`)
+        .select(`*, players!player_id (name), guest_players!guest_player_id (name)`)
         .eq('match_id', matchId)
         .eq('team_id', currentTeam.id);
 
@@ -30,6 +30,7 @@ export function useMatchStats() {
         goals: number; assists: number; yellow_cards: number;
         red_cards: number; own_goals: number;
         players?: { name: string } | null;
+        guest_players?: { name: string } | null;
       };
 
       const stats: MatchPlayerStats[] = (data || []).map((row: StatsRow) => ({
@@ -43,7 +44,7 @@ export function useMatchStats() {
         yellow_cards: row.yellow_cards,
         red_cards: row.red_cards,
         own_goals: row.own_goals ?? 0,
-        player_name: row.players?.name ?? undefined,
+        player_name: row.players?.name ?? row.guest_players?.name ?? undefined,
       }));
 
       setStatsCache(prev => ({ ...prev, [matchId]: stats }));
@@ -62,7 +63,7 @@ export function useMatchStats() {
     try {
       const { data, error } = await supabase
         .from('match_player_stats')
-        .select(`*, players!player_id (name)`)
+        .select(`*, players!player_id (name), guest_players!guest_player_id (name)`)
         .in('match_id', matchIds)
         .eq('team_id', currentTeam.id);
 
@@ -82,7 +83,7 @@ export function useMatchStats() {
           yellow_cards: row.yellow_cards,
           red_cards: row.red_cards,
           own_goals: row.own_goals ?? 0,
-          player_name: row.players?.name ?? undefined,
+          player_name: row.players?.name ?? row.guest_players?.name ?? undefined,
         };
         if (!byMatch[row.match_id]) byMatch[row.match_id] = [];
         byMatch[row.match_id].push(stat);
@@ -98,7 +99,7 @@ export function useMatchStats() {
   // Sla statistieken op via de RPC (delta-safe, werkt ook voor edits achteraf)
   const saveMatchStats = useCallback(async (
     matchId: number,
-    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>
+    stats: Array<{ player_id?: number; guest_player_id?: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>
   ): Promise<boolean> => {
     if (!currentTeam) return false;
 

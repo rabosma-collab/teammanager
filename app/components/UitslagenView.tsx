@@ -813,9 +813,10 @@ export default function UitslagenView({
       {/* ── Modals ── */}
       {editingTakenMatch && (() => {
         const idx = upcomingMatches.findIndex(m => m.id === editingTakenMatch.id);
+        const freshMatch = idx >= 0 ? upcomingMatches[idx] : editingTakenMatch;
         return (
           <TakenEditModal
-            match={editingTakenMatch}
+            match={freshMatch}
             precedingMatches={idx >= 0 ? upcomingMatches.slice(0, idx) : []}
             laterMatches={idx >= 0 ? upcomingMatches.slice(idx + 1) : []}
             players={players}
