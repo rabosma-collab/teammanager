@@ -2,7 +2,22 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { positionEmojis } from '../lib/constants';
 import type { Player, Match, TeamSettings, Season, PlayerSeasonStats } from '../lib/types';
 import { useStatBreakdown } from '../hooks/useStatBreakdown';
+import { supabase } from '../lib/supabase';
+import { useTeamContext } from '../contexts/TeamContext';
 import StatBreakdown from './StatBreakdown';
+
+interface GuestAgg {
+  name: string;
+  goals: number;
+  assists: number;
+  yellow_cards: number;
+  red_cards: number;
+  own_goals: number;
+  min: number;
+}
+
+// Kolommen die voor gastspelers bestaan (geen taken/gespeelde minuten)
+const GUEST_FIELDS = ['goals', 'assists', 'yellow_cards', 'red_cards', 'min'] as const;
 
 interface StatsViewProps {
   players: Player[];
@@ -73,6 +88,7 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
   const [mobileStatField, setMobileStatField] = useState<string | null>(null);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const { data: breakdownData, loading: breakdownLoading, fetchBreakdown, close: closeBreakdown } = useStatBreakdown();
+  const { currentTeam } = useTeamContext();
 
   const activeSeasonId = useMemo(() => seasons.find(s => s.is_active)?.id ?? null, [seasons]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
@@ -82,6 +98,37 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
   const viewingSeasonId = selectedSeasonId ?? activeSeasonId;
   const isArchived = viewingSeasonId != null && viewingSeasonId !== activeSeasonId;
   const effectiveIsAdmin = isAdmin && !isArchived;
+
+  // Gaststatistieken (read-only), geaggregeerd op naam voor het bekeken seizoen
+  const [guestStats, setGuestStats] = useState<GuestAgg[]>([]);
+  useEffect(() => {
+    if (!currentTeam) { setGuestStats([]); return; }
+    let cancelled = false;
+    (async () => {
+      let query = supabase
+        .from('guest_players')
+        .select('name, goals, assists, yellow_cards, red_cards, own_goals, min, matches!inner(season_id)')
+        .eq('team_id', currentTeam.id);
+      if (viewingSeasonId != null) query = query.eq('matches.season_id', viewingSeasonId);
+      const { data, error } = await query;
+      if (cancelled || error || !data) { if (!cancelled && error) setGuestStats([]); return; }
+      const agg = new Map<string, GuestAgg>();
+      for (const row of data as unknown as GuestAgg[]) {
+        const key = (row.name ?? '').toLowerCase().trim();
+        if (!key) continue;
+        const cur = agg.get(key) ?? { name: row.name, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, own_goals: 0, min: 0 };
+        cur.goals        += row.goals        ?? 0;
+        cur.assists      += row.assists      ?? 0;
+        cur.yellow_cards += row.yellow_cards ?? 0;
+        cur.red_cards    += row.red_cards    ?? 0;
+        cur.own_goals    += row.own_goals    ?? 0;
+        cur.min          += row.min          ?? 0;
+        agg.set(key, cur);
+      }
+      setGuestStats(Array.from(agg.values()));
+    })();
+    return () => { cancelled = true; };
+  }, [currentTeam, viewingSeasonId]);
 
   useEffect(() => {
     if (!isArchived || viewingSeasonId == null || !fetchPlayerSeasonStats) return;
@@ -202,6 +249,22 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
     [trackGoals, trackAssists, trackCards, trackMinutes, trackPlayedMinutes, trackWasbeurt, trackConsumpties, trackVervoer]
   );
 
+  // Gastkolommen = getrackte statvelden die voor gasten bestaan
+  const guestStatFields = useMemo(
+    () => statFields.filter((f): f is typeof GUEST_FIELDS[number] => (GUEST_FIELDS as readonly string[]).includes(f)),
+    [statFields]
+  );
+
+  const sortedGuests = useMemo(() => {
+    const key = guestStatFields.includes(sortKey as typeof GUEST_FIELDS[number])
+      ? (sortKey as keyof GuestAgg)
+      : (guestStatFields[0] as keyof GuestAgg) ?? 'goals';
+    return [...guestStats].sort((a, b) => {
+      const diff = ((b[key] as number) ?? 0) - ((a[key] as number) ?? 0);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    });
+  }, [guestStats, guestStatFields, sortKey]);
+
   const columns: { key: SortKey; label: string }[] = [
     { key: 'name', label: 'Speler' },
     { key: 'position', label: 'Positie' },
@@ -227,6 +290,15 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
       return diff !== 0 ? diff : a.name.localeCompare(b.name);
     });
   }, [regularPlayers, activeMobileStat]);
+
+  const guestStatApplies = !!activeMobileStat && (GUEST_FIELDS as readonly string[]).includes(activeMobileStat);
+  const mobileSortedGuests = useMemo(() => {
+    if (!guestStatApplies || !activeMobileStat) return [];
+    return [...guestStats].sort((a, b) => {
+      const diff = ((b[activeMobileStat as keyof GuestAgg] as number) ?? 0) - ((a[activeMobileStat as keyof GuestAgg] as number) ?? 0);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    });
+  }, [guestStats, activeMobileStat, guestStatApplies]);
 
   const activePositionLabel = POSITION_FILTERS.find(f => f.value === filterPosition)?.label ?? 'Alle posities';
 
@@ -348,6 +420,28 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
             <p className="text-gray-500 text-sm text-center py-8">Geen spelers gevonden</p>
           )}
         </div>
+
+        {/* Gastspelers (read-only) */}
+        {filterPosition === 'all' && mobileSortedGuests.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-sm font-bold text-purple-300 mb-2">👤 Gastspelers</h3>
+            <div className="bg-gray-800 rounded-lg overflow-hidden">
+              {mobileSortedGuests.map((g, index) => {
+                const statValue = activeMobileStat ? ((g as unknown as Record<string, number>)[activeMobileStat] ?? 0) : 0;
+                return (
+                  <div key={g.name} className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0">
+                    <span className="text-gray-500 text-sm font-bold w-6 text-right shrink-0">{index + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-bold text-white truncate">{g.name}</span>
+                      <span className="block text-xs text-purple-400/80">gast</span>
+                    </div>
+                    <span className="text-xl font-black text-white tabular-nums w-8 text-right shrink-0">{statValue}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Desktop: positiefilter + tabel ── */}
@@ -422,6 +516,39 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
             </table>
           </div>
         </div>
+
+        {/* Gastspelers (read-only) */}
+        {guestStatFields.length > 0 && sortedGuests.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-sm font-bold text-purple-300 mb-2">👤 Gastspelers</h3>
+            <div className="overflow-x-auto pb-1">
+              <div className="bg-gray-800 rounded-lg overflow-hidden min-w-max pr-4">
+                <table className="w-full">
+                  <thead className="bg-gray-700">
+                    <tr className="text-left">
+                      <th className="p-2 sm:p-4 text-sm sm:text-base sticky left-0 bg-gray-700 z-10">Speler</th>
+                      {guestStatFields.map(f => (
+                        <th key={f} className="p-2 sm:p-4 text-sm sm:text-base">{STAT_LABELS_SHORT[f] ?? f}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedGuests.map(g => (
+                      <tr key={g.name} className="border-t border-gray-700 hover:bg-gray-700/50">
+                        <td className="p-2 sm:p-4 font-bold text-sm sm:text-base sticky left-0 bg-gray-800 z-10">
+                          {g.name} <span className="text-purple-400/80 font-normal text-xs">gast</span>
+                        </td>
+                        {guestStatFields.map(f => (
+                          <td key={f} className="p-2 sm:p-4 text-sm sm:text-base">{(g as unknown as Record<string, number>)[f] ?? 0}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stat-edit overlay */}
