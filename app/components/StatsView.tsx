@@ -2,21 +2,9 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { positionEmojis } from '../lib/constants';
 import type { Player, Match, TeamSettings, Season, PlayerSeasonStats } from '../lib/types';
 import { useStatBreakdown } from '../hooks/useStatBreakdown';
-import { supabase } from '../lib/supabase';
-import { useTeamContext } from '../contexts/TeamContext';
 import StatBreakdown from './StatBreakdown';
 
-interface GuestAgg {
-  name: string;
-  goals: number;
-  assists: number;
-  yellow_cards: number;
-  red_cards: number;
-  own_goals: number;
-  min: number;
-}
-
-// Kolommen die voor gastspelers bestaan (geen taken/gespeelde minuten)
+// Kolommen die voor gastspelers getoond worden (geen taken/gespeelde minuten)
 const GUEST_FIELDS = ['goals', 'assists', 'yellow_cards', 'red_cards', 'min'] as const;
 
 interface StatsViewProps {
@@ -88,7 +76,6 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
   const [mobileStatField, setMobileStatField] = useState<string | null>(null);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const { data: breakdownData, loading: breakdownLoading, fetchBreakdown, close: closeBreakdown } = useStatBreakdown();
-  const { currentTeam } = useTeamContext();
 
   const activeSeasonId = useMemo(() => seasons.find(s => s.is_active)?.id ?? null, [seasons]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
@@ -98,37 +85,6 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
   const viewingSeasonId = selectedSeasonId ?? activeSeasonId;
   const isArchived = viewingSeasonId != null && viewingSeasonId !== activeSeasonId;
   const effectiveIsAdmin = isAdmin && !isArchived;
-
-  // Gaststatistieken (read-only), geaggregeerd op naam voor het bekeken seizoen
-  const [guestStats, setGuestStats] = useState<GuestAgg[]>([]);
-  useEffect(() => {
-    if (!currentTeam) { setGuestStats([]); return; }
-    let cancelled = false;
-    (async () => {
-      let query = supabase
-        .from('guest_players')
-        .select('name, goals, assists, yellow_cards, red_cards, own_goals, min, matches!inner(season_id)')
-        .eq('team_id', currentTeam.id);
-      if (viewingSeasonId != null) query = query.eq('matches.season_id', viewingSeasonId);
-      const { data, error } = await query;
-      if (cancelled || error || !data) { if (!cancelled && error) setGuestStats([]); return; }
-      const agg = new Map<string, GuestAgg>();
-      for (const row of data as unknown as GuestAgg[]) {
-        const key = (row.name ?? '').toLowerCase().trim();
-        if (!key) continue;
-        const cur = agg.get(key) ?? { name: row.name, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, own_goals: 0, min: 0 };
-        cur.goals        += row.goals        ?? 0;
-        cur.assists      += row.assists      ?? 0;
-        cur.yellow_cards += row.yellow_cards ?? 0;
-        cur.red_cards    += row.red_cards    ?? 0;
-        cur.own_goals    += row.own_goals    ?? 0;
-        cur.min          += row.min          ?? 0;
-        agg.set(key, cur);
-      }
-      setGuestStats(Array.from(agg.values()));
-    })();
-    return () => { cancelled = true; };
-  }, [currentTeam, viewingSeasonId]);
 
   useEffect(() => {
     if (!isArchived || viewingSeasonId == null || !fetchPlayerSeasonStats) return;
@@ -150,10 +106,12 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
     const stats = archivedStats[viewingSeasonId];
     if (!stats) return [];
     const posById = new Map(players.map(p => [p.id, p.position] as const));
+    const statusById = new Map(players.map(p => [p.id, p.status] as const));
     return stats.map(s => ({
       id: s.player_id,
       name: s.player?.name ?? 'Onbekend',
       position: posById.get(s.player_id) ?? '',
+      status: statusById.get(s.player_id) ?? 'active',
       goals: s.goals, assists: s.assists,
       wash_count: s.wash_count, consumption_count: s.consumption_count, transport_count: s.transport_count,
       yellow_cards: s.yellow_cards, red_cards: s.red_cards, own_goals: s.own_goals,
@@ -170,7 +128,12 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
   };
 
   const regularPlayers = useMemo(
-    () => displayPlayers.filter(p => !p.is_guest && (filterPosition === 'all' || p.position === filterPosition)),
+    () => displayPlayers.filter(p => !p.is_guest && p.status !== 'guest' && (filterPosition === 'all' || p.position === filterPosition)),
+    [displayPlayers, filterPosition]
+  );
+
+  const guestPlayers = useMemo(
+    () => displayPlayers.filter(p => p.status === 'guest' && (filterPosition === 'all' || p.position === filterPosition)),
     [displayPlayers, filterPosition]
   );
 
@@ -257,13 +220,13 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
 
   const sortedGuests = useMemo(() => {
     const key = guestStatFields.includes(sortKey as typeof GUEST_FIELDS[number])
-      ? (sortKey as keyof GuestAgg)
-      : (guestStatFields[0] as keyof GuestAgg) ?? 'goals';
-    return [...guestStats].sort((a, b) => {
-      const diff = ((b[key] as number) ?? 0) - ((a[key] as number) ?? 0);
+      ? sortKey
+      : (guestStatFields[0] ?? 'goals');
+    return [...guestPlayers].sort((a, b) => {
+      const diff = ((b as unknown as Record<string, number>)[key] ?? 0) - ((a as unknown as Record<string, number>)[key] ?? 0);
       return diff !== 0 ? diff : a.name.localeCompare(b.name);
     });
-  }, [guestStats, guestStatFields, sortKey]);
+  }, [guestPlayers, guestStatFields, sortKey]);
 
   const columns: { key: SortKey; label: string }[] = [
     { key: 'name', label: 'Speler' },
@@ -294,11 +257,11 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
   const guestStatApplies = !!activeMobileStat && (GUEST_FIELDS as readonly string[]).includes(activeMobileStat);
   const mobileSortedGuests = useMemo(() => {
     if (!guestStatApplies || !activeMobileStat) return [];
-    return [...guestStats].sort((a, b) => {
-      const diff = ((b[activeMobileStat as keyof GuestAgg] as number) ?? 0) - ((a[activeMobileStat as keyof GuestAgg] as number) ?? 0);
+    return [...guestPlayers].sort((a, b) => {
+      const diff = ((b as unknown as Record<string, number>)[activeMobileStat] ?? 0) - ((a as unknown as Record<string, number>)[activeMobileStat] ?? 0);
       return diff !== 0 ? diff : a.name.localeCompare(b.name);
     });
-  }, [guestStats, activeMobileStat, guestStatApplies]);
+  }, [guestPlayers, activeMobileStat, guestStatApplies]);
 
   const activePositionLabel = POSITION_FILTERS.find(f => f.value === filterPosition)?.label ?? 'Alle posities';
 
@@ -421,7 +384,7 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
           )}
         </div>
 
-        {/* Gastspelers (read-only) */}
+        {/* Gastspelers */}
         {filterPosition === 'all' && mobileSortedGuests.length > 0 && (
           <div className="mt-6">
             <h3 className="text-sm font-bold text-purple-300 mb-2">👤 Gastspelers</h3>
@@ -429,13 +392,28 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
               {mobileSortedGuests.map((g, index) => {
                 const statValue = activeMobileStat ? ((g as unknown as Record<string, number>)[activeMobileStat] ?? 0) : 0;
                 return (
-                  <div key={g.name} className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0">
+                  <div
+                    key={g.id}
+                    className={`flex items-center gap-3 px-4 py-3 border-b border-gray-700 last:border-b-0${!isEditing && !isArchived && activeMobileStat ? ' cursor-pointer active:bg-gray-700/60' : ''}`}
+                    onClick={() => !isEditing && !isArchived && activeMobileStat && handleStatClick(g.id, g.name, activeMobileStat)}
+                  >
                     <span className="text-gray-500 text-sm font-bold w-6 text-right shrink-0">{index + 1}</span>
                     <div className="flex-1 min-w-0">
                       <span className="font-bold text-white truncate">{g.name}</span>
                       <span className="block text-xs text-purple-400/80">gast</span>
                     </div>
-                    <span className="text-xl font-black text-white tabular-nums w-8 text-right shrink-0">{statValue}</span>
+                    {activeMobileStat && (
+                      isEditing ? (
+                        <button
+                          onClick={() => handleCellClick(g.id, g.name, activeMobileStat, statValue)}
+                          className="min-w-[2.5rem] px-2 py-1 bg-gray-700 border border-blue-500/60 rounded text-white text-sm font-bold hover:bg-blue-600/30 hover:border-blue-400 transition"
+                        >
+                          {statValue}
+                        </button>
+                      ) : (
+                        <span className="text-xl font-black text-white tabular-nums w-8 text-right shrink-0">{statValue}</span>
+                      )
+                    )}
                   </div>
                 );
               })}
@@ -517,7 +495,7 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
           </div>
         </div>
 
-        {/* Gastspelers (read-only) */}
+        {/* Gastspelers */}
         {guestStatFields.length > 0 && sortedGuests.length > 0 && (
           <div className="mt-6">
             <h3 className="text-sm font-bold text-purple-300 mb-2">👤 Gastspelers</h3>
@@ -534,12 +512,22 @@ export default function StatsView({ players, matches, isAdmin, onUpdateStat, tea
                   </thead>
                   <tbody>
                     {sortedGuests.map(g => (
-                      <tr key={g.name} className="border-t border-gray-700 hover:bg-gray-700/50">
+                      <tr key={g.id} className="border-t border-gray-700 hover:bg-gray-700/50">
                         <td className="p-2 sm:p-4 font-bold text-sm sm:text-base sticky left-0 bg-gray-800 z-10">
                           {g.name} <span className="text-purple-400/80 font-normal text-xs">gast</span>
                         </td>
                         {guestStatFields.map(f => (
-                          <td key={f} className="p-2 sm:p-4 text-sm sm:text-base">{(g as unknown as Record<string, number>)[f] ?? 0}</td>
+                          <StatCell
+                            key={f}
+                            isEditing={isEditing}
+                            interactive={!isArchived}
+                            value={g[f] ?? 0}
+                            field={f}
+                            playerId={g.id}
+                            playerName={g.name}
+                            onCellClick={handleCellClick}
+                            onStatClick={handleStatClick}
+                          />
                         ))}
                       </tr>
                     ))}

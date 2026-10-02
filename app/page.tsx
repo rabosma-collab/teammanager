@@ -834,7 +834,10 @@ export default function FootballApp() {
     const success = await addGuestPlayer(name, position, selectedMatch.id);
     if (success) {
       setShowGuestModal(false);
-      await fetchPlayers(selectedMatch.id);
+      await Promise.all([
+        fetchPlayers(selectedMatch.id),
+        fetchGuestSelections(selectedMatch.id),
+      ]);
       toast.success(`✅ Gastspeler ${name} toegevoegd!`);
     } else {
       toast.error('❌ Kon gastspeler niet toevoegen');
