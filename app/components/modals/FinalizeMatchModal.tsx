@@ -11,8 +11,13 @@ interface PlayerTally {
 }
 
 interface CardEntry {
-  player_id: number | null;
+  player_key: string | null;
   card_type: 'yellow' | 'red';
+}
+
+// Samengestelde sleutel zodat gast- en reguliere speler-id's niet botsen
+function playerKey(p: Player): string {
+  return `${p.is_guest ? 'g' : 'r'}_${p.id}`;
 }
 
 interface FinalizeMatchModalProps {
@@ -24,7 +29,7 @@ interface FinalizeMatchModalProps {
     calcMinutes: boolean;
     goalsFor: number | null;
     goalsAgainst: number | null;
-    stats: Array<{ player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>;
+    stats: Array<{ player_id?: number; guest_player_id?: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>;
     matchReport: string | null;
   }) => Promise<void>;
   onClose: () => void;
@@ -89,18 +94,18 @@ export default function FinalizeMatchModal({
   const [goalsFor, setGoalsFor] = useState<number | null>(null);
   const [goalsAgainst, setGoalsAgainst] = useState<number | null>(null);
 
-  // Step 2 — Doelpunten (tally per speler)
-  const [tally, setTally] = useState<Record<number, PlayerTally>>({});
+  // Step 2 — Doelpunten (tally per speler, gesleuteld op composite key)
+  const [tally, setTally] = useState<Record<string, PlayerTally>>({});
 
-  const adjustTally = (playerId: number, field: keyof PlayerTally, delta: number) => {
+  const adjustTally = (key: string, field: keyof PlayerTally, delta: number) => {
     setTally(prev => {
-      const cur = prev[playerId] ?? { goals: 0, assists: 0, own_goals: 0 };
-      return { ...prev, [playerId]: { ...cur, [field]: Math.max(0, cur[field] + delta) } };
+      const cur = prev[key] ?? { goals: 0, assists: 0, own_goals: 0 };
+      return { ...prev, [key]: { ...cur, [field]: Math.max(0, cur[field] + delta) } };
     });
   };
 
   // Step 3 — Kaarten
-  const [cards, setCards] = useState<CardEntry[]>([{ player_id: null, card_type: 'yellow' }]);
+  const [cards, setCards] = useState<CardEntry[]>([{ player_key: null, card_type: 'yellow' }]);
 
   // Step 4 — Verslag
   const [matchReport, setMatchReport] = useState('');
@@ -108,9 +113,19 @@ export default function FinalizeMatchModal({
   const [saving, setSaving] = useState(false);
 
   const selectablePlayers = useMemo(
-    () => players.filter(p => !p.is_guest).sort((a, b) => a.name.localeCompare(b.name)),
+    () => [...players].sort((a, b) => {
+      // Gasten onderaan, daarna op naam
+      if (!!a.is_guest !== !!b.is_guest) return a.is_guest ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    }),
     [players]
   );
+
+  const playerByKey = useMemo(() => {
+    const m = new Map<string, Player>();
+    for (const p of players) m.set(playerKey(p), p);
+    return m;
+  }, [players]);
 
   // Totaal eigen goals (voor validatie)
   const totalGoalsEntered = useMemo(
@@ -128,17 +143,25 @@ export default function FinalizeMatchModal({
 
   // Berekend overzicht van stats per speler voor bevestig-stap
   const computedStats = useMemo(() => {
-    const map = new Map<number, { player_id: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number }>();
+    type Entry = { key: string; player_id?: number; guest_player_id?: number; goals: number; assists: number; yellow_cards: number; red_cards: number; own_goals: number };
+    const map = new Map<string, Entry>();
 
-    const ensure = (id: number) => {
-      if (!map.has(id)) map.set(id, { player_id: id, goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, own_goals: 0 });
-      return map.get(id)!;
+    const ensure = (key: string) => {
+      if (!map.has(key)) {
+        const p = playerByKey.get(key);
+        map.set(key, {
+          key,
+          player_id:       p && !p.is_guest ? p.id : undefined,
+          guest_player_id: p && p.is_guest  ? p.id : undefined,
+          goals: 0, assists: 0, yellow_cards: 0, red_cards: 0, own_goals: 0,
+        });
+      }
+      return map.get(key)!;
     };
 
-    for (const [idStr, t] of Object.entries(tally)) {
-      const id = parseInt(idStr);
+    for (const [key, t] of Object.entries(tally)) {
       if (t.goals > 0 || t.assists > 0 || t.own_goals > 0) {
-        const s = ensure(id);
+        const s = ensure(key);
         s.goals     = t.goals;
         s.assists   = t.assists;
         s.own_goals = t.own_goals;
@@ -146,8 +169,8 @@ export default function FinalizeMatchModal({
     }
 
     for (const c of cards) {
-      if (c.player_id) {
-        const s = ensure(c.player_id);
+      if (c.player_key) {
+        const s = ensure(c.player_key);
         if (c.card_type === 'yellow') s.yellow_cards++;
         else s.red_cards++;
       }
@@ -156,10 +179,13 @@ export default function FinalizeMatchModal({
     return Array.from(map.values()).filter(s =>
       s.goals > 0 || s.assists > 0 || s.yellow_cards > 0 || s.red_cards > 0 || s.own_goals > 0
     );
-  }, [tally, cards]);
+  }, [tally, cards, playerByKey]);
 
-  const getPlayerName = (id: number) =>
-    players.find(p => p.id === id)?.name ?? `Speler ${id}`;
+  const getDisplayName = (key: string) => {
+    const p = playerByKey.get(key);
+    if (!p) return key;
+    return p.is_guest ? `${p.name} (gast)` : p.name;
+  };
 
   const goNext = () => setStepIndex(i => Math.min(i + 1, steps.length - 1));
   const goBack = () => setStepIndex(i => Math.max(i - 1, 0));
@@ -170,7 +196,7 @@ export default function FinalizeMatchModal({
       calcMinutes,
       goalsFor,
       goalsAgainst,
-      stats: computedStats,
+      stats: computedStats.map(({ key, ...s }) => s),
       matchReport: matchReport.trim() || null,
     });
     setSaving(false);
@@ -326,36 +352,37 @@ export default function FinalizeMatchModal({
                 <span className="w-[72px] text-center text-orange-500">EG Eigen</span>
               </div>
               {selectablePlayers.map(player => {
-                const t = tally[player.id] ?? { goals: 0, assists: 0, own_goals: 0 };
+                const key = playerKey(player);
+                const t = tally[key] ?? { goals: 0, assists: 0, own_goals: 0 };
                 const hasAny = t.goals > 0 || t.assists > 0 || t.own_goals > 0;
                 return (
                   <div
-                    key={player.id}
+                    key={key}
                     className={`flex items-center gap-1 px-2 py-2 rounded-lg transition ${
                       hasAny ? 'bg-gray-700/70' : 'bg-gray-700/20'
                     }`}
                   >
                     <span className={`flex-1 min-w-[3rem] text-sm truncate ${hasAny ? 'font-bold text-white' : 'text-gray-400'}`}>
-                      {player.name}
+                      {player.name}{player.is_guest && <span className="text-purple-400 font-normal"> (gast)</span>}
                     </span>
                     <div className="w-[72px] flex justify-center shrink-0">
                       <TallyCounter
                         value={t.goals}
-                        onAdjust={d => adjustTally(player.id, 'goals', d)}
+                        onAdjust={d => adjustTally(key, 'goals', d)}
                       />
                     </div>
                     {trackAssists && (
                       <div className="w-[72px] flex justify-center shrink-0">
                         <TallyCounter
                           value={t.assists}
-                          onAdjust={d => adjustTally(player.id, 'assists', d)}
+                          onAdjust={d => adjustTally(key, 'assists', d)}
                         />
                       </div>
                     )}
                     <div className="w-[72px] flex justify-center shrink-0">
                       <TallyCounter
                         value={t.own_goals}
-                        onAdjust={d => adjustTally(player.id, 'own_goals', d)}
+                        onAdjust={d => adjustTally(key, 'own_goals', d)}
                       />
                     </div>
                   </div>
@@ -386,16 +413,16 @@ export default function FinalizeMatchModal({
                   <span className="text-gray-400 text-sm font-bold w-5 flex-shrink-0">{i + 1}</span>
                   <div className="flex gap-2 flex-1">
                     <select
-                      value={card.player_id ?? ''}
+                      value={card.player_key ?? ''}
                       onChange={e => {
-                        const v = e.target.value ? parseInt(e.target.value) : null;
-                        setCards(prev => prev.map((c, j) => j === i ? { ...c, player_id: v } : c));
+                        const v = e.target.value || null;
+                        setCards(prev => prev.map((c, j) => j === i ? { ...c, player_key: v } : c));
                       }}
                       className="flex-1 px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-white text-sm"
                     >
                       <option value="">Selecteer speler…</option>
                       {selectablePlayers.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
+                        <option key={playerKey(p)} value={playerKey(p)}>{p.name}{p.is_guest ? ' (gast)' : ''}</option>
                       ))}
                     </select>
                     <select
@@ -420,7 +447,7 @@ export default function FinalizeMatchModal({
               ))}
 
               <button
-                onClick={() => setCards(prev => [...prev, { player_id: null, card_type: 'yellow' }])}
+                onClick={() => setCards(prev => [...prev, { player_key: null, card_type: 'yellow' }])}
                 className="w-full py-2 border border-dashed border-gray-600 rounded-lg text-sm text-gray-400 hover:text-white hover:border-gray-400 transition"
               >
                 + Kaart toevoegen
@@ -490,8 +517,8 @@ export default function FinalizeMatchModal({
                   <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-2">Statistieken</div>
                   <div className="space-y-1">
                     {computedStats.map(s => (
-                      <div key={s.player_id} className="flex items-center justify-between text-sm py-1.5 px-3 bg-gray-700/30 rounded">
-                        <span className="font-medium">{getPlayerName(s.player_id!)}</span>
+                      <div key={s.key} className="flex items-center justify-between text-sm py-1.5 px-3 bg-gray-700/30 rounded">
+                        <span className="font-medium">{getDisplayName(s.key)}</span>
                         <div className="flex gap-3 text-xs">
                           {s.goals > 0 && <span className="text-green-400">⚽ {s.goals}</span>}
                           {s.assists > 0 && <span className="text-blue-400">🅰️ {s.assists}</span>}

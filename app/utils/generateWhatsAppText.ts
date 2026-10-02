@@ -1,6 +1,6 @@
 import type { Match, Player, Substitution } from '../lib/types';
 import type { TaskBadge } from '../lib/taskAssignment';
-import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory } from '../lib/constants';
+import { formationLabels, DEFAULT_GAME_FORMAT, getPositionCategory, isSelectablePlayer } from '../lib/constants';
 
 const POSITION_ORDER = ['Keeper', 'Verdediger', 'Middenvelder', 'Aanvaller'];
 const POSITION_EMOJIS: Record<string, string> = {
@@ -107,7 +107,7 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
 
       // Bank
       const bankPlayers = players.filter(
-        p => !p.is_guest && !fieldIds.has(p.id) && !p.injured && !matchAbsences.includes(p.id)
+        p => !p.is_guest && isSelectablePlayer(p) && !fieldIds.has(p.id) && !p.injured && !matchAbsences.includes(p.id)
       );
       if (bankPlayers.length > 0) {
         lines.push(`🪑 Bank: ${bankPlayers.map(p => p.name).join(', ')}`);
@@ -148,8 +148,8 @@ export function generateWhatsAppText(data: WhatsAppTextData): string {
   }
 
   // Afwezigen
-  const injuredPlayers = players.filter(p => !p.is_guest && p.injured);
-  const absentPlayers = players.filter(p => !p.is_guest && matchAbsences.includes(p.id) && !p.injured);
+  const injuredPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p) && p.injured);
+  const absentPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p) && matchAbsences.includes(p.id) && !p.injured);
 
   if (injuredPlayers.length > 0 || absentPlayers.length > 0) {
     lines.push('');
