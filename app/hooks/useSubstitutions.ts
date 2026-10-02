@@ -48,8 +48,8 @@ export function useSubstitutions() {
   ) => {
     const existing = substitutions.filter(s => s.substitution_number === subNumber);
     setTempSubs(existing.map(s => ({
-      out: players.find(p => p.id === s.player_out_id && Boolean(p.is_guest) === Boolean(s.player_out_is_guest)) || null,
-      in: players.find(p => p.id === s.player_in_id && Boolean(p.is_guest) === Boolean(s.player_in_is_guest)) || null,
+      out: players.find(p => p.id === s.player_out_id) || null,
+      in: players.find(p => p.id === s.player_in_id) || null,
     })));
     setShowSubModal(subNumber);
     setShowSubModalMinute(minute ?? null);
@@ -90,7 +90,7 @@ export function useSubstitutions() {
       return false;
     }
 
-    const playerKey = (p: Player) => `${p.is_guest ? 'g' : 'r'}_${p.id}`;
+    const playerKey = (p: Player) => `r_${p.id}`;
     const outKeys = tempSubs.map(s => playerKey(s.out!));
     const inKeys = tempSubs.map(s => playerKey(s.in!));
     if (new Set(outKeys).size !== outKeys.length) {
@@ -118,8 +118,8 @@ export function useSubstitutions() {
         minute: minute,
         player_out_id: s.out!.id,
         player_in_id: s.in!.id,
-        player_out_is_guest: Boolean(s.out!.is_guest),
-        player_in_is_guest: Boolean(s.in!.is_guest),
+        player_out_is_guest: false,
+        player_in_is_guest: false,
         custom_minute: isCustom ? minute : null,
         is_extra: false
       }));
