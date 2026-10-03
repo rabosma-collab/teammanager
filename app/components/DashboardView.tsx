@@ -130,6 +130,9 @@ export default function DashboardView({
   // Lokale afwezigheidslijst voor de dashboardMatch (onafhankelijk van pitch-view)
   const [dashboardAbsences, setDashboardAbsences] = useState<number[]>([]);
 
+  // Gastspelers die aan de dashboardMatch zijn gekoppeld (tellen mee als beschikbaar)
+  const [dashboardGuestSelections, setDashboardGuestSelections] = useState<number[]>([]);
+
   // Alle aankomende concept-wedstrijden (datum >= vandaag) — zelfde bron/logica als de Wedstrijden-tab
   const upcomingForTasks = useMemo(() => upcomingConceptMatches(matches), [matches]);
   const [taskAbsencesByMatch, setTaskAbsencesByMatch] = useState<Record<number, number[]>>({});
@@ -223,6 +226,18 @@ export default function DashboardView({
       .then(({ data }: { data: { player_id: number }[] | null }) => {
         setDashboardAbsences(data?.map((a) => a.player_id) || []);
         setAbsencesReady(true);
+      });
+  }, [dashboardMatch?.id]);
+
+  // Laad gekoppelde gastspelers voor dashboardMatch (tellen mee als beschikbaar)
+  useEffect(() => {
+    if (!dashboardMatch) { setDashboardGuestSelections([]); return; }
+    supabase
+      .from('match_guest_selections')
+      .select('player_id')
+      .eq('match_id', dashboardMatch.id)
+      .then(({ data }: { data: { player_id: number }[] | null }) => {
+        setDashboardGuestSelections(data?.map((g) => g.player_id) || []);
       });
   }, [dashboardMatch?.id]);
 
@@ -515,6 +530,7 @@ export default function DashboardView({
             <SquadAvailabilityPanel
               players={players}
               matchAbsences={dashboardAbsences}
+              guestSelections={dashboardGuestSelections}
               match={dashboardMatch}
               isManager={isManager}
               onNavigateToWedstrijd={onNavigateToWedstrijd}
