@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { ANNOUNCEMENT_MAX_LENGTH } from '../lib/constants';
 import type { Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useFetchGuard } from './useFetchGuard';
 import { logActivity } from '../lib/logActivity';
 
 export function useMatches() {
@@ -13,9 +14,9 @@ export function useMatches() {
   // Gast-teamleden (status 'guest') die per wedstrijd tóch meedoen
   const [matchGuestSelections, setMatchGuestSelections] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
-  const fetchMatchesIdRef = useRef(0);
-  const fetchAbsencesIdRef = useRef(0);
-  const fetchGuestSelectionsIdRef = useRef(0);
+  const matchesGuard = useFetchGuard();
+  const absencesGuard = useFetchGuard();
+  const guestSelectionsGuard = useFetchGuard();
 
   useEffect(() => {
     setMatches([]);
@@ -31,7 +32,7 @@ export function useMatches() {
       return;
     }
 
-    const fetchId = ++fetchMatchesIdRef.current;
+    const fetchId = matchesGuard.begin();
 
     try {
       let query = supabase
@@ -46,7 +47,7 @@ export function useMatches() {
 
       const { data, error } = await query;
 
-      if (fetchId !== fetchMatchesIdRef.current) return;
+      if (!matchesGuard.isCurrent(fetchId)) return;
       if (error) throw error;
 
       const matchData = (data || []) as Match[];
@@ -74,12 +75,12 @@ export function useMatches() {
     } finally {
       setLoading(false);
     }
-  }, [currentTeam]);
+  }, [currentTeam, matchesGuard]);
 
   const fetchAbsences = useCallback(async (matchId: number) => {
     if (!currentTeam) return;
 
-    const fetchId = ++fetchAbsencesIdRef.current;
+    const fetchId = absencesGuard.begin();
 
     try {
       const { data, error } = await supabase
@@ -87,18 +88,18 @@ export function useMatches() {
         .select('player_id')
         .eq('match_id', matchId);
 
-      if (fetchId !== fetchAbsencesIdRef.current) return;
+      if (!absencesGuard.isCurrent(fetchId)) return;
       if (error) throw error;
       setMatchAbsences(data?.map((a: { player_id: number }) => a.player_id) || []);
     } catch {
       // state ongewijzigd laten bij fetch-fout
     }
-  }, [currentTeam]);
+  }, [currentTeam, absencesGuard]);
 
   const fetchGuestSelections = useCallback(async (matchId: number) => {
     if (!currentTeam) return;
 
-    const fetchId = ++fetchGuestSelectionsIdRef.current;
+    const fetchId = guestSelectionsGuard.begin();
 
     try {
       const { data, error } = await supabase
@@ -106,13 +107,13 @@ export function useMatches() {
         .select('player_id')
         .eq('match_id', matchId);
 
-      if (fetchId !== fetchGuestSelectionsIdRef.current) return;
+      if (!guestSelectionsGuard.isCurrent(fetchId)) return;
       if (error) throw error;
       setMatchGuestSelections(data?.map((g: { player_id: number }) => g.player_id) || []);
     } catch {
       // state ongewijzigd laten bij fetch-fout
     }
-  }, [currentTeam]);
+  }, [currentTeam, guestSelectionsGuard]);
 
   const toggleGuestSelection = useCallback(async (
     playerId: number,

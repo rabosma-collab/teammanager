@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Substitution, TempSubstitution } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useFetchGuard } from './useFetchGuard';
 import { useToast } from '../contexts/ToastContext';
 
 export function useSubstitutions() {
@@ -12,7 +13,7 @@ export function useSubstitutions() {
   const [showSubModal, setShowSubModal] = useState<number | null>(null);
   const [showSubModalMinute, setShowSubModalMinute] = useState<number | null>(null);
   const [customMinuteInput, setCustomMinuteInput] = useState<number>(45);
-  const fetchIdRef = useRef(0);
+  const fetchGuard = useFetchGuard();
 
   useEffect(() => {
     setSubstitutions([]);
@@ -21,7 +22,7 @@ export function useSubstitutions() {
   const fetchSubstitutions = useCallback(async (matchId: number) => {
     if (!currentTeam) return;
 
-    const fetchId = ++fetchIdRef.current;
+    const fetchId = fetchGuard.begin();
 
     try {
       const { data, error } = await supabase
@@ -29,13 +30,13 @@ export function useSubstitutions() {
         .select('*')
         .eq('match_id', matchId);
 
-      if (fetchId !== fetchIdRef.current) return;
+      if (!fetchGuard.isCurrent(fetchId)) return;
       if (error) throw error;
       setSubstitutions(data || []);
     } catch {
       // state ongewijzigd laten bij fetch-fout
     }
-  }, [currentTeam]);
+  }, [currentTeam, fetchGuard]);
 
   const getSubsForNumber = useCallback((subNumber: number): Substitution[] => {
     return substitutions.filter(s => s.substitution_number === subNumber && !s.is_extra);

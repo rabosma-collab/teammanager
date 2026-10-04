@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PositionInstruction } from '../../lib/types';
 import DraggableModal from './DraggableModal';
+import Button from '../ui/Button';
 
 interface InstructionEditModalProps {
   instruction: PositionInstruction;
@@ -54,18 +55,12 @@ export default function InstructionEditModal({
         </div>
 
         <div className="flex gap-3 mt-6">
-          <button
-            onClick={onSave}
-            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold"
-          >
+          <Button variant="primary" onClick={onSave} className="flex-1">
             ✅ Opslaan
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded font-bold"
-          >
+          </Button>
+          <Button variant="secondary" onClick={onClose}>
             Annuleren
-          </button>
+          </Button>
         </div>
       </div>
     </DraggableModal>

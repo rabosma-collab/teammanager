@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Team, TeamMember, TeamContext as TeamContextType } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { useTeamSettings } from '../hooks/useTeamSettings';
+import { useFetchGuard } from '../hooks/useFetchGuard';
 
 const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
@@ -23,12 +24,11 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<TeamMember['role'] | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [hasPendingTeam, setHasPendingTeam] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const fetchIdRef = useRef(0);
+  const fetchGuard = useFetchGuard();
 
   const loadTeams = useCallback(async (userId: string) => {
-    const fetchId = ++fetchIdRef.current;
+    const fetchId = fetchGuard.begin();
     setCurrentUserId(userId);
     setIsLoading(true);
 
@@ -38,7 +38,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', userId)
       .eq('status', 'active');
 
-    if (fetchId !== fetchIdRef.current) return;
+    if (!fetchGuard.isCurrent(fetchId)) return;
 
     if (error) {
       console.error('Fout bij laden teams:', error);
@@ -49,7 +49,6 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     const rows = data as unknown as Array<{ team_id: string; role: TeamMember['role']; player_id: number | null; teams: Team }>;
     const allTeams = rows.map((r) => r.teams);
     const loadedTeams = allTeams.filter((t) => t.status === 'active' || !t.status);
-    setHasPendingTeam(allTeams.some((t) => t.status === 'pending'));
     setTeams(loadedTeams);
 
     // Restore previously selected team or pick the first one
@@ -69,7 +68,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     setCurrentPlayerId(activeRow?.player_id ?? null);
 
     setIsLoading(false);
-  }, []);
+  }, [fetchGuard]);
 
   const switchTeam = useCallback(async (teamId: string) => {
     setIsLoading(true);
@@ -163,7 +162,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <TeamContext.Provider
-      value={{ currentTeam, userRole, isManager, isStaff, isLoading, teams, hasPendingTeam, currentPlayerId, currentUserId, teamSettings, switchTeam, refreshTeam, refreshTeamSettings }}
+      value={{ currentTeam, userRole, isManager, isStaff, isLoading, teams, currentPlayerId, currentUserId, teamSettings, switchTeam, refreshTeam, refreshTeamSettings }}
     >
       {children}
     </TeamContext.Provider>

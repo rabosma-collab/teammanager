@@ -1,42 +1,13 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Match, VotingMatch, VoteResults, SpdwResult, SpdwPodiumEntry } from '../lib/types';
+import type { Match, VotingMatch, VoteResults, SpdwResult } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
 import { logActivity } from '../lib/logActivity';
+import { useFetchGuard } from './useFetchGuard';
+import { computePodium } from '../lib/votingCalculations';
 
 const VOTING_PERIOD_DAYS = 4;
-const POINTS_BY_RANK = [5, 3, 2];
-
-function computePodium(
-  voteCounts: Record<number, number>,
-  playerMap: Map<number, string>,
-  votersByPlayer?: Map<number, string[]>
-): SpdwPodiumEntry[] {
-  const sorted = Object.entries(voteCounts)
-    .map(([pid, count]) => ({ player_id: parseInt(pid), vote_count: count }))
-    .filter(e => e.vote_count > 0)
-    .sort((a, b) => b.vote_count - a.vote_count);
-
-  const podium: SpdwPodiumEntry[] = [];
-  let rank = 1;
-  for (let i = 0; i < sorted.length; i++) {
-    if (i > 0 && sorted[i].vote_count < sorted[i - 1].vote_count) {
-      rank = i + 1;
-    }
-    if (rank > 3) break;
-    const credits = POINTS_BY_RANK[rank - 1] ?? 0;
-    podium.push({
-      rank,
-      player_id: sorted[i].player_id,
-      player_name: playerMap.get(sorted[i].player_id) ?? `Speler ${sorted[i].player_id}`,
-      vote_count: sorted[i].vote_count,
-      credits,
-      voters: votersByPlayer?.get(sorted[i].player_id) ?? [],
-    });
-  }
-  return podium;
-}
 
 export function useVoting() {
   const { currentTeam } = useTeamContext();
@@ -44,7 +15,7 @@ export function useVoting() {
   const [votingMatches, setVotingMatches] = useState<VotingMatch[]>([]);
   const [isLoadingVotes, setIsLoadingVotes] = useState(false);
   const [lastSpdwResult, setLastSpdwResult] = useState<SpdwResult | null>(null);
-  const fetchIdRef = useRef(0);
+  const fetchGuard = useFetchGuard();
 
   const fetchVotingMatches = useCallback(async (
     allMatches: Match[],
@@ -52,7 +23,7 @@ export function useVoting() {
   ) => {
     if (!currentTeam) return;
 
-    const fetchId = ++fetchIdRef.current;
+    const fetchId = fetchGuard.begin();
 
     const { data: { user } } = await supabase.auth.getUser();
     const currentUserId = user?.id ?? null;
@@ -73,7 +44,7 @@ export function useVoting() {
       });
 
       if (eligibleMatches.length === 0) {
-        if (fetchId === fetchIdRef.current) setVotingMatches([]);
+        if (fetchGuard.isCurrent(fetchId)) setVotingMatches([]);
 
         // Geen actieve stemronde: zoek meest recente afgesloten wedstrijd voor eindstand
         const finishedMatches = allMatches
@@ -81,7 +52,7 @@ export function useVoting() {
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         if (finishedMatches.length === 0) {
-          if (fetchId === fetchIdRef.current) setLastSpdwResult(null);
+          if (fetchGuard.isCurrent(fetchId)) setLastSpdwResult(null);
           return;
         }
 
@@ -94,7 +65,7 @@ export function useVoting() {
           .eq('team_id', currentTeam.id);
 
         if (!votesData || votesData.length === 0) {
-          if (fetchId === fetchIdRef.current) setLastSpdwResult({ match: lastMatch, podium: [] });
+          if (fetchGuard.isCurrent(fetchId)) setLastSpdwResult({ match: lastMatch, podium: [] });
           return;
         }
 
@@ -124,12 +95,12 @@ export function useVoting() {
         });
 
         const podium = computePodium(voteCounts, playerMap, votersByPlayer);
-        if (fetchId === fetchIdRef.current) setLastSpdwResult({ match: lastMatch, podium });
+        if (fetchGuard.isCurrent(fetchId)) setLastSpdwResult({ match: lastMatch, podium });
         return;
       }
 
       // Actieve stemronde: wis de eindstand
-      if (fetchId === fetchIdRef.current) setLastSpdwResult(null);
+      if (fetchGuard.isCurrent(fetchId)) setLastSpdwResult(null);
 
       const matchIds = eligibleMatches.map(m => m.id);
 
@@ -156,7 +127,7 @@ export function useVoting() {
       for (const row of (subResult.data || [])) allPlayerIds.add(row.player_in_id);
 
       if (allPlayerIds.size === 0) {
-        if (fetchId === fetchIdRef.current) setVotingMatches([]);
+        if (fetchGuard.isCurrent(fetchId)) setVotingMatches([]);
         return;
       }
 
@@ -246,13 +217,13 @@ export function useVoting() {
       }
 
       results.sort((a, b) => new Date(b.match.date).getTime() - new Date(a.match.date).getTime());
-      if (fetchId === fetchIdRef.current) setVotingMatches(results);
+      if (fetchGuard.isCurrent(fetchId)) setVotingMatches(results);
     } catch (error) {
       console.error('Error fetching voting matches:', error);
     } finally {
-      if (fetchId === fetchIdRef.current) setIsLoadingVotes(false);
+      if (fetchGuard.isCurrent(fetchId)) setIsLoadingVotes(false);
     }
-  }, [currentTeam]);
+  }, [currentTeam, fetchGuard]);
 
   const submitVote = useCallback(async (
     matchId: number,

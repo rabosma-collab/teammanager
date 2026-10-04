@@ -26,6 +26,7 @@ const snapBenchCenterToCursor: Modifier = ({ activatorEvent, active, activeNodeR
   };
 };
 import { formations, formationLabels, normalizeFormation, DEFAULT_GAME_FORMAT, DEFAULT_FORMATIONS, GAME_FORMATS, computeSubMomentMinutes, computeLineupForPeriod, isSelectablePlayer } from './lib/constants';
+import { dedupePlayersById } from './lib/playerDedup';
 import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
@@ -89,7 +90,7 @@ export default function FootballApp() {
   const router = useRouter();
   const toast = useToast();
   const [authChecking, setAuthChecking] = useState(true);
-  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, currentUserId, hasPendingTeam, teamSettings, refreshTeamSettings } = useTeamContext();
+  const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, currentUserId, teamSettings, refreshTeamSettings } = useTeamContext();
 
   // ---- AUTH CHECK ----
   useEffect(() => {
@@ -360,17 +361,8 @@ export default function FootballApp() {
 
   const benchPlayers = useMemo(() => {
     const raw = getBenchPlayers(players, matchAbsences, matchGuestSelections);
-    // Final dedup safety: composite key so guest/regular ids can't collide
-    const seen = new Map<string, Player>();
-    for (const p of raw) {
-      const key = `${p.is_guest ? 'g' : 'r'}_${p.id}`;
-      if (!seen.has(key)) seen.set(key, p);
-    }
-    const result = Array.from(seen.values());
-    if (result.length !== raw.length) {
-      console.error(`[page] benchPlayers dedup removed ${raw.length - result.length} duplicates!`, raw.map(p => `${p.id}:${p.name}`));
-    }
-    return result;
+    // Samengestelde sleutel voorkomt dat gast/regulier-ids botsen.
+    return dedupePlayersById(raw);
   }, [getBenchPlayers, players, matchAbsences, matchGuestSelections]);
   const unavailablePlayers = useMemo(() => ({
     injured: players.filter(p => p.injured),
@@ -429,15 +421,6 @@ export default function FootballApp() {
       return !fieldKeys.has(key) && !p.injured && isSelectablePlayer(p) && (p.is_guest || !matchAbsences.includes(p.id));
     });
   }, [selectedPeriod, fieldOccupants, substitutions, players, benchPlayers, matchAbsences]);
-
-  // ---- DEBUG: track player changes ----
-  useEffect(() => {
-    const names = players.map(p => p.name);
-    const dupes = names.filter((n, i) => names.indexOf(n) !== i);
-    if (dupes.length > 0) {
-      console.error('[page] DUPLICATE players in state:', dupes, players.map(p => `${p.id}:${p.name}`));
-    }
-  }, [players]);
 
   // ---- DATA LADEN ----
   useEffect(() => {
@@ -1166,10 +1149,6 @@ export default function FootballApp() {
       return null;
     }
 
-    if (hasPendingTeam) {
-      return <PendingApprovalScreen onLogout={handleLogout} />;
-    }
-
     return <WelcomeScreen onLogout={handleLogout} onNavigateToNew={() => router.push('/team/new')} />;
   }
 
@@ -1354,7 +1333,7 @@ export default function FootballApp() {
           players={players}
           guestSelections={matchGuestSelections}
           teamSettings={teamSettings}
-          teamName={currentTeam?.name ?? 'Wij'}
+          teamName={currentTeam?.name ?? 'Ons team'}
           onFinalize={handleFinalizeMatch}
           onClose={() => setShowFinalizeModal(false)}
         />
@@ -2140,26 +2119,6 @@ function WisselMomentenInfoButton() {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function PendingApprovalScreen({ onLogout }: { onLogout: () => void }) {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white p-4">
-      <div className="max-w-sm w-full text-center">
-        <div className="text-6xl mb-6">⏳</div>
-        <h1 className="text-2xl font-black mb-4">Aanvraag in behandeling</h1>
-        <div className="p-4 bg-blue-900/30 border border-blue-700/50 rounded-xl text-sm text-blue-200 leading-relaxed text-left mb-8">
-          Je teamaanvraag is ingediend bij de beheerder van de app. Op dit moment beperken we nog het aantal teams omdat de app nog in ontwikkeling is. Zodra je verzoek is goedgekeurd, kun je aan de slag.
-        </div>
-        <button
-          onClick={onLogout}
-          className="text-sm text-gray-500 hover:text-gray-300 transition"
-        >
-          Uitloggen
-        </button>
-      </div>
     </div>
   );
 }
