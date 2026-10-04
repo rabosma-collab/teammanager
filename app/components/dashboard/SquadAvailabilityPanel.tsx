@@ -20,20 +20,21 @@ interface PlayerRowProps {
 }
 
 function PlayerRow({ player, isAbsent }: PlayerRowProps) {
+  const isGuest = player.is_guest || player.status === 'guest';
   return (
     <div className="flex items-center gap-2 py-1.5 border-b border-gray-700/40 last:border-0">
       <span className="text-sm flex-shrink-0">{positionEmojis[player.position] || '⚽'}</span>
       <span className="flex-1 text-sm font-medium truncate">{player.name}</span>
-      {player.is_guest && (
+      {isGuest && (
         <span className="text-xs px-1.5 py-0.5 bg-blue-900/50 text-blue-300 rounded flex-shrink-0">Gast</span>
       )}
-      {!player.is_guest && player.injured && (
+      {!isGuest && player.injured && (
         <span className="text-xs px-1.5 py-0.5 bg-red-900/50 text-red-300 rounded flex-shrink-0">🏥 Geblesseerd</span>
       )}
-      {!player.is_guest && !player.injured && isAbsent && (
+      {!isGuest && !player.injured && isAbsent && (
         <span className="text-xs px-1.5 py-0.5 bg-orange-900/50 text-orange-300 rounded flex-shrink-0">❌ Afwezig</span>
       )}
-      {!player.is_guest && !player.injured && !isAbsent && (
+      {!isGuest && !player.injured && !isAbsent && (
         <span className="text-xs px-1.5 py-0.5 bg-green-900/50 text-green-300 rounded flex-shrink-0">✅</span>
       )}
     </div>
@@ -43,6 +44,7 @@ function PlayerRow({ player, isAbsent }: PlayerRowProps) {
 interface SquadAvailabilityPanelProps {
   players: Player[];
   matchAbsences: number[];
+  guestSelections: number[];
   match: Match;
   isManager: boolean;
   onNavigateToWedstrijd: (match: Match) => void;
@@ -51,6 +53,7 @@ interface SquadAvailabilityPanelProps {
 export default function SquadAvailabilityPanel({
   players,
   matchAbsences,
+  guestSelections,
   match,
   isManager,
   onNavigateToWedstrijd,
@@ -64,7 +67,7 @@ export default function SquadAvailabilityPanel({
   const handleShareAvailability = async () => {
     const dateStr = formatShareDate(match.date);
     const regularPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p));
-    const matchGuests = players.filter(p => p.is_guest && p.guest_match_id === match.id);
+    const matchGuests = players.filter(p => p.status === 'guest' && guestSelections.includes(p.id));
 
     const available = regularPlayers.filter(p => !p.injured && !matchAbsences.includes(p.id));
     const absent = regularPlayers.filter(p => !p.injured && matchAbsences.includes(p.id));
@@ -100,7 +103,7 @@ export default function SquadAvailabilityPanel({
   };
 
   const regularPlayers = players.filter(p => !p.is_guest && isSelectablePlayer(p));
-  const matchGuests = players.filter(p => p.is_guest && p.guest_match_id === match.id);
+  const matchGuests = players.filter(p => p.status === 'guest' && guestSelections.includes(p.id));
 
   if (regularPlayers.length === 0 && matchGuests.length === 0) return null;
 
@@ -111,10 +114,9 @@ export default function SquadAvailabilityPanel({
   }).length;
   const availableCount = regularPlayers.length - injuredCount - absentCount + matchGuests.length;
 
-  const allForMatch = [...regularPlayers, ...matchGuests];
   const byPosition = positionOrder.map(pos => ({
     pos,
-    group: allForMatch.filter(p => p.position === pos),
+    group: regularPlayers.filter(p => p.position === pos),
   })).filter(({ group }) => group.length > 0);
 
   return (
@@ -129,6 +131,7 @@ export default function SquadAvailabilityPanel({
               <div className="flex gap-1.5"><span>✅</span><span><span className="text-white font-semibold">Beschikbaar</span> — speler heeft niets opgegeven en is niet geblesseerd.</span></div>
               <div className="flex gap-1.5"><span>❌</span><span><span className="text-white font-semibold">Afwezig</span> — speler heeft zichzelf als afwezig opgegeven via het Dashboard.</span></div>
               <div className="flex gap-1.5"><span>🏥</span><span><span className="text-white font-semibold">Geblesseerd</span> — ingesteld door de manager via Spelers beheren.</span></div>
+              <div className="flex gap-1.5"><span>👤</span><span><span className="text-white font-semibold">Gastspeler</span> — aan deze wedstrijd gekoppeld en telt automatisch mee als beschikbaar.</span></div>
             </div>
           </InfoButton>
         </div>
@@ -193,13 +196,29 @@ export default function SquadAvailabilityPanel({
                 </div>
                 {group.map(p => (
                   <PlayerRow
-                    key={`${p.is_guest ? 'g' : 'r'}_${p.id}`}
+                    key={`r_${p.id}`}
                     player={p}
                     isAbsent={matchAbsences.includes(p.id)}
                   />
                 ))}
               </div>
             ))}
+
+            {/* Gastspelers — gekoppeld aan deze wedstrijd, tellen mee als beschikbaar */}
+            {matchGuests.length > 0 && (
+              <div>
+                <div className="text-xs font-bold text-blue-300 mb-1">
+                  👤 Gastspelers ({matchGuests.length})
+                </div>
+                {matchGuests.map(p => (
+                  <PlayerRow
+                    key={`g_${p.id}`}
+                    player={p}
+                    isAbsent={false}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Manager: knop naar wedstrijdscherm */}

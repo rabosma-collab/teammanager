@@ -1,5 +1,13 @@
 [
   {
+    "date": "2026-10-03",
+    "title": "Gastspelers in beschikbaarheid",
+    "items": [
+      "In de selectie-aanwezigheid op het dashboard staan nu de gastspelers die aan de wedstrijd zijn gekoppeld, onder een apart kopje '👤 Gastspelers'",
+      "Gekoppelde gastspelers tellen automatisch mee als beschikbaar — zodra je een gast aan een wedstrijd koppelt, ga je ervan uit dat die meespeelt"
+    ]
+  },
+  {
     "date": "2026-03-29",
     "title": "Ranglijst verbeterd op mobiel",
     "items": [
