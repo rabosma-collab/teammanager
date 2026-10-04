@@ -31,6 +31,7 @@ import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
 import { useToast } from './contexts/ToastContext';
+import { useConfirm } from './contexts/ConfirmContext';
 import type { Player, PositionInstruction, MatchPlayerStats, Substitution } from './lib/types';
 
 // Hooks
@@ -89,6 +90,7 @@ import type { PeriodLineup } from './lib/autoLineup';
 export default function FootballApp() {
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
   const [authChecking, setAuthChecking] = useState(true);
   const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, currentUserId, teamSettings, refreshTeamSettings } = useTeamContext();
 
@@ -107,13 +109,13 @@ export default function FootballApp() {
   const [view, setView] = useState('dashboard');
   const [isDirty, setIsDirty] = useState(false);
 
-  const handleSetView = useCallback((newView: string) => {
+  const handleSetView = useCallback(async (newView: string) => {
     if (isDirty) {
-      if (!window.confirm('Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je deze pagina wilt verlaten?')) return;
+      if (!(await confirm('Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je deze pagina wilt verlaten?', { confirmLabel: 'Verlaten', cancelLabel: 'Blijven' }))) return;
       setIsDirty(false);
     }
     setView(newView);
-  }, [isDirty]);
+  }, [isDirty, confirm]);
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [subMoments, setSubMoments] = useState<number>(1);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(1);
@@ -1107,7 +1109,7 @@ export default function FootballApp() {
   }, [selectedMatch, fetchSubstitutions]);
 
   const deleteExtraSubstitution = useCallback(async (subId: number) => {
-    if (!confirm('Weet je zeker dat je deze extra wissel wilt verwijderen?')) return;
+    if (!(await confirm('Weet je zeker dat je deze extra wissel wilt verwijderen?', { danger: true, confirmLabel: 'Verwijderen' }))) return;
     try {
       const { error } = await supabase
         .from('substitutions')
@@ -1124,7 +1126,7 @@ export default function FootballApp() {
       console.error('Error deleting extra sub:', error);
       toast.error('❌ Kon wissel niet verwijderen');
     }
-  }, [selectedMatch, fetchSubstitutions]);
+  }, [selectedMatch, fetchSubstitutions, confirm]);
 
   // ---- LOADING ----
   // Één gecombineerde loading-gate voorkomt dat React twee identieke schermen

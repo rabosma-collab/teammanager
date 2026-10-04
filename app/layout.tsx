@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { TeamProvider } from './contexts/TeamContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 import CookieBanner from './components/CookieBanner';
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration';
 
@@ -64,7 +65,9 @@ export default function RootLayout({
       </head>
       <body className="font-sans">
         <ToastProvider>
-          <TeamProvider>{children}</TeamProvider>
+          <ConfirmProvider>
+            <TeamProvider>{children}</TeamProvider>
+          </ConfirmProvider>
         </ToastProvider>
         <CookieBanner />
         <ServiceWorkerRegistration />

@@ -6,6 +6,7 @@ import type { Match } from '../lib/types';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import { useToast } from '../contexts/ToastContext';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 interface MatchesManageViewProps {
   matches: Match[];
@@ -37,6 +38,7 @@ export default function MatchesManageView({
   onRefresh
 }: MatchesManageViewProps) {
   const toast = useToast();
+  const confirm = useConfirm();
   const { currentTeam } = useTeamContext();
   const ownTeamLabel = currentTeam?.name ?? 'Ons team';
   const [editingMatch, setEditingMatch] = useState<Match | null | 'new'>(null);
@@ -121,7 +123,7 @@ export default function MatchesManageView({
       : isCancelled
       ? '\n\nLet op: dit is een GEANNULEERDE wedstrijd.'
       : '';
-    if (!confirm(`Weet je zeker dat je de wedstrijd tegen ${match.opponent} (${dateStr}) wilt verwijderen? Dit verwijdert ook alle opstellingen, wissels, afwezigheden en gastspelers.${extraWarning}`)) {
+    if (!(await confirm(`Weet je zeker dat je de wedstrijd tegen ${match.opponent} (${dateStr}) wilt verwijderen? Dit verwijdert ook alle opstellingen, wissels, afwezigheden en gastspelers.${extraWarning}`, { danger: true, confirmLabel: 'Verwijderen' }))) {
       return;
     }
     const success = await onDeleteMatch(match.id);

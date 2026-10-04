@@ -5,6 +5,7 @@ import type { Match, Player, MatchPlayerStats, TeamSettings, Season } from '../l
 import { useMatchStats } from '../hooks/useMatchStats';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import { supabase } from '../lib/supabase';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import TakenEditModal from './modals/TakenEditModal';
@@ -217,6 +218,7 @@ export default function UitslagenView({
 }: UitslagenViewProps) {
   const { isManager, currentTeam } = useTeamContext();
   const toast = useToast();
+  const confirm = useConfirm();
   const { fetchStatsForMatches, saveMatchStats } = useMatchStats();
 
   const trackGoals   = teamSettings?.track_goals   ?? true;
@@ -398,7 +400,7 @@ export default function UitslagenView({
       : match.match_status === 'geannuleerd'
       ? '\n\nLet op: dit is een GEANNULEERDE wedstrijd.'
       : '';
-    if (!confirm(`Weet je zeker dat je de wedstrijd tegen ${match.opponent} (${dateStr}) wilt verwijderen?${extra}`)) return;
+    if (!(await confirm(`Weet je zeker dat je de wedstrijd tegen ${match.opponent} (${dateStr}) wilt verwijderen?${extra}`, { danger: true, confirmLabel: 'Verwijderen' }))) return;
     const ok = await onDeleteMatch(match.id);
     if (ok) toast.success('✅ Wedstrijd verwijderd!');
     else toast.error('❌ Kon wedstrijd niet verwijderen');
