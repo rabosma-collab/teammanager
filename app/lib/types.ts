@@ -247,7 +247,6 @@ export interface Player {
     isStaff: boolean;
     isLoading: boolean;
     teams: Team[];
-    hasPendingTeam: boolean;
     currentPlayerId: number | null;
     currentUserId: string | null;
     teamSettings: TeamSettings | null;
