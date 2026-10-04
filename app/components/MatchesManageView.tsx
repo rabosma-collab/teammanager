@@ -5,6 +5,7 @@ import { formationLabels, displayScore } from '../lib/constants';
 import type { Match } from '../lib/types';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import { useToast } from '../contexts/ToastContext';
+import { useTeamContext } from '../contexts/TeamContext';
 
 interface MatchesManageViewProps {
   matches: Match[];
@@ -36,6 +37,8 @@ export default function MatchesManageView({
   onRefresh
 }: MatchesManageViewProps) {
   const toast = useToast();
+  const { currentTeam } = useTeamContext();
+  const ownTeamLabel = currentTeam?.name ?? 'Ons team';
   const [editingMatch, setEditingMatch] = useState<Match | null | 'new'>(null);
   const [editingScoreMatch, setEditingScoreMatch] = useState<Match | null>(null);
   const [scoreGoalsFor, setScoreGoalsFor] = useState<number | null>(null);
@@ -202,7 +205,7 @@ export default function MatchesManageView({
               {cancelHasScore && (
                 <div className="flex items-center gap-4 justify-center pt-1">
                   <div className="text-center">
-                    <div className="text-xs text-gray-400 mb-2">Wij</div>
+                    <div className="text-xs text-gray-400 mb-2">{ownTeamLabel}</div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setCancelGoalsFor(v => v === null || v === 0 ? null : v - 1)}
@@ -285,7 +288,7 @@ export default function MatchesManageView({
 
               <div className="flex items-center gap-4 justify-center">
                 <div className="text-center">
-                  <div className="text-xs text-gray-400 mb-2">Wij</div>
+                  <div className="text-xs text-gray-400 mb-2">{ownTeamLabel}</div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setScoreGoalsFor(v => v === null || v === 0 ? null : v - 1)}
