@@ -36,3 +36,6 @@ next-env.d.ts
 
 # Node.js installation folder
 Node.js/
+
+# supabase cli temp cache
+supabase/.temp/

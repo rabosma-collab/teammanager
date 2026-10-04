@@ -303,16 +303,8 @@ export default function TeamSetupWizard() {
   const handleFinish = async () => {
     if (!teamId) return;
     setFinishLoading(true);
-    await supabase.from('teams').update({ setup_done: true, status: 'pending' }).eq('id', teamId);
-
-    // Haal e-mail van de ingelogde gebruiker op voor de notificatiemail
-    const { data: { user } } = await supabase.auth.getUser();
-    await fetch('/api/notify-team-request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teamName: name, managerEmail: user?.email ?? null, teamId }),
-    });
-
+    await supabase.from('teams').update({ setup_done: true, status: 'active' }).eq('id', teamId);
+    await switchTeam(teamId);
     localStorage.removeItem('team_manager_wizard');
     router.push('/');
   };

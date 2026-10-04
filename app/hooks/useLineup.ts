@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Player, Match } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useFetchGuard } from './useFetchGuard';
 import { logActivity } from '../lib/logActivity';
 import { resolveCurrentTeamMemberName } from '../lib/memberDisplayName';
 import { isSelectablePlayer } from '../lib/constants';
@@ -13,7 +14,7 @@ export function useLineup() {
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
   const [savingLineup, setSavingLineup] = useState(false);
   const lineupSnapshot = useRef<(Player | null)[]>(Array(11).fill(null));
-  const fetchIdRef = useRef(0);
+  const fetchGuard = useFetchGuard();
 
   useEffect(() => {
     setFieldOccupants(Array(11).fill(null));
@@ -24,7 +25,7 @@ export function useLineup() {
   const loadLineup = useCallback(async (matchId: number, players: Player[], playerCount: number = 11) => {
     if (!currentTeam || players.length === 0) return;
 
-    const currentFetchId = ++fetchIdRef.current;
+    const currentFetchId = fetchGuard.begin();
 
     try {
       const { data, error } = await supabase
@@ -33,7 +34,7 @@ export function useLineup() {
         .eq('match_id', matchId);
 
       if (error) throw error;
-      if (currentFetchId !== fetchIdRef.current) return;
+      if (!fetchGuard.isCurrent(currentFetchId)) return;
 
       const lineup: (Player | null)[] = Array(playerCount).fill(null);
 
@@ -53,7 +54,7 @@ export function useLineup() {
       console.error('Error loading lineup:', error);
       // Do not clear the field on error — keep existing lineup visible
     }
-  }, [currentTeam]);
+  }, [currentTeam, fetchGuard]);
 
   const saveLineup = useCallback(async (
     match: Match,

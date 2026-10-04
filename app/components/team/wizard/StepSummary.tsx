@@ -52,7 +52,7 @@ export default function StepSummary({ data, onFinish, onBack, isLoading }: Props
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-black mb-1">Aanvraag ingediend ⏳</h2>
+        <h2 className="text-xl font-black mb-1">Je team is klaar 🎉</h2>
       </div>
 
       {/* Team badge */}
@@ -62,7 +62,7 @@ export default function StepSummary({ data, onFinish, onBack, isLoading }: Props
       </div>
 
       <div className="p-4 bg-blue-900/30 border border-blue-700/50 rounded-xl text-sm text-blue-200 leading-relaxed">
-        Je teamaanvraag is ingediend bij de beheerder van de app. Op dit moment beperken we nog het aantal teams omdat de app nog in ontwikkeling is. Zodra je verzoek is goedgekeurd, kun je direct aan de slag. Je hoort het zodra dit het geval is.
+        Alles staat klaar. Klik op “Aan de slag” om je team te openen en meteen te beginnen.
       </div>
 
       <div className="flex gap-3">
@@ -78,7 +78,7 @@ export default function StepSummary({ data, onFinish, onBack, isLoading }: Props
           disabled={isLoading}
           className="flex-1 py-3.5 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white font-black rounded-xl text-base transition active:scale-95"
         >
-          {isLoading ? 'Laden...' : 'Begrepen'}
+          {isLoading ? 'Laden...' : 'Aan de slag'}
         </button>
       </div>
     </div>

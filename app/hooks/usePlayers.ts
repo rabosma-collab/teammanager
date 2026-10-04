@@ -1,10 +1,12 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { positionOrder } from '../lib/constants';
 import type { Player } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useFetchGuard } from './useFetchGuard';
 import { useToast } from '../contexts/ToastContext';
 import { logActivity } from '../lib/logActivity';
+import { dedupePlayersByIdThenName } from '../lib/playerDedup';
 
 export interface GuestPoolEntry {
   id: number;
@@ -18,7 +20,7 @@ export function usePlayers() {
   const toast = useToast();
   const [players, setPlayers] = useState<Player[]>([]);
   const [guestPool, setGuestPool] = useState<GuestPoolEntry[]>([]);
-  const fetchIdRef = useRef(0);
+  const fetchGuard = useFetchGuard();
 
   useEffect(() => {
     setPlayers([]);
@@ -48,7 +50,7 @@ export function usePlayers() {
     if (!currentTeam) return [];
 
     // Increment fetch ID to cancel stale responses
-    const currentFetchId = ++fetchIdRef.current;
+    const currentFetchId = fetchGuard.begin();
 
     try {
       const { data: regularPlayers, error: regularError } = await supabase
@@ -59,42 +61,15 @@ export function usePlayers() {
       if (regularError) throw regularError;
 
       // If a newer fetch was started, discard this result
-      if (currentFetchId !== fetchIdRef.current) return [];
-
-      // Deduplicate regular players by id (primary key should be unique, but be safe)
-      const byId = new Map<number, Player>();
-      for (const p of (regularPlayers || []) as Player[]) {
-        if (!byId.has(p.id)) {
-          byId.set(p.id, p);
-        }
-      }
-      let allPlayers: Player[] = Array.from(byId.values());
+      if (!fetchGuard.isCurrent(currentFetchId)) return [];
 
       // Gastspelers zijn reguliere players-rijen met status='guest' (Model A);
       // ze worden per wedstrijd geselecteerd via match_guest_selections.
-
-      // Final safety: deduplicate within same type (regular vs guest) by name.
-      // A guest and a regular player with the same name are intentionally allowed to coexist.
-      const finalSeen = new Set<string>();
-      allPlayers = allPlayers.filter(p => {
-        const key = `${p.is_guest ? 'g' : 'r'}_${p.name.toLowerCase().trim()}`;
-        if (finalSeen.has(key)) return false;
-        finalSeen.add(key);
-        return true;
-      });
-
-      // Debug: detect duplicates
-      const nameCount = new Map<string, number>();
-      allPlayers.forEach(p => {
-        const key = p.name.toLowerCase().trim();
-        nameCount.set(key, (nameCount.get(key) || 0) + 1);
-      });
-      nameCount.forEach((count, name) => {
-        if (count > 1) console.error(`[usePlayers] DUPLICATE after dedup: "${name}" appears ${count}x`);
-      });
+      // Een gast en reguliere speler met dezelfde naam mogen naast elkaar bestaan.
+      const allPlayers = dedupePlayersByIdThenName((regularPlayers || []) as Player[]);
 
       // Only set state if this is still the latest fetch
-      if (currentFetchId === fetchIdRef.current) {
+      if (fetchGuard.isCurrent(currentFetchId)) {
         setPlayers(allPlayers);
       }
       return allPlayers;
@@ -102,7 +77,7 @@ export function usePlayers() {
       console.error('Error fetching players:', error);
       return [];
     }
-  }, [currentTeam]);
+  }, [currentTeam, fetchGuard]);
 
   const getGroupedPlayers = useCallback((): Record<string, Player[]> => {
     const grouped: Record<string, Player[]> = {};

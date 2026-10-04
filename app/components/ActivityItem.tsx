@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { ActivityLogItem } from '../hooks/useActivityLog';
+import { useTeamContext } from '../contexts/TeamContext';
 
 const TYPE_ICON: Record<string, string> = {
   stat_changed:         '🃏',
@@ -32,7 +33,7 @@ function relativeTime(iso: string): string {
   return `${days} d geleden`;
 }
 
-function buildText(type: string, payload: Record<string, unknown>): string {
+function buildText(type: string, payload: Record<string, unknown>, teamName: string): string {
   const p = payload;
   switch (type) {
     case 'stat_changed': {
@@ -72,7 +73,7 @@ function buildText(type: string, payload: Record<string, unknown>): string {
       const ha = (p.home_away as string) === 'thuis' ? 'thuis' : 'uit';
       const gf = p.goals_for ?? '?';
       const ga = p.goals_against ?? '?';
-      return `Uitslag: ${ha === 'thuis' ? 'Wij' : opp} ${gf}–${ga} ${ha === 'thuis' ? opp : 'Wij'}`;
+      return `Uitslag: ${ha === 'thuis' ? teamName : opp} ${gf}–${ga} ${ha === 'thuis' ? opp : teamName}`;
     }
     case 'voting_opened': {
       const opp = p.opponent as string ?? 'onbekend';
@@ -134,8 +135,9 @@ interface Props {
 }
 
 export default function ActivityItem({ item, onRead }: Props) {
+  const { currentTeam } = useTeamContext();
   const icon = TYPE_ICON[item.type] ?? '📌';
-  const text = buildText(item.type, item.payload);
+  const text = buildText(item.type, item.payload, currentTeam?.name ?? 'Ons team');
 
   return (
     <button

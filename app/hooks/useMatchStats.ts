@@ -1,18 +1,19 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { MatchPlayerStats } from '../lib/types';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useFetchGuard } from './useFetchGuard';
 
 export function useMatchStats() {
   const { currentTeam } = useTeamContext();
   const [statsCache, setStatsCache] = useState<Record<number, MatchPlayerStats[]>>({});
-  const fetchMatchStatsIdRef = useRef(0);
-  const fetchStatsForMatchesIdRef = useRef(0);
+  const matchStatsGuard = useFetchGuard();
+  const statsForMatchesGuard = useFetchGuard();
 
   const fetchMatchStats = useCallback(async (matchId: number): Promise<MatchPlayerStats[]> => {
     if (!currentTeam) return [];
 
-    const fetchId = ++fetchMatchStatsIdRef.current;
+    const fetchId = matchStatsGuard.begin();
 
     try {
       const { data, error } = await supabase
@@ -21,7 +22,7 @@ export function useMatchStats() {
         .eq('match_id', matchId)
         .eq('team_id', currentTeam.id);
 
-      if (fetchId !== fetchMatchStatsIdRef.current) return [];
+      if (!matchStatsGuard.isCurrent(fetchId)) return [];
       if (error) throw error;
 
       type StatsRow = {
@@ -52,13 +53,13 @@ export function useMatchStats() {
     } catch {
       return [];
     }
-  }, [currentTeam]);
+  }, [currentTeam, matchStatsGuard]);
 
   // Fetch stats for multiple matches at once (for UitslagenView)
   const fetchStatsForMatches = useCallback(async (matchIds: number[]): Promise<Record<number, MatchPlayerStats[]>> => {
     if (!currentTeam || matchIds.length === 0) return {};
 
-    const fetchId = ++fetchStatsForMatchesIdRef.current;
+    const fetchId = statsForMatchesGuard.begin();
 
     try {
       const { data, error } = await supabase
@@ -67,7 +68,7 @@ export function useMatchStats() {
         .in('match_id', matchIds)
         .eq('team_id', currentTeam.id);
 
-      if (fetchId !== fetchStatsForMatchesIdRef.current) return {};
+      if (!statsForMatchesGuard.isCurrent(fetchId)) return {};
       if (error) throw error;
 
       const byMatch: Record<number, MatchPlayerStats[]> = {};
@@ -94,7 +95,7 @@ export function useMatchStats() {
     } catch {
       return {};
     }
-  }, [currentTeam]);
+  }, [currentTeam, statsForMatchesGuard]);
 
   // Sla statistieken op via de RPC (delta-safe, werkt ook voor edits achteraf)
   const saveMatchStats = useCallback(async (

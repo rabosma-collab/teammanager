@@ -1,16 +1,17 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { PositionInstruction } from '../lib/types';
+import { useFetchGuard } from './useFetchGuard';
 
 export function useInstructions() {
   const [positionInstructions, setPositionInstructions] = useState<PositionInstruction[]>([]);
   const [matchInstructions, setMatchInstructions] = useState<PositionInstruction[]>([]);
   const [editingInstruction, setEditingInstruction] = useState<PositionInstruction | null>(null);
-  const fetchInstructionsIdRef = useRef(0);
-  const fetchMatchInstructionsIdRef = useRef(0);
+  const instructionsGuard = useFetchGuard();
+  const matchInstructionsGuard = useFetchGuard();
 
   const fetchInstructions = useCallback(async (gameFormat: string, formation: string) => {
-    const fetchId = ++fetchInstructionsIdRef.current;
+    const fetchId = instructionsGuard.begin();
     try {
       const { data, error } = await supabase
         .from('position_instructions')
@@ -19,16 +20,16 @@ export function useInstructions() {
         .eq('formation', formation)
         .order('position_index');
 
-      if (fetchId !== fetchInstructionsIdRef.current) return;
+      if (!instructionsGuard.isCurrent(fetchId)) return;
       if (error) throw error;
       setPositionInstructions(data || []);
     } catch {
       // state ongewijzigd laten bij fetch-fout
     }
-  }, []);
+  }, [instructionsGuard]);
 
   const fetchMatchInstructions = useCallback(async (matchId: number, formation: string) => {
-    const fetchId = ++fetchMatchInstructionsIdRef.current;
+    const fetchId = matchInstructionsGuard.begin();
     try {
       const { data, error } = await supabase
         .from('match_position_instructions')
@@ -37,13 +38,13 @@ export function useInstructions() {
         .eq('formation', formation)
         .order('position_index');
 
-      if (fetchId !== fetchMatchInstructionsIdRef.current) return;
+      if (!matchInstructionsGuard.isCurrent(fetchId)) return;
       if (error) throw error;
       setMatchInstructions(data || []);
     } catch {
       // state ongewijzigd laten bij fetch-fout
     }
-  }, []);
+  }, [matchInstructionsGuard]);
 
   const clearMatchInstructions = useCallback(() => {
     setMatchInstructions([]);

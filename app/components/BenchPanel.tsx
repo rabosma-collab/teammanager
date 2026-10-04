@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { positionOrder, positionEmojis } from '../lib/constants';
 import type { Player } from '../lib/types';
+import { dedupePlayersById } from '../lib/playerDedup';
 import { useTeamContext } from '../contexts/TeamContext';
 
 interface BenchPanelProps {
@@ -104,21 +105,11 @@ export default function BenchPanel({
     disabled: !isEditable,
   });
 
-  // NUCLEAR dedup: absolute last line of defense against duplicates
-  // Uses composite key (guest vs regular) to avoid ID collision between tables
-  const benchPlayers = React.useMemo(() => {
-    const seen = new Map<string, typeof rawBenchPlayers[0]>();
-    for (const p of rawBenchPlayers) {
-      const key = playerKey(p);
-      if (!seen.has(key)) seen.set(key, p);
-    }
-    const result = Array.from(seen.values());
-    if (result.length !== rawBenchPlayers.length) {
-      console.error(`[BenchPanel] DEDUP removed ${rawBenchPlayers.length - result.length} duplicates!`,
-        rawBenchPlayers.map(p => `${p.id}:${p.name}`));
-    }
-    return result;
-  }, [rawBenchPlayers]);
+  // Laatste verdediging tegen dubbele spelers; samengestelde sleutel voorkomt id-botsing gast/regulier.
+  const benchPlayers = React.useMemo(
+    () => dedupePlayersById(rawBenchPlayers),
+    [rawBenchPlayers]
+  );
 
   // Groepeer per positiecategorie, gesorteerd op totaal speelminuten
   const grouped = React.useMemo(() => {
