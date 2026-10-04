@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Player } from '../../lib/types';
+import Button from '../ui/Button';
 
 interface PeriodSwapModalProps {
   playerOut: Player;
@@ -76,12 +77,9 @@ export default function PeriodSwapModal({
           </div>
         )}
 
-        <button
-          onClick={onClose}
-          className="mt-4 w-full py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-sm font-semibold"
-        >
+        <Button onClick={onClose} variant="secondary" className="mt-4 w-full">
           Annuleer
-        </button>
+        </Button>
       </div>
     </div>
   );

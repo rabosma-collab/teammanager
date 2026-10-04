@@ -2,6 +2,7 @@ import React from 'react';
 import type { Player, PositionInstruction } from '../../lib/types';
 import PlayerCard from '../PlayerCard';
 import DraggableModal from './DraggableModal';
+import Button from '../ui/Button';
 
 interface PositionInfoModalProps {
   player: Player;
@@ -70,12 +71,9 @@ export default function PositionInfoModal({
         {/* Bewerk knop voor managers */}
         {isManagerEdit && (
           <div className="px-5 pb-5 pt-2">
-            <button
-              onClick={onEditInstruction}
-              className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm transition"
-            >
+            <Button onClick={onEditInstruction} variant="secondary" className="w-full">
               ✏️ {instruction ? 'Instructie bewerken' : 'Instructie toevoegen'}
-            </button>
+            </Button>
           </div>
         )}
       </div>

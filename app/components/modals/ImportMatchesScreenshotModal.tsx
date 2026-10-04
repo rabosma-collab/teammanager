@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import Button from '../ui/Button';
 
 /** Antwoord van /api/import-matches per wedstrijd (velden kunnen null zijn). */
 interface ParsedMatch {
@@ -242,12 +243,9 @@ export default function ImportMatchesScreenshotModal({
                   className="sr-only"
                 />
               </label>
-              <button
-                onClick={handlePasteButton}
-                className="w-full py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-bold transition"
-              >
+              <Button onClick={handlePasteButton} variant="secondary" size="lg" className="w-full">
                 📋 Plakken vanaf klembord
-              </button>
+              </Button>
               <button onClick={onClose} className="w-full py-2 text-gray-400 hover:text-gray-200 text-sm transition">
                 Annuleren
               </button>

@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import Button from '../ui/Button';
 
 interface ParsedPlayer {
   name: string;
@@ -161,12 +162,9 @@ export default function ImportPlayersModal({ teamId, onImported, onClose }: Impo
             <div className="p-4 bg-green-900/30 border border-green-700 rounded-xl text-green-300 text-sm font-medium text-center">
               ✅ {validPlayers.length} speler{validPlayers.length !== 1 ? 's' : ''} geïmporteerd!
             </div>
-            <button
-              onClick={onClose}
-              className="w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl text-sm transition"
-            >
+            <Button onClick={onClose} variant="secondary" size="lg" className="w-full">
               Sluiten
-            </button>
+            </Button>
           </div>
         )}
       </div>
