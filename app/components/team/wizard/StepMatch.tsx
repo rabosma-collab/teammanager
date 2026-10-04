@@ -276,7 +276,7 @@ export default function StepMatch({ teamId, defaultFormation, onNext, onBack, on
                     <div className="flex items-center gap-3">
                       <span className="text-gray-500">{m.home_away === 'Thuis' ? '🏠' : '✈️'}</span>
                       {!saved && (
-                        <button onClick={() => setMatchList(prev => prev.filter((_, j) => j !== i))} className="text-gray-600 hover:text-red-400 transition">✕</button>
+                        <button onClick={() => setMatchList(prev => prev.filter((_, j) => j !== i))} aria-label="Verwijderen" className="text-gray-600 hover:text-red-400 transition">✕</button>
                       )}
                     </div>
                   </div>

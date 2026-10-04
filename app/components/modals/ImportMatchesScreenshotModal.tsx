@@ -213,7 +213,7 @@ export default function ImportMatchesScreenshotModal({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 shrink-0">
           <h2 className="text-base font-bold">📷 Wedstrijden importeren uit screenshot</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-200 transition text-lg leading-none">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-gray-500 hover:text-gray-200 transition text-lg leading-none">✕</button>
         </div>
 
         <div className="p-5 flex flex-col min-h-0 flex-1">

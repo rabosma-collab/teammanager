@@ -97,6 +97,7 @@ export default function DraggableModal({ onClose, children, className = '' }: Dr
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onClose(); }}
+              aria-label="Sluiten"
               className="text-gray-500 hover:text-red-400 text-lg leading-none ml-3 transition-colors"
             >
               ✕

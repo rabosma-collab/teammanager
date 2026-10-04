@@ -58,7 +58,7 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
           <h2 className="text-lg sm:text-xl font-bold">
             {match ? '✏️ Wedstrijd bewerken' : '➕ Nieuwe wedstrijd'}
           </h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500 p-2">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500 p-2">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

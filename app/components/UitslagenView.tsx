@@ -155,7 +155,7 @@ function StatsEditor({ players, existingStats, trackAssists, trackCards, onSave,
                 onChange={e => updateRow(i, 'red_cards', parseInt(e.target.value) || 0)}
                 className="px-1 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs text-center w-full" />
             )}
-            <button onClick={() => removeRow(i)} className="text-gray-500 hover:text-red-400 transition text-sm px-1">✕</button>
+            <button onClick={() => removeRow(i)} aria-label="Verwijderen" className="text-gray-500 hover:text-red-400 transition text-sm px-1">✕</button>
           </div>
         ))}
       </div>

@@ -110,7 +110,7 @@ export default function ImportMatchesModal({ teamId, defaultFormation, seasonId,
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold">📂 Wedstrijden importeren</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-200 transition text-lg leading-none">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-gray-500 hover:text-gray-200 transition text-lg leading-none">✕</button>
         </div>
 
         {!imported ? (

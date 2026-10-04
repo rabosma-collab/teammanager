@@ -43,7 +43,7 @@ export default function PlayerStatsEditModal({ player, onUpdateStat, onClose }: 
       <div className="p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold">✏️ Stats - {player.name}</h3>
-          <button onClick={onClose} className="text-xl hover:text-red-500 p-2">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-xl hover:text-red-500 p-2">✕</button>
         </div>
 
         <div className="flex justify-center mb-4">

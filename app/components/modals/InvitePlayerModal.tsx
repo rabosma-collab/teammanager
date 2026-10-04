@@ -118,7 +118,7 @@ export default function InvitePlayerModal({ player, onClose, onInviteCreated }: 
       <div className="p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">📨 Speler uitnodigen</h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500">✕</button>
         </div>
 
         {/* Player info */}

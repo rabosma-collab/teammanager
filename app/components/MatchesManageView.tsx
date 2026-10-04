@@ -180,7 +180,7 @@ export default function MatchesManageView({
                   {cancellingMatch.opponent} · {new Date(cancellingMatch.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })}
                 </p>
               </div>
-              <button onClick={() => setCancellingMatch(null)} className="text-2xl hover:text-red-400 p-1">✕</button>
+              <button onClick={() => setCancellingMatch(null)} aria-label="Sluiten" className="text-2xl hover:text-red-400 p-1">✕</button>
             </div>
 
             <div className="px-5 py-5 space-y-4">
@@ -280,7 +280,7 @@ export default function MatchesManageView({
                   {editingScoreMatch.opponent} · {new Date(editingScoreMatch.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })}
                 </p>
               </div>
-              <button onClick={() => setEditingScoreMatch(null)} className="text-2xl hover:text-red-400 p-1">✕</button>
+              <button onClick={() => setEditingScoreMatch(null)} aria-label="Sluiten" className="text-2xl hover:text-red-400 p-1">✕</button>
             </div>
 
             <div className="px-5 py-5 space-y-4">

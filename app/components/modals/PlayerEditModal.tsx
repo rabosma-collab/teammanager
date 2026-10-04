@@ -78,7 +78,7 @@ export default function PlayerEditModal({ player, onSave, onClose }: PlayerEditM
           <h2 className="text-lg sm:text-xl font-bold">
             {player ? '✏️ Speler bewerken' : '➕ Nieuwe speler'}
           </h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500 p-2">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500 p-2">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

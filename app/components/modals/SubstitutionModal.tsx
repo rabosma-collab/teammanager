@@ -133,7 +133,7 @@ export default function SubstitutionModal({
           <h2 className="text-lg sm:text-2xl font-bold">
             🔄 {isFreeSubstitution ? 'Vrije wissel' : `Wissel ${subNumber}`} - {displayMinute}&apos;
           </h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500 p-2">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500 p-2">✕</button>
         </div>
 
         {isFreeSubstitution && (

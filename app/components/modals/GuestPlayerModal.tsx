@@ -41,7 +41,7 @@ export default function GuestPlayerModal({ guestPool, rosterGuests, onAdd, onSel
       <div className="p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">👤 Gastspeler toevoegen</h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500">✕</button>
         </div>
 
         {rosterGuests.length > 0 && (

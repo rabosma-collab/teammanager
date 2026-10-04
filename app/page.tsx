@@ -2113,7 +2113,7 @@ function WisselMomentenInfoButton() {
         <>
           <div className="fixed inset-0 z-50" onClick={() => setOpen(false)} />
           <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-sm p-4 bg-gray-800 border border-gray-600 rounded-xl shadow-xl text-xs text-gray-300 space-y-2">
-            <button onClick={() => setOpen(false)} className="absolute top-2 right-2 text-gray-500 hover:text-white text-base leading-none p-1">✕</button>
+            <button onClick={() => setOpen(false)} aria-label="Sluiten" className="absolute top-2 right-2 text-gray-500 hover:text-white text-base leading-none p-1">✕</button>
             <p className="font-semibold text-white">Wat zijn vaste wisselmomenten?</p>
             <p>Vaste wisselmomenten verdelen de wedstrijd in gelijke blokken. Bij 1 wisselmoment spelen de spelers de eerste helft in één opstelling en de tweede helft in een andere. Bij 2 wisselmomenten zijn er 3 blokken, enzovoort — de minuten worden automatisch berekend op basis van de wedstrijdduur.</p>
             <p><strong className="text-white">Per blok stel je een aparte opstelling in.</strong> Je kiest welke speler op welke positie staat voor dat blok. Op het wisselmoment geeft de app automatisch aan dat er gewisseld kan worden.</p>

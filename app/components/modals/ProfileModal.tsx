@@ -256,7 +256,7 @@ export default function ProfileModal({ onClose, onPlayerUpdated, onLogout, welco
               {welcomeMode ? 'Stel je profiel in' : 'Mijn profiel'}
             </h2>
           </div>
-          <button onClick={onClose} className="text-2xl hover:text-red-500 p-2">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500 p-2">✕</button>
         </div>
 
         {/* Avatar */}
