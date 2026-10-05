@@ -31,6 +31,7 @@ import { supabase } from './lib/supabase';
 import { getCurrentUser, signOut } from './lib/auth';
 import { useTeamContext } from './contexts/TeamContext';
 import { useToast } from './contexts/ToastContext';
+import { useConfirm } from './contexts/ConfirmContext';
 import type { Player, PositionInstruction, MatchPlayerStats, Substitution } from './lib/types';
 
 // Hooks
@@ -48,6 +49,9 @@ import { useLineupPresence } from './hooks/useLineupPresence';
 import { useActivityLog } from './hooks/useActivityLog';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { useSeasons } from './hooks/useSeasons';
+import { useTaskEligibility } from './hooks/useTaskEligibility';
+import { useExtraSubstitutionModal } from './hooks/useExtraSubstitutionModal';
+import { useGuestPlayerModal } from './hooks/useGuestPlayerModal';
 
 // Components
 import Navbar from './components/Navbar';
@@ -89,6 +93,7 @@ import type { PeriodLineup } from './lib/autoLineup';
 export default function FootballApp() {
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
   const [authChecking, setAuthChecking] = useState(true);
   const { currentTeam, isManager, isLoading: teamLoading, currentPlayerId: teamPlayerId, currentUserId, teamSettings, refreshTeamSettings } = useTeamContext();
 
@@ -107,13 +112,13 @@ export default function FootballApp() {
   const [view, setView] = useState('dashboard');
   const [isDirty, setIsDirty] = useState(false);
 
-  const handleSetView = useCallback((newView: string) => {
+  const handleSetView = useCallback(async (newView: string) => {
     if (isDirty) {
-      if (!window.confirm('Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je deze pagina wilt verlaten?')) return;
+      if (!(await confirm('Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je deze pagina wilt verlaten?', { confirmLabel: 'Verlaten', cancelLabel: 'Blijven' }))) return;
       setIsDirty(false);
     }
     setView(newView);
-  }, [isDirty]);
+  }, [isDirty, confirm]);
   const [formation, setFormation] = useState('4-3-3-aanvallend');
   const [subMoments, setSubMoments] = useState<number>(1);
   const [selectedPeriod, setSelectedPeriod] = useState<number>(1);
@@ -123,7 +128,6 @@ export default function FootballApp() {
   const [isEditingLineup, setIsEditingLineup] = useState(false);
   const wasPublishedBeforeEdit = useRef(false);
   const [isEditingMatchInstruction, setIsEditingMatchInstruction] = useState(false);
-  const [showGuestModal, setShowGuestModal] = useState(false);
 
   const [showTooltip, setShowTooltip] = useState<number | null>(null);
   const [instructionFormation, setInstructionFormation] = useState('4-3-3-aanvallend');
@@ -134,11 +138,7 @@ export default function FootballApp() {
   const [finalizeGoalsFor, setFinalizeGoalsFor] = useState<string>('');
   const [finalizeGoalsAgainst, setFinalizeGoalsAgainst] = useState<string>('');
   const [recentStatsMap, setRecentStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
-  const [showExtraSubModal, setShowExtraSubModal] = useState(false);
   const [showPrevLineupInfo, setShowPrevLineupInfo] = useState(false);
-  const [extraSubMinute, setExtraSubMinute] = useState(45);
-  const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
-  const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
   const [activeDragPlayer, setActiveDragPlayer] = useState<Player | null>(null);
   const [showAutoLineupWizard, setShowAutoLineupWizard] = useState(false);
@@ -236,99 +236,35 @@ export default function FootballApp() {
   // Spelers mogen de opstelling alleen zien als: manager, opstelling gepubliceerd, of wedstrijd afgerond
   const canSeeLineup = isManager || isLineupPublished || isFinalized;
 
-  // Wasbeurt berekening voor PitchView toolbar
-  const wasbeurtEligible = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
-      .sort((a: Player, b: Player) => (a.wash_count - b.wash_count) || a.name.localeCompare(b.name)),
-    [players, matchAbsences]
-  );
-  const wasbeurtOverrideId = selectedMatch?.wasbeurt_player_id ?? null;
-  const wasbeurtOverridePlayer = wasbeurtOverrideId
-    ? players.find((p: Player) => p.id === wasbeurtOverrideId) ?? null
-    : null;
-  const wasbeurtDisplayPlayer = wasbeurtOverridePlayer ?? wasbeurtEligible[0] ?? null;
-  const wasbeurtIsUnavailable = wasbeurtOverridePlayer
-    ? (wasbeurtOverridePlayer.injured || matchAbsences.includes(wasbeurtOverridePlayer.id))
-    : false;
-  const wasbeurtAllPlayers = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p)).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
-    [players]
-  );
+  const {
+    wasbeurtEligible,
+    wasbeurtOverrideId,
+    wasbeurtOverridePlayer,
+    wasbeurtDisplayPlayer,
+    wasbeurtIsUnavailable,
+    wasbeurtAllPlayers,
+    consumptiesEligible,
+    consumptiesOverrideId,
+    consumptiesOverridePlayer,
+    consumptiesDisplayPlayer,
+    consumptiesIsUnavailable,
+    consumptiesAllPlayers,
+    vervoerCount,
+    vervoerEligible,
+    vervoerOverrideIds,
+    vervoerAllPlayers,
+    vervoerDisplayPlayers,
+  } = useTaskEligibility({ players, matchAbsences, selectedMatch, teamSettings, upcomingConceptMatches, upcomingAbsencesMap });
 
-  // Consumpties berekening voor PitchView toolbar
-  const consumptiesEligible = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
-      .sort((a: Player, b: Player) => (a.consumption_count - b.consumption_count) || a.name.localeCompare(b.name)),
-    [players, matchAbsences]
-  );
-  const consumptiesOverrideId = selectedMatch?.consumpties_player_id ?? null;
-  const consumptiesOverridePlayer = consumptiesOverrideId
-    ? players.find((p: Player) => p.id === consumptiesOverrideId) ?? null
-    : null;
-  const consumptiesDisplayPlayer = consumptiesOverridePlayer ?? consumptiesEligible[0] ?? null;
-  const consumptiesIsUnavailable = consumptiesOverridePlayer
-    ? (consumptiesOverridePlayer.injured || matchAbsences.includes(consumptiesOverridePlayer.id))
-    : false;
-  const consumptiesAllPlayers = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p)).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
-    [players]
-  );
+  const {
+    showExtraSubModal, setShowExtraSubModal,
+    extraSubMinute, setExtraSubMinute,
+    extraSubOut, setExtraSubOut,
+    extraSubIn, setExtraSubIn,
+    addExtraSubstitution, deleteExtraSubstitution,
+  } = useExtraSubstitutionModal({ selectedMatch, matchDuration, fetchSubstitutions });
 
-  // Vervoer berekening voor PitchView toolbar
-  const vervoerCount = teamSettings?.vervoer_count ?? 3;
-  // Simuleer cumulatieve transport-count t/m de geselecteerde wedstrijd (zelfde logica als UitslagenView)
-  // zodat de auto-selectie verandert wanneer je van wedstrijd wisselt.
-  const vervoerEffectiveCounts = useMemo(() => {
-    const counts = new Map<number, number>(players.filter((p: Player) => !p.is_guest).map((p: Player) => [p.id, p.transport_count]));
-    if (!selectedMatch || !(teamSettings?.track_vervoer ?? true)) return counts;
-    for (const match of upcomingConceptMatches) {
-      if (match.id === selectedMatch.id) break;
-      if (match.home_away === 'Thuis') continue;
-      const absentIds = new Set(upcomingAbsencesMap[match.id] ?? []);
-      const available = players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p) && !p.injured && !absentIds.has(p.id));
-      const eligibleList = [...available].sort((a: Player, b: Player) => ((counts.get(a.id) ?? 0) - (counts.get(b.id) ?? 0)) || a.name.localeCompare(b.name));
-      const usedIds = new Set<number>();
-      // Negeer manuele overrides (transport_player_ids) in de simulatie,
-      // zodat een handmatige wijziging niet doorwerkt in andere wedstrijden.
-      for (let i = 0; i < vervoerCount; i++) {
-        const auto = eligibleList.find((p: Player) => !usedIds.has(p.id)) ?? null;
-        if (auto) { counts.set(auto.id, (counts.get(auto.id) ?? 0) + 1); usedIds.add(auto.id); }
-      }
-    }
-    return counts;
-  }, [selectedMatch?.id, upcomingConceptMatches, upcomingAbsencesMap, players, vervoerCount, teamSettings?.track_vervoer]);
-
-  const vervoerEligible = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p) && !p.injured && !matchAbsences.includes(p.id))
-      .sort((a: Player, b: Player) => ((vervoerEffectiveCounts.get(a.id) ?? a.transport_count) - (vervoerEffectiveCounts.get(b.id) ?? b.transport_count)) || a.name.localeCompare(b.name)),
-    [players, matchAbsences, vervoerEffectiveCounts]
-  );
-  const vervoerOverrideIds: number[] = selectedMatch?.transport_player_ids ?? [];
-  const vervoerAllPlayers = useMemo(() =>
-    players.filter((p: Player) => !p.is_guest && isSelectablePlayer(p)).sort((a: Player, b: Player) => a.name.localeCompare(b.name)),
-    [players]
-  );
-  // Bereken welke speler per slot daadwerkelijk getoond wordt (override → eligible)
-  // Iteratief zodat auto-gekozen spelers uit eerdere slots worden overgeslagen
-  const vervoerDisplayPlayers: (Player | null)[] = useMemo(() => {
-    const result: (Player | null)[] = [];
-    const usedIds = new Set<number>();
-    for (let i = 0; i < vervoerCount; i++) {
-      const overrideId = vervoerOverrideIds[i] ?? null;
-      if (overrideId) {
-        const op = players.find((p: Player) => p.id === overrideId) ?? null;
-        if (op && !op.injured && !matchAbsences.includes(op.id)) {
-          result.push(op);
-          usedIds.add(op.id);
-          continue;
-        }
-      }
-      const auto = vervoerEligible.find(p => !usedIds.has(p.id)) ?? null;
-      result.push(auto);
-      if (auto) usedIds.add(auto.id);
-    }
-    return result;
-  }, [vervoerCount, vervoerOverrideIds, vervoerEligible, players, matchAbsences]);
+  const { showGuestModal, setShowGuestModal, handleAddGuest } = useGuestPlayerModal({ selectedMatch, addGuestPlayer, fetchPlayers, fetchGuestSelections });
 
   const canFinalizeMatch = useCallback((): boolean => {
     if (!selectedMatch || !isManager) return false;
@@ -812,21 +748,6 @@ export default function FootballApp() {
     return success;
   };
 
-  const handleAddGuest = async (name: string, position: string) => {
-    if (!selectedMatch) return;
-    const success = await addGuestPlayer(name, position, selectedMatch.id);
-    if (success) {
-      setShowGuestModal(false);
-      await Promise.all([
-        fetchPlayers(selectedMatch.id),
-        fetchGuestSelections(selectedMatch.id),
-      ]);
-      toast.success(`✅ Gastspeler ${name} toegevoegd!`);
-    } else {
-      toast.error('❌ Kon gastspeler niet toevoegen');
-    }
-  };
-
   const handleSaveSubstitutions = async (customMinute?: number) => {
     if (!selectedMatch) return;
     const subMoment = showSubModal; // capture vóór save reset showSubModal naar null
@@ -1076,55 +997,6 @@ export default function FootballApp() {
     // Staff members have no player_id — submitVote handles auth via voter_user_id
     await submitVote(matchId, currentPlayerId, votedForPlayerId, matches);
   }, [currentPlayerId, submitVote, matches]);
-
-  const addExtraSubstitution = useCallback(async (minute: number, playerOutId: number, playerInId: number) => {
-    if (!selectedMatch) return;
-    try {
-      const { error } = await supabase
-        .from('substitutions')
-        .insert({
-          match_id: selectedMatch.id,
-          substitution_number: 0,
-          minute: 0,
-          custom_minute: minute,
-          player_out_id: playerOutId,
-          player_in_id: playerInId,
-          is_extra: true
-        });
-
-      if (error) throw error;
-
-      await fetchSubstitutions(selectedMatch.id);
-      setShowExtraSubModal(false);
-      setExtraSubMinute(Math.floor(matchDuration / 2));
-      setExtraSubOut(null);
-      setExtraSubIn(null);
-      toast.success('✅ Extra wissel toegevoegd!');
-    } catch (error) {
-      console.error('Error adding extra sub:', error);
-      toast.error('❌ Kon wissel niet toevoegen');
-    }
-  }, [selectedMatch, fetchSubstitutions]);
-
-  const deleteExtraSubstitution = useCallback(async (subId: number) => {
-    if (!confirm('Weet je zeker dat je deze extra wissel wilt verwijderen?')) return;
-    try {
-      const { error } = await supabase
-        .from('substitutions')
-        .delete()
-        .eq('id', subId);
-
-      if (error) throw error;
-
-      if (selectedMatch) {
-        await fetchSubstitutions(selectedMatch.id);
-      }
-      toast.success('✅ Extra wissel verwijderd');
-    } catch (error) {
-      console.error('Error deleting extra sub:', error);
-      toast.error('❌ Kon wissel niet verwijderen');
-    }
-  }, [selectedMatch, fetchSubstitutions]);
 
   // ---- LOADING ----
   // Één gecombineerde loading-gate voorkomt dat React twee identieke schermen
@@ -2111,7 +1983,7 @@ function WisselMomentenInfoButton() {
         <>
           <div className="fixed inset-0 z-50" onClick={() => setOpen(false)} />
           <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-sm p-4 bg-gray-800 border border-gray-600 rounded-xl shadow-xl text-xs text-gray-300 space-y-2">
-            <button onClick={() => setOpen(false)} className="absolute top-2 right-2 text-gray-500 hover:text-white text-base leading-none p-1">✕</button>
+            <button onClick={() => setOpen(false)} aria-label="Sluiten" className="absolute top-2 right-2 text-gray-500 hover:text-white text-base leading-none p-1">✕</button>
             <p className="font-semibold text-white">Wat zijn vaste wisselmomenten?</p>
             <p>Vaste wisselmomenten verdelen de wedstrijd in gelijke blokken. Bij 1 wisselmoment spelen de spelers de eerste helft in één opstelling en de tweede helft in een andere. Bij 2 wisselmomenten zijn er 3 blokken, enzovoort — de minuten worden automatisch berekend op basis van de wedstrijdduur.</p>
             <p><strong className="text-white">Per blok stel je een aparte opstelling in.</strong> Je kiest welke speler op welke positie staat voor dat blok. Op het wisselmoment geeft de app automatisch aan dat er gewisseld kan worden.</p>

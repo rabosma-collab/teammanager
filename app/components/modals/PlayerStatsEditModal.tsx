@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Player } from '../../lib/types';
 import PlayerCard from '../PlayerCard';
 import DraggableModal from './DraggableModal';
+import Button from '../ui/Button';
 
 interface PlayerStatsEditModalProps {
   player: Player;
@@ -42,7 +43,7 @@ export default function PlayerStatsEditModal({ player, onUpdateStat, onClose }: 
       <div className="p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold">✏️ Stats - {player.name}</h3>
-          <button onClick={onClose} className="text-xl hover:text-red-500 p-2">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-xl hover:text-red-500 p-2">✕</button>
         </div>
 
         <div className="flex justify-center mb-4">
@@ -76,12 +77,9 @@ export default function PlayerStatsEditModal({ player, onUpdateStat, onClose }: 
           ))}
         </div>
 
-        <button
-          onClick={onClose}
-          className="w-full mt-4 px-4 py-2.5 bg-green-600 hover:bg-green-700 rounded font-bold text-sm"
-        >
+        <Button onClick={onClose} variant="primary" size="lg" className="w-full mt-4">
           ✅ Klaar
-        </button>
+        </Button>
       </div>
     </DraggableModal>
   );

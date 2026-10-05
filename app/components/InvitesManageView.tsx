@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import { getCurrentUser } from '../lib/auth';
 import { positionEmojis } from '../lib/constants';
 
@@ -23,6 +24,7 @@ interface Toast {
 
 export default function InvitesManageView() {
   const { currentTeam } = useTeamContext();
+  const confirm = useConfirm();
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -93,7 +95,7 @@ export default function InvitesManageView() {
 
   const handleRevoke = async (invite: InviteRow) => {
     const label = getDisplayLabel(invite);
-    if (!confirm(`Uitnodiging voor ${label} intrekken? De link werkt dan niet meer.`)) return;
+    if (!(await confirm(`Uitnodiging voor ${label} intrekken? De link werkt dan niet meer.`, { danger: true, confirmLabel: 'Intrekken' }))) return;
 
     setActionId(invite.id);
     try {

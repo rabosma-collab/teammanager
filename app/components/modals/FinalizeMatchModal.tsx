@@ -230,7 +230,7 @@ export default function FinalizeMatchModal({
               {match.opponent} · {new Date(match.date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })}
             </p>
           </div>
-          <button onClick={onClose} className="text-2xl hover:text-red-400 p-1 transition">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-400 p-1 transition">✕</button>
         </div>
 
         {/* Stap-indicator */}

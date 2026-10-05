@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { formationLabels } from '../../lib/constants';
 import type { Match } from '../../lib/types';
 import DraggableModal from './DraggableModal';
+import Button from '../ui/Button';
 
 export interface MatchFormData {
   date: string;
@@ -57,7 +58,7 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
           <h2 className="text-lg sm:text-xl font-bold">
             {match ? '✏️ Wedstrijd bewerken' : '➕ Nieuwe wedstrijd'}
           </h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500 p-2">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500 p-2">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -204,19 +205,12 @@ export default function MatchEditModal({ match, gameFormat, defaultFormation = '
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button
-              type="submit"
-              className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 rounded font-bold text-sm"
-            >
+            <Button type="submit" variant="primary" size="lg" className="flex-1">
               {match ? '💾 Opslaan' : '➕ Toevoegen'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-3 bg-gray-600 hover:bg-gray-700 rounded font-bold text-sm"
-            >
+            </Button>
+            <Button type="button" variant="secondary" size="lg" onClick={onClose}>
               Annuleren
-            </button>
+            </Button>
           </div>
         </form>
       </div>

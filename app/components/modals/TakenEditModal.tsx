@@ -5,6 +5,7 @@ import type { Match, Player, TeamSettings } from '../../lib/types';
 import { isSelectablePlayer } from '../../lib/constants';
 import { computeEffectiveCountsBefore } from '../../lib/taskAssignment';
 import TakenBlok from '../TakenBlok';
+import Button from '../ui/Button';
 
 interface TakenEditModalProps {
   match: Match;
@@ -169,7 +170,7 @@ export default function TakenEditModal({
         )}
 
         <div className="mt-3 flex justify-end">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-bold">Klaar</button>
+          <Button onClick={onClose} variant="secondary">Klaar</Button>
         </div>
       </div>
     </div>

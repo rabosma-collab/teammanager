@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import DraggableModal from './DraggableModal';
+import Button from '../ui/Button';
 import { supabase } from '../../lib/supabase';
 import { useTeamContext } from '../../contexts/TeamContext';
 
@@ -255,7 +256,7 @@ export default function ProfileModal({ onClose, onPlayerUpdated, onLogout, welco
               {welcomeMode ? 'Stel je profiel in' : 'Mijn profiel'}
             </h2>
           </div>
-          <button onClick={onClose} className="text-2xl hover:text-red-500 p-2">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500 p-2">✕</button>
         </div>
 
         {/* Avatar */}
@@ -336,21 +337,19 @@ export default function ProfileModal({ onClose, onPlayerUpdated, onLogout, welco
           )}
 
           <div className="flex gap-3 pt-2">
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="lg"
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded font-bold text-sm"
+              className="flex-1"
             >
               {saving ? 'Opslaan...' : 'Opslaan'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-3 bg-gray-600 hover:bg-gray-700 rounded font-bold text-sm"
-            >
+            </Button>
+            <Button type="button" variant="secondary" size="lg" onClick={onClose}>
               Sluiten
-            </button>
+            </Button>
           </div>
 
           {onLogout && (

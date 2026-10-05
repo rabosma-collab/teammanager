@@ -2,6 +2,7 @@ import React from 'react';
 import { positionOrder, positionEmojis, isSelectablePlayer } from '../../lib/constants';
 import type { Player, Match, Substitution } from '../../lib/types';
 import { useTeamContext } from '../../contexts/TeamContext';
+import Button from '../ui/Button';
 
 interface MatchSelectionModalProps {
   players: Player[];
@@ -215,12 +216,9 @@ export default function MatchSelectionModal({
 
         {/* Footer */}
         <div className="p-4 border-t border-gray-700 flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 rounded-xl bg-gray-700 hover:bg-gray-600 font-bold text-sm"
-          >
+          <Button onClick={onClose} variant="secondary" size="lg" className="w-full">
             Sluiten
-          </button>
+          </Button>
         </div>
       </div>
     </div>

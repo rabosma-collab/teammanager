@@ -4,6 +4,8 @@ import type { Player } from '../lib/types';
 import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
+import Button from './ui/Button';
 import PlayerEditModal, { type PlayerFormData } from './modals/PlayerEditModal';
 import InvitePlayerModal from './modals/InvitePlayerModal';
 import InviteStaffModal from './modals/InviteStaffModal';
@@ -62,6 +64,7 @@ export default function PlayersManageView({
 }: PlayersManageViewProps) {
   const { currentTeam } = useTeamContext();
   const toast = useToast();
+  const confirm = useConfirm();
   const [editingPlayer, setEditingPlayer] = useState<Player | null | 'new'>(null);
   const [invitingPlayer, setInvitingPlayer] = useState<Player | null>(null);
   const [showStaffInviteModal, setShowStaffInviteModal] = useState(false);
@@ -195,7 +198,7 @@ export default function PlayersManageView({
   };
 
   const handleRemoveFromPool = async (entry: GuestPoolEntry) => {
-    if (!confirm(`"${entry.name}" verwijderen uit de pool?`)) return;
+    if (!(await confirm(`"${entry.name}" verwijderen uit de pool?`, { danger: true, confirmLabel: 'Verwijderen' }))) return;
     setRemovingPoolId(entry.id);
     const success = await onRemoveFromPool(entry.id);
     if (!success) toast.error('❌ Kon niet verwijderen uit pool');
@@ -224,7 +227,7 @@ export default function PlayersManageView({
   };
 
   const handleDelete = async (player: Player) => {
-    if (!confirm(`Weet je het zeker dat je ${player.name} wilt verwijderen? Dit verwijdert ook alle gerelateerde opstellingen, wissels en afwezigheden.`)) return;
+    if (!(await confirm(`Weet je het zeker dat je ${player.name} wilt verwijderen? Dit verwijdert ook alle gerelateerde opstellingen, wissels en afwezigheden.`, { danger: true, confirmLabel: 'Verwijderen' }))) return;
     const success = await onDeletePlayer(player.id);
     if (success) toast.success('✅ Speler verwijderd!');
     else toast.error('❌ Kon speler niet verwijderen');
@@ -291,9 +294,9 @@ export default function PlayersManageView({
     }
 
     if (newRole === 'manager') {
-      if (!confirm(`Geef ${displayLabel} manager rechten? Ze kunnen dan alles bewerken.`)) return;
+      if (!(await confirm(`Geef ${displayLabel} manager rechten? Ze kunnen dan alles bewerken.`, { confirmLabel: 'Doorgaan' }))) return;
     } else {
-      if (!confirm(`${displayLabel} kan dan alleen nog lezen, niet bewerken. Doorgaan?`)) return;
+      if (!(await confirm(`${displayLabel} kan dan alleen nog lezen, niet bewerken. Doorgaan?`, { confirmLabel: 'Doorgaan' }))) return;
     }
 
     setTogglingMemberId(account.memberId);
@@ -332,7 +335,7 @@ export default function PlayersManageView({
 
   const handleUnlinkAccount = async (playerId: number, account: PlayerAccount, displayLabel: string) => {
     if (!currentTeam) return;
-    if (!confirm(`Account "${displayLabel}" ontkoppelen van dit spelersprofiel?`)) return;
+    if (!(await confirm(`Account "${displayLabel}" ontkoppelen van dit spelersprofiel?`, { danger: true, confirmLabel: 'Ontkoppelen' }))) return;
 
     setUnlinkingMemberId(account.memberId);
     try {
@@ -370,9 +373,9 @@ export default function PlayersManageView({
         toast.error('Er moet minimaal 1 manager in het team blijven');
         return;
       }
-      if (!confirm(`${staff.displayName ?? 'Staflid'} kan dan alleen nog lezen, niet bewerken. Doorgaan?`)) return;
+      if (!(await confirm(`${staff.displayName ?? 'Staflid'} kan dan alleen nog lezen, niet bewerken. Doorgaan?`, { confirmLabel: 'Doorgaan' }))) return;
     } else {
-      if (!confirm(`Geef ${staff.displayName ?? 'staflid'} manager rechten? Ze kunnen dan alles bewerken.`)) return;
+      if (!(await confirm(`Geef ${staff.displayName ?? 'staflid'} manager rechten? Ze kunnen dan alles bewerken.`, { confirmLabel: 'Doorgaan' }))) return;
     }
 
     setTogglingStaffId(staff.memberId);
@@ -399,7 +402,7 @@ export default function PlayersManageView({
 
   const handleRemoveStaff = async (staff: StaffMember) => {
     if (!currentTeam) return;
-    if (!confirm(`${staff.displayName ?? 'Staflid'} verwijderen uit het team?`)) return;
+    if (!(await confirm(`${staff.displayName ?? 'Staflid'} verwijderen uit het team?`, { danger: true, confirmLabel: 'Verwijderen' }))) return;
 
     setRemovingStaffId(staff.memberId);
     try {
@@ -420,7 +423,7 @@ export default function PlayersManageView({
   };
 
   const handleRevokeStaffInvite = async (invite: PendingStaffInvite) => {
-    if (!confirm(`Uitnodiging voor ${invite.displayName ?? 'staflid'} intrekken?`)) return;
+    if (!(await confirm(`Uitnodiging voor ${invite.displayName ?? 'staflid'} intrekken?`, { danger: true, confirmLabel: 'Intrekken' }))) return;
 
     setRevokingStaffToken(invite.token);
     try {
@@ -452,13 +455,10 @@ export default function PlayersManageView({
             <span>📂</span>
             <span className="hidden sm:inline">Importeer CSV</span>
           </button>
-          <button
-            onClick={() => setEditingPlayer('new')}
-            className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm flex items-center gap-1.5"
-          >
+          <Button onClick={() => setEditingPlayer('new')} variant="primary" className="flex items-center gap-1.5">
             <span>➕</span>
             <span className="hidden sm:inline">Nieuwe speler</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -859,13 +859,13 @@ export default function PlayersManageView({
             placeholder="Naam gastspeler..."
             className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
           />
-          <button
+          <Button
             onClick={handleAddToPool}
             disabled={addingToPool}
-            className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded font-bold text-sm"
+            variant="primary"
           >
             ➕
-          </button>
+          </Button>
         </div>
 
         {guestPool.length === 0 ? (

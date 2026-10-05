@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import DraggableModal from './DraggableModal';
+import Button from '../ui/Button';
 import type { Player, TeamSettings } from '../../lib/types';
 import {
   generateAutoLineup,
@@ -164,9 +165,9 @@ export default function AutoLineupWizard({
             <p className="font-semibold mb-1">Geen minutenregistratie actief</p>
             <p>Schakel in teaminstellingen &apos;Wisselminuten&apos; of &apos;Gespeelde minuten&apos; in om de auto-opstelling te kunnen gebruiken.</p>
           </div>
-          <button onClick={onClose} className="w-full py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition">
+          <Button onClick={onClose} variant="secondary" size="lg" className="w-full">
             Sluiten
-          </button>
+          </Button>
         </div>
       </DraggableModal>
     );

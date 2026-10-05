@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { positionOrder, positionEmojis } from '../../lib/constants';
 import { useToast } from '../../contexts/ToastContext';
 import DraggableModal from './DraggableModal';
+import Button from '../ui/Button';
 import type { GuestPoolEntry } from '../../hooks/usePlayers';
 import type { Player } from '../../lib/types';
 
@@ -40,7 +41,7 @@ export default function GuestPlayerModal({ guestPool, rosterGuests, onAdd, onSel
       <div className="p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">👤 Gastspeler toevoegen</h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500">✕</button>
+          <button onClick={onClose} aria-label="Sluiten" className="text-2xl hover:text-red-500">✕</button>
         </div>
 
         {rosterGuests.length > 0 && (
@@ -114,18 +115,12 @@ export default function GuestPlayerModal({ guestPool, rosterGuests, onAdd, onSel
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={handleAdd}
-              className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-bold"
-            >
+            <Button onClick={handleAdd} variant="primary" className="flex-1">
               ✅ Toevoegen
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded font-bold"
-            >
+            </Button>
+            <Button onClick={onClose} variant="secondary">
               Annuleren
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -57,7 +57,7 @@ export default function PlayerStatsView({ players, isAdmin, onUpdateStat }: Play
           <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold">✏️ Stats bewerken - {editingPlayer.name}</h3>
-              <button onClick={() => setEditingPlayer(null)} className="text-xl hover:text-red-500 p-2">✕</button>
+              <button onClick={() => setEditingPlayer(null)} aria-label="Sluiten" className="text-xl hover:text-red-500 p-2">✕</button>
             </div>
 
             <div className="flex justify-center mb-4">
