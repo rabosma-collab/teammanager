@@ -51,6 +51,7 @@ import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { useSeasons } from './hooks/useSeasons';
 import { useTaskEligibility } from './hooks/useTaskEligibility';
 import { useExtraSubstitutionModal } from './hooks/useExtraSubstitutionModal';
+import { useGuestPlayerModal } from './hooks/useGuestPlayerModal';
 
 // Components
 import Navbar from './components/Navbar';
@@ -127,7 +128,6 @@ export default function FootballApp() {
   const [isEditingLineup, setIsEditingLineup] = useState(false);
   const wasPublishedBeforeEdit = useRef(false);
   const [isEditingMatchInstruction, setIsEditingMatchInstruction] = useState(false);
-  const [showGuestModal, setShowGuestModal] = useState(false);
 
   const [showTooltip, setShowTooltip] = useState<number | null>(null);
   const [instructionFormation, setInstructionFormation] = useState('4-3-3-aanvallend');
@@ -263,6 +263,8 @@ export default function FootballApp() {
     extraSubIn, setExtraSubIn,
     addExtraSubstitution, deleteExtraSubstitution,
   } = useExtraSubstitutionModal({ selectedMatch, matchDuration, fetchSubstitutions });
+
+  const { showGuestModal, setShowGuestModal, handleAddGuest } = useGuestPlayerModal({ selectedMatch, addGuestPlayer, fetchPlayers, fetchGuestSelections });
 
   const canFinalizeMatch = useCallback((): boolean => {
     if (!selectedMatch || !isManager) return false;
@@ -744,21 +746,6 @@ export default function FootballApp() {
       toast.error('❌ Kon opstelling niet opslaan');
     }
     return success;
-  };
-
-  const handleAddGuest = async (name: string, position: string) => {
-    if (!selectedMatch) return;
-    const success = await addGuestPlayer(name, position, selectedMatch.id);
-    if (success) {
-      setShowGuestModal(false);
-      await Promise.all([
-        fetchPlayers(selectedMatch.id),
-        fetchGuestSelections(selectedMatch.id),
-      ]);
-      toast.success(`✅ Gastspeler ${name} toegevoegd!`);
-    } else {
-      toast.error('❌ Kon gastspeler niet toevoegen');
-    }
   };
 
   const handleSaveSubstitutions = async (customMinute?: number) => {
