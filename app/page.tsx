@@ -50,6 +50,7 @@ import { useActivityLog } from './hooks/useActivityLog';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { useSeasons } from './hooks/useSeasons';
 import { useTaskEligibility } from './hooks/useTaskEligibility';
+import { useExtraSubstitutionModal } from './hooks/useExtraSubstitutionModal';
 
 // Components
 import Navbar from './components/Navbar';
@@ -137,11 +138,7 @@ export default function FootballApp() {
   const [finalizeGoalsFor, setFinalizeGoalsFor] = useState<string>('');
   const [finalizeGoalsAgainst, setFinalizeGoalsAgainst] = useState<string>('');
   const [recentStatsMap, setRecentStatsMap] = useState<Record<number, MatchPlayerStats[]>>({});
-  const [showExtraSubModal, setShowExtraSubModal] = useState(false);
   const [showPrevLineupInfo, setShowPrevLineupInfo] = useState(false);
-  const [extraSubMinute, setExtraSubMinute] = useState(45);
-  const [extraSubOut, setExtraSubOut] = useState<Player | null>(null);
-  const [extraSubIn, setExtraSubIn] = useState<Player | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<number | null>(null);
   const [activeDragPlayer, setActiveDragPlayer] = useState<Player | null>(null);
   const [showAutoLineupWizard, setShowAutoLineupWizard] = useState(false);
@@ -258,6 +255,14 @@ export default function FootballApp() {
     vervoerAllPlayers,
     vervoerDisplayPlayers,
   } = useTaskEligibility({ players, matchAbsences, selectedMatch, teamSettings, upcomingConceptMatches, upcomingAbsencesMap });
+
+  const {
+    showExtraSubModal, setShowExtraSubModal,
+    extraSubMinute, setExtraSubMinute,
+    extraSubOut, setExtraSubOut,
+    extraSubIn, setExtraSubIn,
+    addExtraSubstitution, deleteExtraSubstitution,
+  } = useExtraSubstitutionModal({ selectedMatch, matchDuration, fetchSubstitutions });
 
   const canFinalizeMatch = useCallback((): boolean => {
     if (!selectedMatch || !isManager) return false;
@@ -1005,55 +1010,6 @@ export default function FootballApp() {
     // Staff members have no player_id — submitVote handles auth via voter_user_id
     await submitVote(matchId, currentPlayerId, votedForPlayerId, matches);
   }, [currentPlayerId, submitVote, matches]);
-
-  const addExtraSubstitution = useCallback(async (minute: number, playerOutId: number, playerInId: number) => {
-    if (!selectedMatch) return;
-    try {
-      const { error } = await supabase
-        .from('substitutions')
-        .insert({
-          match_id: selectedMatch.id,
-          substitution_number: 0,
-          minute: 0,
-          custom_minute: minute,
-          player_out_id: playerOutId,
-          player_in_id: playerInId,
-          is_extra: true
-        });
-
-      if (error) throw error;
-
-      await fetchSubstitutions(selectedMatch.id);
-      setShowExtraSubModal(false);
-      setExtraSubMinute(Math.floor(matchDuration / 2));
-      setExtraSubOut(null);
-      setExtraSubIn(null);
-      toast.success('✅ Extra wissel toegevoegd!');
-    } catch (error) {
-      console.error('Error adding extra sub:', error);
-      toast.error('❌ Kon wissel niet toevoegen');
-    }
-  }, [selectedMatch, fetchSubstitutions]);
-
-  const deleteExtraSubstitution = useCallback(async (subId: number) => {
-    if (!(await confirm('Weet je zeker dat je deze extra wissel wilt verwijderen?', { danger: true, confirmLabel: 'Verwijderen' }))) return;
-    try {
-      const { error } = await supabase
-        .from('substitutions')
-        .delete()
-        .eq('id', subId);
-
-      if (error) throw error;
-
-      if (selectedMatch) {
-        await fetchSubstitutions(selectedMatch.id);
-      }
-      toast.success('✅ Extra wissel verwijderd');
-    } catch (error) {
-      console.error('Error deleting extra sub:', error);
-      toast.error('❌ Kon wissel niet verwijderen');
-    }
-  }, [selectedMatch, fetchSubstitutions, confirm]);
 
   // ---- LOADING ----
   // Één gecombineerde loading-gate voorkomt dat React twee identieke schermen
