@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useTeamContext } from '../contexts/TeamContext';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
+import Button from './ui/Button';
 import PlayerEditModal, { type PlayerFormData } from './modals/PlayerEditModal';
 import InvitePlayerModal from './modals/InvitePlayerModal';
 import InviteStaffModal from './modals/InviteStaffModal';
@@ -454,13 +455,10 @@ export default function PlayersManageView({
             <span>📂</span>
             <span className="hidden sm:inline">Importeer CSV</span>
           </button>
-          <button
-            onClick={() => setEditingPlayer('new')}
-            className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm flex items-center gap-1.5"
-          >
+          <Button onClick={() => setEditingPlayer('new')} variant="primary" className="flex items-center gap-1.5">
             <span>➕</span>
             <span className="hidden sm:inline">Nieuwe speler</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -861,13 +859,13 @@ export default function PlayersManageView({
             placeholder="Naam gastspeler..."
             className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm"
           />
-          <button
+          <Button
             onClick={handleAddToPool}
             disabled={addingToPool}
-            className="px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded font-bold text-sm"
+            variant="primary"
           >
             ➕
-          </button>
+          </Button>
         </div>
 
         {guestPool.length === 0 ? (

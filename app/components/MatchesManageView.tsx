@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { formationLabels, displayScore } from '../lib/constants';
 import type { Match } from '../lib/types';
+import Button from './ui/Button';
+import EmptyState from './ui/EmptyState';
 import MatchEditModal, { type MatchFormData } from './modals/MatchEditModal';
 import { useToast } from '../contexts/ToastContext';
 import { useTeamContext } from '../contexts/TeamContext';
@@ -141,13 +143,10 @@ export default function MatchesManageView({
     <div className="p-4 sm:p-8 overflow-y-auto flex-1">
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <h2 className="text-2xl sm:text-3xl font-bold">📅 Wedstrijdenbeheer</h2>
-        <button
-          onClick={() => setEditingMatch('new')}
-          className="px-3 py-2 bg-green-600 hover:bg-green-700 rounded font-bold text-sm flex items-center gap-1.5"
-        >
+        <Button onClick={() => setEditingMatch('new')} variant="primary" className="flex items-center gap-1.5">
           <span>➕</span>
           <span className="hidden sm:inline">Nieuwe wedstrijd</span>
-        </button>
+        </Button>
       </div>
 
       {editingMatch !== null && (
@@ -246,12 +245,9 @@ export default function MatchesManageView({
             </div>
 
             <div className="flex gap-2 px-5 pb-5">
-              <button
-                onClick={() => setCancellingMatch(null)}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm"
-              >
+              <Button onClick={() => setCancellingMatch(null)} variant="secondary">
                 Terug
-              </button>
+              </Button>
               <button
                 onClick={handleCancelConfirm}
                 className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded font-bold text-sm"
@@ -328,12 +324,9 @@ export default function MatchesManageView({
             </div>
 
             <div className="flex gap-2 px-5 pb-5">
-              <button
-                onClick={() => setEditingScoreMatch(null)}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded font-bold text-sm"
-              >
+              <Button onClick={() => setEditingScoreMatch(null)} variant="secondary">
                 Annuleren
-              </button>
+              </Button>
               <button
                 onClick={handleSaveScore}
                 className="flex-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded font-bold text-sm"
@@ -347,7 +340,7 @@ export default function MatchesManageView({
 
       <div className="bg-gray-800 rounded-lg overflow-hidden">
         {sortedMatches.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">Geen wedstrijden</div>
+          <EmptyState>Geen wedstrijden</EmptyState>
         ) : (
           sortedMatches.map(match => {
             const matchDate = new Date(match.date);

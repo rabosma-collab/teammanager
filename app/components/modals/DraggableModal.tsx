@@ -21,12 +21,44 @@ export default function DraggableModal({ onClose, children, className = '' }: Dr
   const dragPos = useRef<{ x: number; y: number } | null>(null);
   const offset = useRef({ x: 0, y: 0 });
   const modalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // Blokkeer body-scroll terwijl modal open is (voorkomt scrollen op mobiel)
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // Toegankelijkheid: initiële focus, Escape sluit, Tab blijft binnen de modal.
+  useEffect(() => {
+    const el = modalRef.current;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const selector = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const getItems = () => el ? Array.from(el.querySelectorAll<HTMLElement>(selector)).filter(n => n.offsetParent !== null) : [];
+
+    // Zet focus binnen de modal, tenzij een autoFocus-veld dat al deed.
+    if (el && !el.contains(document.activeElement)) {
+      (getItems()[0] ?? el).focus();
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onCloseRef.current?.(); return; }
+      if (e.key !== 'Tab' || !el) return;
+      const items = getItems();
+      if (items.length === 0) { e.preventDefault(); el.focus(); return; }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === el)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previouslyFocused?.focus?.();
+    };
   }, []);
 
   // Registreer globale move/end-listeners éénmalig (via refs – geen stale-closure problemen)
@@ -83,7 +115,10 @@ export default function DraggableModal({ onClose, children, className = '' }: Dr
       {/* Sleepbare modal-container */}
       <div
         ref={modalRef}
-        className={`fixed z-50 bg-gray-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(90dvh-2rem)] ${className}`}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className={`fixed z-50 bg-gray-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(90dvh-2rem)] focus:outline-none ${className}`}
         style={style}
       >
         {/* Drag handle */}
